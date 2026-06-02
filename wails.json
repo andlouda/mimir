@@ -11,5 +11,12 @@
     "name": "mimir-contributors",
     "email": ""
   },
+  "info": {
+    "companyName": "mimir-contributors",
+    "productName": "Mimir",
+    "productVersion": "0.1.1",
+    "copyright": "Copyright © 2026 mimir-contributors",
+    "comments": "Open-source terminal and SSH session manager (https://github.com/andlouda/mimir)"
+  },
   "assetdir": "./templates"
 }
