@@ -1,0 +1,13 @@
+{
+  "name": "Error Log Search",
+  "description": "Sucht in Log-Dateien nach Fehlern und Exceptions.",
+  "category": "Diagnostics",
+  "commands": {
+    "bash": "grep -i -E '(error|exception)' *.log",
+    "cmd": "findstr /i \"error\" *.log && findstr /i \"exception\" *.log",
+    "powershell": "Get-ChildItem -Filter '*.log' | Select-String -Pattern 'error|exception' -CaseSensitive:$false",
+    "wsl": "grep -i -E '(error|exception)' *.log",
+    "zsh": "grep -i -E '(error|exception)' *.log"
+  },
+  "favorite": false
+}

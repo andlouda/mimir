@@ -1,0 +1,212 @@
+/* Global resets & xterm overrides */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: #0c0e14;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(99, 179, 237, 0.3);
+  color: #e2e8f0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 179, 237, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 179, 237, 0.4);
+}
+
+.xterm-viewport, .xterm-screen {
+  padding: 0;
+  margin: 0;
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+/* ─── TERMINAL PANE STYLES (shared with SplitPane.svelte) ─── */
+
+.terminal-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-void);
+  width: 100%;
+  min-height: 0;
+  transition: box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.terminal-wrapper.active-terminal {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+.terminal-header {
+  background: var(--bg-deep);
+  color: var(--text-secondary);
+  padding: 0 0.55rem;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  cursor: grab;
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 0.5rem;
+}
+
+.terminal-header:active {
+  cursor: grabbing;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.terminal-type-badge {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  border: 1px solid var(--border-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.terminal-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+  font-size: 0.78rem;
+  min-width: 0;
+  color: var(--text-secondary);
+  transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.terminal-name:hover {
+  color: var(--text-primary);
+}
+
+.name-input {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  outline: none;
+  min-width: 0;
+  flex: 1;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.header-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border-dim);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+.header-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  line-height: 1;
+}
+
+.header-btn:hover {
+  background: var(--bg-overlay);
+  color: var(--text-primary);
+}
+
+.header-btn.split-btn:hover {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+.header-btn.close-btn:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+.terminal-container {
+  flex-grow: 1;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.terminal {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ─── DRAG & DROP ──────────────────────────────────────── */
+
+.dragging {
+  opacity: 0.4;
+}
+
+.drag-over-top {
+  border-top: 2px solid var(--accent) !important;
+}
+
+.drag-over-bottom {
+  border-bottom: 2px solid var(--accent) !important;
+}

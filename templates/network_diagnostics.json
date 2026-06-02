@@ -1,0 +1,13 @@
+{
+  "name": "Network Diagnostics",
+  "description": "Zeigt Adapter, IP-Konfiguration und offene Listener.",
+  "category": "Network",
+  "commands": {
+    "bash": "ip addr show && echo && ss -tulpen",
+    "cmd": "ipconfig /all && echo. && netstat -an | findstr LISTEN",
+    "powershell": "Get-NetIPConfiguration; Get-NetTCPConnection | Where-Object {$_.State -eq 'Listen'} | Select-Object LocalAddress, LocalPort",
+    "wsl": "ip addr show && echo && ss -tulpen",
+    "zsh": "ip addr show && echo && ss -tulpen"
+  },
+  "favorite": false
+}

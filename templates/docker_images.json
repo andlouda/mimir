@@ -1,0 +1,13 @@
+{
+  "name": "Docker Images",
+  "description": "Listet lokal verfügbare Docker-Images auf.",
+  "category": "Containers",
+  "commands": {
+    "bash": "docker images",
+    "cmd": "docker images",
+    "powershell": "docker images",
+    "wsl": "docker images",
+    "zsh": "docker images"
+  },
+  "favorite": false
+}

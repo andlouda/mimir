@@ -1,0 +1,10 @@
+{
+  "name": "Windows Environment Variable",
+  "description": "Liest eine Windows-Umgebungsvariable aus.",
+  "category": "Windows",
+  "commands": {
+    "cmd": "echo %{{.VariableName}}%",
+    "powershell": "Get-Item Env:{{.VariableName}}"
+  },
+  "favorite": false
+}

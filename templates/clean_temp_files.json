@@ -1,0 +1,15 @@
+{
+  "name": "Clean Temp Files",
+  "description": "Löscht temporäre Dateien und typische lokale Cache-Reste.",
+  "category": "Storage",
+  "toolEnabled": false,
+  "dangerLevel": "high",
+  "commands": {
+    "bash": "find . -name '*.tmp' -o -name '*.log' -o -name '*.bak' -delete \u0026\u0026 rm -rf /tmp/*",
+    "cmd": "del /s /q %temp%\\*.* \u0026\u0026 del /s /q *.tmp *.log *.bak",
+    "powershell": "Remove-Item -Path $env:TEMP\\* -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path .\\*.tmp, .\\*.log, .\\*.bak -Force -ErrorAction SilentlyContinue",
+    "wsl": "find . -name '*.tmp' -o -name '*.log' -o -name '*.bak' -delete \u0026\u0026 rm -rf /tmp/*",
+    "zsh": "find . -name '*.tmp' -o -name '*.log' -o -name '*.bak' -delete \u0026\u0026 rm -rf /tmp/*"
+  },
+  "favorite": false
+}

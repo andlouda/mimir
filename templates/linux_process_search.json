@@ -1,0 +1,11 @@
+{
+  "name": "Linux Process Search",
+  "description": "Sucht auf Linux nach Prozessen anhand eines Namens oder Teilstrings.",
+  "category": "Linux",
+  "commands": {
+    "bash": "ps aux | grep -i {{.ProcessName}} | grep -v grep",
+    "wsl": "ps aux | grep -i {{.ProcessName}} | grep -v grep",
+    "zsh": "ps aux | grep -i {{.ProcessName}} | grep -v grep"
+  },
+  "favorite": false
+}

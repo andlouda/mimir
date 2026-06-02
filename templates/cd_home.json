@@ -1,0 +1,15 @@
+{
+  "name": "CD Home",
+  "description": "Changes directory to the user's home directory.",
+  "category": "Navigation",
+  "toolEnabled": true,
+  "dangerLevel": "low",
+  "commands": {
+    "bash": "cd ~",
+    "cmd": "cd %USERPROFILE%",
+    "powershell": "Set-Location ~",
+    "wsl": "cd ~",
+    "zsh": "cd ~"
+  },
+  "favorite": false
+}

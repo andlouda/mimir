@@ -1,0 +1,11 @@
+{
+  "name": "Linux Journal Errors",
+  "description": "Zeigt aktuelle Fehler aus dem systemd-Journal an.",
+  "category": "Linux",
+  "commands": {
+    "bash": "journalctl -p err -n 50 --no-pager",
+    "wsl": "journalctl -p err -n 50 --no-pager",
+    "zsh": "journalctl -p err -n 50 --no-pager"
+  },
+  "favorite": false
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Linux Kill Process",
+  "description": "Beendet einen Linux-Prozess anhand seiner PID.",
+  "category": "Linux",
+  "dangerLevel": "medium",
+  "commands": {
+    "bash": "kill -9 {{.ProcessId}}",
+    "wsl": "kill -9 {{.ProcessId}}",
+    "zsh": "kill -9 {{.ProcessId}}"
+  },
+  "favorite": false
+}

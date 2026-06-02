@@ -1,0 +1,13 @@
+{
+  "name": "Backup Directory",
+  "description": "Erstellt ein Archiv des aktuellen Verzeichnisses mit Zeitstempel.",
+  "category": "Storage",
+  "commands": {
+    "cmd": "powershell Compress-Archive -Path * -DestinationPath backup_{{.Hostname}}_%date:~-4,4%%date:~-10,2%%date:~-7,2%.zip",
+    "powershell": "$date = Get-Date -Format 'yyyyMMdd_HHmmss'; Compress-Archive -Path * -DestinationPath \"backup_{{.Hostname}}_$date.zip\"",
+    "bash": "tar -czf backup_{{.Hostname}}_$(date +%Y%m%d_%H%M%S).tar.gz *",
+    "wsl": "tar -czf backup_{{.Hostname}}_$(date +%Y%m%d_%H%M%S).tar.gz *",
+    "zsh": "tar -czf backup_{{.Hostname}}_$(date +%Y%m%d_%H%M%S).tar.gz *"
+  },
+  "favorite": false
+}

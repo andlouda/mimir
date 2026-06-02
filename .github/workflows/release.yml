@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without leading v"
+        required: true
+        default: "0.1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_pattern: build/release/mimir-windows-amd64-*.zip
+          - os: ubuntu-22.04
+            artifact_pattern: build/release/mimir-linux-amd64-*.tar.gz
+          - os: macos-latest
+            artifact_pattern: build/release/mimir-darwin-universal-*.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config build-essential
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Windows artifact
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: .\scripts\release-local.ps1 -Version "${{ steps.version.outputs.version }}" -UpdateRepository "${{ github.repository }}" -SkipChecks
+
+      - name: Build Linux artifact
+        if: runner.os == 'Linux'
+        run: ./scripts/release-linux.sh "${{ steps.version.outputs.version }}" --update-repo="${{ github.repository }}" --skip-audit
+
+      - name: Build macOS artifact
+        if: runner.os == 'macOS'
+        run: ./scripts/release-macos.sh "${{ steps.version.outputs.version }}" --update-repo="${{ github.repository }}" --skip-audit
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mimir-${{ runner.os }}
+          path: |
+            ${{ matrix.artifact_pattern }}
+            build/release/checksums.txt
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            TAG="v$VERSION"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Merge checksums
+        shell: bash
+        run: |
+          mkdir -p release
+          find release-artifacts -type f ! -name checksums.txt -exec cp {} release/ \;
+          find release-artifacts -type f -name checksums.txt -exec cat {} \; | sort -u > release/checksums.txt
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Mimir ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: release/*

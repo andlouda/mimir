@@ -1,0 +1,13 @@
+{
+  "name": "Current Directory Size",
+  "description": "Zeigt die Gesamtgröße des aktuellen Verzeichnisses an.",
+  "category": "Storage",
+  "commands": {
+    "bash": "du -sh .",
+    "cmd": "powershell \"(Get-ChildItem . -Recurse -File | Measure-Object Length -Sum).Sum / 1MB\"",
+    "powershell": "[math]::Round(((Get-ChildItem . -Recurse -File | Measure-Object Length -Sum).Sum / 1MB), 2)",
+    "wsl": "du -sh .",
+    "zsh": "du -sh ."
+  },
+  "favorite": false
+}

@@ -1,0 +1,15 @@
+{
+  "name": "DNS Lookup",
+  "description": "Löst einen Hostnamen auf und zeigt DNS-Informationen an.",
+  "category": "Network",
+  "toolEnabled": true,
+  "dangerLevel": "low",
+  "commands": {
+    "bash": "nslookup openai.com || dig openai.com",
+    "cmd": "nslookup openai.com",
+    "powershell": "Resolve-DnsName openai.com",
+    "wsl": "nslookup openai.com || dig openai.com",
+    "zsh": "nslookup openai.com || dig openai.com"
+  },
+  "favorite": false
+}

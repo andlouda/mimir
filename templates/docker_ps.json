@@ -1,0 +1,13 @@
+{
+  "name": "Docker Containers",
+  "description": "Zeigt laufende Docker-Container an.",
+  "category": "Containers",
+  "commands": {
+    "bash": "docker ps",
+    "cmd": "docker ps",
+    "powershell": "docker ps",
+    "wsl": "docker ps",
+    "zsh": "docker ps"
+  },
+  "favorite": false
+}

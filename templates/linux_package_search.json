@@ -1,0 +1,11 @@
+{
+  "name": "Linux Package Search",
+  "description": "Sucht ein Paket über den verfügbaren Paketmanager.",
+  "category": "Linux",
+  "commands": {
+    "bash": "if command -v apt-cache >/dev/null 2>&1; then apt-cache search {{.PackageName}}; elif command -v dnf >/dev/null 2>&1; then dnf search {{.PackageName}}; elif command -v yum >/dev/null 2>&1; then yum search {{.PackageName}}; else echo 'No supported package manager found'; fi",
+    "wsl": "if command -v apt-cache >/dev/null 2>&1; then apt-cache search {{.PackageName}}; elif command -v dnf >/dev/null 2>&1; then dnf search {{.PackageName}}; elif command -v yum >/dev/null 2>&1; then yum search {{.PackageName}}; else echo 'No supported package manager found'; fi",
+    "zsh": "if command -v apt-cache >/dev/null 2>&1; then apt-cache search {{.PackageName}}; elif command -v dnf >/dev/null 2>&1; then dnf search {{.PackageName}}; elif command -v yum >/dev/null 2>&1; then yum search {{.PackageName}}; else echo 'No supported package manager found'; fi"
+  },
+  "favorite": false
+}

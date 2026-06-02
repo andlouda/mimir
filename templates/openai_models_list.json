@@ -1,0 +1,14 @@
+{
+  "name": "OpenAI Models List",
+  "description": "Listet verfügbare OpenAI-Modelle über die API. Erfordert OPENAI_API_KEY.",
+  "category": "AI",
+  "toolEnabled": false,
+  "commands": {
+    "bash": "curl -s https://api.openai.com/v1/models -H \"Authorization: Bearer $OPENAI_API_KEY\" | jq '.data[].id'",
+    "cmd": "powershell \"Invoke-RestMethod -Uri 'https://api.openai.com/v1/models' -Headers @{Authorization='Bearer ' + $env:OPENAI_API_KEY} | Select-Object -ExpandProperty data | Select-Object -ExpandProperty id\"",
+    "powershell": "(Invoke-RestMethod -Uri 'https://api.openai.com/v1/models' -Headers @{Authorization='Bearer ' + $env:OPENAI_API_KEY}).data.id",
+    "wsl": "curl -s https://api.openai.com/v1/models -H \"Authorization: Bearer $OPENAI_API_KEY\" | jq '.data[].id'",
+    "zsh": "curl -s https://api.openai.com/v1/models -H \"Authorization: Bearer $OPENAI_API_KEY\" | jq '.data[].id'"
+  },
+  "favorite": false
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Linux User Sessions",
+  "description": "Zeigt angemeldete Benutzer und deren Sessions an.",
+  "category": "Linux",
+  "commands": {
+    "bash": "who && echo && w",
+    "wsl": "who && echo && w",
+    "zsh": "who && echo && w"
+  },
+  "favorite": false
+}

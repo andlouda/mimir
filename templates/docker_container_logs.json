@@ -1,0 +1,23 @@
+{
+  "name": "Docker Container Logs",
+  "description": "Zeigt Logs für einen einzelnen Container an.",
+  "category": "Containers",
+  "parameters": [
+    {
+      "name": "Container",
+      "required": true,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$",
+      "maxLength": 128,
+      "source": "discovery_only",
+      "discoveryTool": "discovery:list_docker_containers"
+    }
+  ],
+  "commands": {
+    "bash": "docker logs -f {{.Container}}",
+    "cmd": "docker logs -f {{.Container}}",
+    "powershell": "docker logs -f {{.Container}}",
+    "wsl": "docker logs -f {{.Container}}",
+    "zsh": "docker logs -f {{.Container}}"
+  },
+  "favorite": false
+}

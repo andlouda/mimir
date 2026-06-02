@@ -1,0 +1,14 @@
+{
+  "name": "OpenAI Quick Chat",
+  "description": "Sendet einen kurzen Test-Prompt an die OpenAI Responses API. Erfordert OPENAI_API_KEY.",
+  "category": "AI",
+  "toolEnabled": false,
+  "commands": {
+    "bash": "curl -s https://api.openai.com/v1/responses -H \"Content-Type: application/json\" -H \"Authorization: Bearer $OPENAI_API_KEY\" -d '{\"model\":\"gpt-4.1-mini\",\"input\":\"Give me a one-line summary of the current directory purpose.\"}'",
+    "cmd": "powershell \"$body = @{ model = 'gpt-4.1-mini'; input = 'Give me a one-line summary of the current directory purpose.' } | ConvertTo-Json -Compress; Invoke-RestMethod -Uri 'https://api.openai.com/v1/responses' -Method Post -Headers @{Authorization='Bearer ' + $env:OPENAI_API_KEY} -ContentType 'application/json' -Body $body\"",
+    "powershell": "$body = @{ model = 'gpt-4.1-mini'; input = 'Give me a one-line summary of the current directory purpose.' } | ConvertTo-Json -Compress; Invoke-RestMethod -Uri 'https://api.openai.com/v1/responses' -Method Post -Headers @{Authorization='Bearer ' + $env:OPENAI_API_KEY} -ContentType 'application/json' -Body $body",
+    "wsl": "curl -s https://api.openai.com/v1/responses -H \"Content-Type: application/json\" -H \"Authorization: Bearer $OPENAI_API_KEY\" -d '{\"model\":\"gpt-4.1-mini\",\"input\":\"Give me a one-line summary of the current directory purpose.\"}'",
+    "zsh": "curl -s https://api.openai.com/v1/responses -H \"Content-Type: application/json\" -H \"Authorization: Bearer $OPENAI_API_KEY\" -d '{\"model\":\"gpt-4.1-mini\",\"input\":\"Give me a one-line summary of the current directory purpose.\"}'"
+  },
+  "favorite": false
+}

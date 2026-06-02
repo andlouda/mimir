@@ -1,0 +1,13 @@
+{
+  "name": "Top Memory Processes",
+  "description": "Zeigt die speicherhungrigsten Prozesse an.",
+  "category": "System",
+  "commands": {
+    "bash": "ps aux --sort=-%mem | head -15",
+    "cmd": "powershell \"Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 15 Name, Id, @{Name='MemoryMB';Expression={[math]::Round($_.WorkingSet64/1MB,2)}}\"",
+    "powershell": "Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 15 Name, Id, @{Name='MemoryMB';Expression={[math]::Round($_.WorkingSet64/1MB,2)}}",
+    "wsl": "ps aux --sort=-%mem | head -15",
+    "zsh": "ps aux --sort=-%mem | head -15"
+  },
+  "favorite": false
+}

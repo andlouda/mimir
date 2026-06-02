@@ -1,0 +1,10 @@
+{
+  "name": "Windows Firewall Rule Search",
+  "description": "Sucht Firewall-Regeln anhand eines Anzeigenamens.",
+  "category": "Windows",
+  "commands": {
+    "cmd": "powershell \"Get-NetFirewallRule -DisplayName '*{{.RuleName}}*' | Select-Object DisplayName, Enabled, Direction, Action\"",
+    "powershell": "Get-NetFirewallRule -DisplayName '*{{.RuleName}}*' | Select-Object DisplayName, Enabled, Direction, Action"
+  },
+  "favorite": false
+}

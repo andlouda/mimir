@@ -1,0 +1,15 @@
+{
+  "name": "Prompt Current Folder Only",
+  "description": "Zeigt im Prompt nur den aktuellen Ordnernamen statt des kompletten Pfads an.",
+  "category": "Navigation",
+  "toolEnabled": true,
+  "dangerLevel": "low",
+  "commands": {
+    "bash": "export PS1='\\W \\\\$ '",
+    "cmd": "prompt $P$G",
+    "powershell": "function prompt { \"$(Split-Path -Leaf (Get-Location))\u003e \" }",
+    "wsl": "export PS1='\\W \\\\$ '",
+    "zsh": "PROMPT='%1~ %# '"
+  },
+  "favorite": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "System Resources",
+  "description": "Zeigt aktuelle CPU-, RAM- und Prozessauslastung an.",
+  "category": "System",
+  "commands": {
+    "bash": "ps aux --sort=-%cpu | head -10 && echo && free -h",
+    "cmd": "tasklist /FO TABLE && echo. && systeminfo | findstr /C:\"Total Physical Memory\" /C:\"Available Physical Memory\"",
+    "powershell": "Get-Process | Sort-Object CPU -Descending | Select-Object -First 10; Get-CimInstance Win32_OperatingSystem | Select-Object @{Name='MemoryUsage(%)';Expression={[math]::Round((($_.TotalVisibleMemorySize - $_.FreePhysicalMemory)*100)/$_.TotalVisibleMemorySize,2)}}",
+    "wsl": "ps aux --sort=-%cpu | head -10 && echo && free -h",
+    "zsh": "ps aux --sort=-%cpu | head -10 && echo && free -h"
+  },
+  "favorite": false
+}

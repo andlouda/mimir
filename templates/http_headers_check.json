@@ -1,0 +1,13 @@
+{
+  "name": "HTTP Headers Check",
+  "description": "Holt nur die Response-Header einer URL ab.",
+  "category": "Network",
+  "commands": {
+    "bash": "curl -I https://openai.com",
+    "cmd": "curl -I https://openai.com",
+    "powershell": "(Invoke-WebRequest -Uri 'https://openai.com' -Method Head).Headers",
+    "wsl": "curl -I https://openai.com",
+    "zsh": "curl -I https://openai.com"
+  },
+  "favorite": false
+}

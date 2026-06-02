@@ -1,0 +1,15 @@
+{
+  "name": "Hide Path",
+  "description": "Hides the current path from the terminal prompt.",
+  "category": "Navigation",
+  "toolEnabled": true,
+  "dangerLevel": "low",
+  "commands": {
+    "bash": "export PS1='\\u\\$ '",
+    "cmd": "prompt %USERNAME%",
+    "powershell": "function prompt { \"$env:USERNAME\u003e \" }",
+    "wsl": "export PS1='\\u\\$ '",
+    "zsh": "export PS1='\\u\\$ '"
+  },
+  "favorite": false
+}

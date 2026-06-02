@@ -1,0 +1,15 @@
+{
+  "name": "Ress",
+  "description": "Zeigt CPU- und Prozesslast direkt im Terminal.",
+  "category": "System",
+  "toolEnabled": true,
+  "dangerLevel": "low",
+  "commands": {
+    "bash": "htop",
+    "cmd": "wmic cpu get loadpercentage",
+    "powershell": "while ($true) { Clear-Host; Get-Process | Sort-Object CPU -Descending | Select-Object -First 10; Start-Sleep -Seconds 2 }",
+    "wsl": "htop",
+    "zsh": "htop"
+  },
+  "favorite": false
+}

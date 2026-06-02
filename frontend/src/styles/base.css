@@ -1,0 +1,47 @@
+/* Base: tokens, reset, app shell (split from the former monolithic app.css; global, single source) */
+
+/* Global app styles, lifted out of App.svelte's scoped <style> to shrink the
+   component. All selectors are class-based (no bare element selectors), so
+   global scope is equivalent here. CSS custom properties come from style.css. */
+
+@import '@xterm/xterm/css/xterm.css';
+
+  :root {
+    --bg-void: #0c0e14;
+    --bg-deep: #111420;
+    --bg-surface: #161926;
+    --bg-raised: #1c2033;
+    --bg-overlay: #232840;
+    --border-subtle: rgba(99, 179, 237, 0.08);
+    --border-dim: rgba(99, 179, 237, 0.15);
+    --border-accent: rgba(99, 179, 237, 0.35);
+    --text-primary: #c9d1d9;
+    --text-secondary: #7d8590;
+    --text-muted: #545d68;
+    --accent: #63b3ed;
+    --accent-glow: rgba(99, 179, 237, 0.12);
+    --accent-hover: #79c0ff;
+    --success: #7ee787;
+    --error: #f47067;
+    --error-bg: rgba(244, 112, 103, 0.1);
+    --warning: #e3b341;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-sans: 'DM Sans', -apple-system, sans-serif;
+    --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  main {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    background-color: var(--bg-void);
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+  }

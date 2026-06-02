@@ -1,0 +1,13 @@
+{
+  "name": "Git Status Short",
+  "description": "Zeigt den kompakten Git-Status des aktuellen Repositories an.",
+  "category": "Diagnostics",
+  "commands": {
+    "bash": "git status --short --branch",
+    "cmd": "git status --short --branch",
+    "powershell": "git status --short --branch",
+    "wsl": "git status --short --branch",
+    "zsh": "git status --short --branch"
+  },
+  "favorite": false
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Windows Service Details",
+  "description": "Zeigt Details zu einem Windows-Service anhand seines Namens an.",
+  "category": "Windows",
+  "commands": {
+    "cmd": "sc query {{.ServiceName}}",
+    "powershell": "Get-Service -Name {{.ServiceName}} | Select-Object Name, Status, StartType, DisplayName"
+  },
+  "favorite": false
+}

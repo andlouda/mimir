@@ -1,0 +1,13 @@
+{
+  "name": "Disk Usage Summary",
+  "description": "Zeigt belegten und freien Speicher aller Datenträger an.",
+  "category": "Storage",
+  "commands": {
+    "bash": "df -h",
+    "cmd": "wmic logicaldisk get size,freespace,caption",
+    "powershell": "Get-PSDrive -PSProvider FileSystem | Select-Object Name, Used, Free",
+    "wsl": "df -h",
+    "zsh": "df -h"
+  },
+  "favorite": false
+}

@@ -1,0 +1,11 @@
+{
+  "name": "Linux Port Usage",
+  "description": "Zeigt, welcher Prozess einen TCP-Port verwendet.",
+  "category": "Linux",
+  "commands": {
+    "bash": "ss -lntp '( sport = :{{.Port}} )'",
+    "wsl": "ss -lntp '( sport = :{{.Port}} )'",
+    "zsh": "ss -lntp '( sport = :{{.Port}} )'"
+  },
+  "favorite": false
+}

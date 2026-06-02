@@ -1,0 +1,15 @@
+{
+  "name": "Ping Google",
+  "description": "Pings google.com to check network connectivity.",
+  "category": "Network",
+  "toolEnabled": true,
+  "dangerLevel": "low",
+  "commands": {
+    "bash": "ping google.com",
+    "cmd": "ping google.com",
+    "powershell": "ping google.com",
+    "wsl": "ping google.com",
+    "zsh": "ping google.com"
+  },
+  "favorite": false
+}

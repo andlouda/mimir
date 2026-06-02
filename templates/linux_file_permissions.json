@@ -1,0 +1,11 @@
+{
+  "name": "Linux File Permissions",
+  "description": "Zeigt Besitzer, Rechte und Dateityp einer Datei oder eines Ordners.",
+  "category": "Linux",
+  "commands": {
+    "bash": "stat {{.Path}}",
+    "wsl": "stat {{.Path}}",
+    "zsh": "stat {{.Path}}"
+  },
+  "favorite": false
+}

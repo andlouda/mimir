@@ -1,0 +1,13 @@
+{
+  "name": "Website Performance",
+  "description": "Misst Antwortzeit und HTTP-Status für eine Website.",
+  "category": "Network",
+  "commands": {
+    "cmd": "powershell \"Measure-Command { Invoke-WebRequest -Uri 'http://localhost:8000' -Method GET }\"",
+    "powershell": "Measure-Command { Invoke-WebRequest -Uri 'http://localhost:8000' -Method GET }",
+    "bash": "curl -o /dev/null -s -w 'namelookup:%{time_namelookup}\\nconnect:%{time_connect}\\nstarttransfer:%{time_starttransfer}\\ntotal:%{time_total}\\nhttp:%{http_code}\\n' http://localhost:8000",
+    "wsl": "curl -o /dev/null -s -w 'namelookup:%{time_namelookup}\\nconnect:%{time_connect}\\nstarttransfer:%{time_starttransfer}\\ntotal:%{time_total}\\nhttp:%{http_code}\\n' http://localhost:8000",
+    "zsh": "curl -o /dev/null -s -w 'namelookup:%{time_namelookup}\\nconnect:%{time_connect}\\nstarttransfer:%{time_starttransfer}\\ntotal:%{time_total}\\nhttp:%{http_code}\\n' http://localhost:8000"
+  },
+  "favorite": false
+}

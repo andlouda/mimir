@@ -1,0 +1,11 @@
+{
+  "name": "Linux Tail Log",
+  "description": "Folgt einer Logdatei live.",
+  "category": "Linux",
+  "commands": {
+    "bash": "tail -f {{.LogPath}}",
+    "wsl": "tail -f {{.LogPath}}",
+    "zsh": "tail -f {{.LogPath}}"
+  },
+  "favorite": false
+}

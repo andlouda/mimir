@@ -1,0 +1,14 @@
+{
+  "name": "Docker Compose Restart Service",
+  "description": "Startet einen Docker-Compose-Service neu.",
+  "category": "Containers",
+  "dangerLevel": "medium",
+  "commands": {
+    "bash": "docker compose restart {{.Service}}",
+    "cmd": "docker compose restart {{.Service}}",
+    "powershell": "docker compose restart {{.Service}}",
+    "wsl": "docker compose restart {{.Service}}",
+    "zsh": "docker compose restart {{.Service}}"
+  },
+  "favorite": false
+}

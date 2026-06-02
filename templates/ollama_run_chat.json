@@ -1,0 +1,14 @@
+{
+  "name": "Ollama Run Chat",
+  "description": "Startet einen lokalen Chat mit einem Standardmodell über Ollama.",
+  "category": "AI",
+  "toolEnabled": false,
+  "commands": {
+    "bash": "ollama run llama3.2",
+    "cmd": "ollama run llama3.2",
+    "powershell": "ollama run llama3.2",
+    "wsl": "ollama run llama3.2",
+    "zsh": "ollama run llama3.2"
+  },
+  "favorite": false
+}

@@ -1,0 +1,240 @@
+/* AI hub + settings landing views (split from the former monolithic app.css; global, single source) */
+
+  .ai-hub {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.3rem;
+    height: 100%;
+    overflow: auto;
+    background:
+      radial-gradient(circle at top right, rgba(99, 179, 237, 0.09), transparent 26%),
+      linear-gradient(180deg, rgba(17, 20, 32, 0.98), rgba(12, 14, 20, 1));
+  }
+
+  .ai-hub-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .ai-hub-header h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+  }
+
+  .ai-hub-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    max-width: 700px;
+  }
+
+  .ai-hub-badges {
+    display: flex;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .ai-hub-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(99, 179, 237, 0.1);
+    border: 1px solid rgba(99, 179, 237, 0.18);
+    color: var(--accent-hover);
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+  }
+
+  .ai-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+  }
+
+  .ai-hub-card,
+  .ai-summary-card {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-subtle);
+    background: rgba(22, 25, 38, 0.82);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+  }
+
+  .ai-hub-card {
+    text-align: left;
+    padding: 1rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  }
+
+  .ai-hub-card:hover {
+    border-color: var(--border-accent);
+    background: rgba(28, 32, 51, 0.94);
+    transform: translateY(-1px);
+  }
+
+  .ai-hub-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.7rem;
+  }
+
+  .ai-hub-icon {
+    color: var(--accent);
+    font-size: 1rem;
+  }
+
+  .ai-hub-link {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .ai-hub-card strong {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.95rem;
+  }
+
+  .ai-hub-card p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .ai-hub-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 0.9rem;
+  }
+
+  .ai-summary-card {
+    padding: 1rem;
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .ai-summary-card-wide {
+    grid-column: 1 / -1;
+  }
+
+  .ai-summary-card-action {
+    text-align: left;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition), transform var(--transition);
+  }
+
+  .ai-summary-card-action:hover {
+    border-color: var(--border-accent);
+    background: rgba(28, 32, 51, 0.94);
+    transform: translateY(-1px);
+  }
+
+  .ai-summary-label {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .ai-summary-card pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-void);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 0.85rem;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    max-height: 220px;
+    overflow: auto;
+  }
+
+  .ai-summary-note {
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    line-height: 1.4;
+  }
+
+  .ai-summary-link {
+    color: var(--accent-hover);
+    font-size: 0.76rem;
+    font-weight: 600;
+  }
+
+  .runtime-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem 1rem;
+  }
+
+  .runtime-item {
+    display: grid;
+    gap: 0.18rem;
+  }
+
+  .runtime-label {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .runtime-value {
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    word-break: break-word;
+  }
+
+  .filter-group {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .filter-group-label {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .filter-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .filter-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(99, 179, 237, 0.12);
+    border: 1px solid rgba(99, 179, 237, 0.14);
+    color: var(--accent-hover);
+    font-size: 0.74rem;
+    line-height: 1.2;
+    max-width: 100%;
+    word-break: break-word;
+  }
+
+  .filter-pill-muted {
+    background: rgba(125, 133, 144, 0.12);
+    border-color: rgba(125, 133, 144, 0.14);
+    color: var(--text-secondary);
+  }

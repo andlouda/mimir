@@ -1,0 +1,31 @@
+{
+  "name": "K8s Pod Logs",
+  "description": "Zeigt Logs für einen Pod in einem Namespace an.",
+  "category": "Kubernetes",
+  "parameters": [
+    {
+      "name": "Namespace",
+      "required": true,
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63,
+      "source": "discovery_only",
+      "discoveryTool": "discovery:list_k8s_namespaces"
+    },
+    {
+      "name": "Pod",
+      "required": true,
+      "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$",
+      "maxLength": 253,
+      "source": "discovery_only",
+      "discoveryTool": "discovery:list_k8s_pods"
+    }
+  ],
+  "commands": {
+    "bash": "kubectl logs -f -n {{.Namespace}} {{.Pod}}",
+    "cmd": "kubectl logs -f -n {{.Namespace}} {{.Pod}}",
+    "powershell": "kubectl logs -f -n {{.Namespace}} {{.Pod}}",
+    "wsl": "kubectl logs -f -n {{.Namespace}} {{.Pod}}",
+    "zsh": "kubectl logs -f -n {{.Namespace}} {{.Pod}}"
+  },
+  "favorite": false
+}

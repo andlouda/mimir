@@ -1,0 +1,13 @@
+{
+  "name": "Largest Directories",
+  "description": "Listet die größten Unterordner im aktuellen Verzeichnis auf.",
+  "category": "Storage",
+  "commands": {
+    "bash": "du -sh ./* 2>/dev/null | sort -hr | head -20",
+    "cmd": "powershell \"Get-ChildItem -Directory | ForEach-Object { $size = (Get-ChildItem $_.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum; [PSCustomObject]@{Name=$_.Name; SizeMB=[math]::Round($size/1MB,2)} } | Sort-Object SizeMB -Descending | Select-Object -First 20\"",
+    "powershell": "Get-ChildItem -Directory | ForEach-Object { $size = (Get-ChildItem $_.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum; [PSCustomObject]@{Name=$_.Name; SizeMB=[math]::Round($size/1MB,2)} } | Sort-Object SizeMB -Descending | Select-Object -First 20",
+    "wsl": "du -sh ./* 2>/dev/null | sort -hr | head -20",
+    "zsh": "du -sh ./* 2>/dev/null | sort -hr | head -20"
+  },
+  "favorite": false
+}

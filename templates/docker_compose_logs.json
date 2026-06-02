@@ -1,0 +1,23 @@
+{
+  "name": "Docker Compose Logs",
+  "description": "Zeigt Logs für einen Docker-Compose-Service an.",
+  "category": "Containers",
+  "parameters": [
+    {
+      "name": "Service",
+      "required": true,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$",
+      "maxLength": 128,
+      "source": "discovery_only",
+      "discoveryTool": "discovery:list_compose_services"
+    }
+  ],
+  "commands": {
+    "bash": "docker compose logs -f {{.Service}}",
+    "cmd": "docker compose logs -f {{.Service}}",
+    "powershell": "docker compose logs -f {{.Service}}",
+    "wsl": "docker compose logs -f {{.Service}}",
+    "zsh": "docker compose logs -f {{.Service}}"
+  },
+  "favorite": false
+}

@@ -1,0 +1,37 @@
+{
+  "name": "K8s Describe Resource",
+  "description": "Beschreibt eine Kubernetes-Ressource wie pod, deploy, svc oder ingress.",
+  "category": "Kubernetes",
+  "parameters": [
+    {
+      "name": "ResourceType",
+      "required": true,
+      "options": ["pod", "deployment", "service", "ingress", "configmap", "secret"],
+      "source": "user_only"
+    },
+    {
+      "name": "Namespace",
+      "required": true,
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63,
+      "source": "discovery_only",
+      "discoveryTool": "discovery:list_k8s_namespaces"
+    },
+    {
+      "name": "ResourceName",
+      "required": true,
+      "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$",
+      "maxLength": 253,
+      "source": "discovery_only",
+      "discoveryTool": "discovery:list_k8s_resources"
+    }
+  ],
+  "commands": {
+    "bash": "kubectl describe {{.ResourceType}} -n {{.Namespace}} {{.ResourceName}}",
+    "cmd": "kubectl describe {{.ResourceType}} -n {{.Namespace}} {{.ResourceName}}",
+    "powershell": "kubectl describe {{.ResourceType}} -n {{.Namespace}} {{.ResourceName}}",
+    "wsl": "kubectl describe {{.ResourceType}} -n {{.Namespace}} {{.ResourceName}}",
+    "zsh": "kubectl describe {{.ResourceType}} -n {{.Namespace}} {{.ResourceName}}"
+  },
+  "favorite": false
+}

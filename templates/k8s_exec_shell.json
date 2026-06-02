@@ -1,0 +1,14 @@
+{
+  "name": "K8s Exec Shell",
+  "description": "Öffnet eine Shell in einem Pod. Falls Bash fehlt, manuell auf sh anpassen.",
+  "category": "Kubernetes",
+  "dangerLevel": "medium",
+  "commands": {
+    "bash": "kubectl exec -it -n {{.Namespace}} {{.Pod}} -- bash",
+    "cmd": "kubectl exec -it -n {{.Namespace}} {{.Pod}} -- bash",
+    "powershell": "kubectl exec -it -n {{.Namespace}} {{.Pod}} -- bash",
+    "wsl": "kubectl exec -it -n {{.Namespace}} {{.Pod}} -- bash",
+    "zsh": "kubectl exec -it -n {{.Namespace}} {{.Pod}} -- bash"
+  },
+  "favorite": false
+}

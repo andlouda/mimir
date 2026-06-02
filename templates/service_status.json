@@ -1,0 +1,15 @@
+{
+  "name": "Service Status",
+  "description": "Zeigt laufende Services bzw. aktive Units.",
+  "category": "System",
+  "toolEnabled": true,
+  "dangerLevel": "low",
+  "commands": {
+    "bash": "systemctl list-units --type=service --state=active --no-pager",
+    "cmd": "sc query | findstr \"SERVICE_NAME\\|STATE\"",
+    "powershell": "Get-Service | Where-Object {$_.Status -eq 'Running'} | Select-Object Name, Status, DisplayName | Sort-Object Name | Format-Table -AutoSize",
+    "wsl": "systemctl list-units --type=service --state=active --no-pager",
+    "zsh": "systemctl list-units --type=service --state=active --no-pager"
+  },
+  "favorite": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Find Env Files",
+  "description": "Findet `.env`-Dateien im aktuellen Projektbaum.",
+  "category": "Diagnostics",
+  "commands": {
+    "bash": "find . -type f \\( -name '.env' -o -name '.env.*' \\)",
+    "cmd": "powershell \"Get-ChildItem -Recurse -File -Filter '.env*' | Select-Object -ExpandProperty FullName\"",
+    "powershell": "Get-ChildItem -Recurse -File -Filter '.env*' | Select-Object -ExpandProperty FullName",
+    "wsl": "find . -type f \\( -name '.env' -o -name '.env.*' \\)",
+    "zsh": "find . -type f \\( -name '.env' -o -name '.env.*' \\)"
+  },
+  "favorite": false
+}

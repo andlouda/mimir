@@ -1,0 +1,15 @@
+{
+  "name": "Show IP",
+  "description": "Displays the network IP address.",
+  "category": "Network",
+  "toolEnabled": true,
+  "dangerLevel": "low",
+  "commands": {
+    "bash": "ip a || ifconfig",
+    "cmd": "ipconfig",
+    "powershell": "Get-NetIPAddress",
+    "wsl": "ip a || ifconfig",
+    "zsh": "ip a || ifconfig"
+  },
+  "favorite": false
+}

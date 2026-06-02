@@ -1,0 +1,13 @@
+{
+  "name": "SSL Certificate Check",
+  "description": "Prüft Gültigkeit und Laufzeit eines TLS-Zertifikats.",
+  "category": "Network",
+  "commands": {
+    "bash": "openssl s_client -connect google.com:443 -servername google.com < /dev/null 2>/dev/null | openssl x509 -noout -dates",
+    "cmd": "powershell \"$cert = [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; try { $web = New-Object System.Net.WebClient; $web.DownloadString('https://www.google.com'); Write-Host 'SSL Certificate valid' } catch { Write-Host 'SSL Certificate issue: ' $_.Exception.Message }\"",
+    "powershell": "$cert = [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; try { $web = New-Object System.Net.WebClient; $web.DownloadString('https://www.google.com'); Write-Host 'SSL Certificate valid' } catch { Write-Host 'SSL Certificate issue: ' $_.Exception.Message }",
+    "wsl": "openssl s_client -connect google.com:443 -servername google.com < /dev/null 2>/dev/null | openssl x509 -noout -dates",
+    "zsh": "openssl s_client -connect google.com:443 -servername google.com < /dev/null 2>/dev/null | openssl x509 -noout -dates"
+  },
+  "favorite": false
+}

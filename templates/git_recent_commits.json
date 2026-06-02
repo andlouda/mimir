@@ -1,0 +1,13 @@
+{
+  "name": "Git Recent Commits",
+  "description": "Listet die letzten 10 Commits kompakt auf.",
+  "category": "Diagnostics",
+  "commands": {
+    "bash": "git log --oneline --decorate -10",
+    "cmd": "git log --oneline --decorate -10",
+    "powershell": "git log --oneline --decorate -10",
+    "wsl": "git log --oneline --decorate -10",
+    "zsh": "git log --oneline --decorate -10"
+  },
+  "favorite": false
+}

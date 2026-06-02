@@ -1,0 +1,11 @@
+{
+  "name": "Windows Kill Process",
+  "description": "Beendet einen Windows-Prozess anhand seiner PID.",
+  "category": "Windows",
+  "dangerLevel": "medium",
+  "commands": {
+    "cmd": "taskkill /PID {{.ProcessId}} /F",
+    "powershell": "Stop-Process -Id {{.ProcessId}} -Force"
+  },
+  "favorite": false
+}

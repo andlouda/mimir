@@ -1,0 +1,13 @@
+{
+  "name": "Find Large Files (by extension)",
+  "description": "Findet rekursiv größere Dateien und blendet typische Binärdateien aus.",
+  "category": "Storage",
+  "commands": {
+    "bash": "find . -type f -not \\( -name \"*.png\" -o -name \"*.jpg\" -o -name \"*.zip\" -o -name \"*.exe\" -o -name \"*.dll\" -o -name \"*.bin\" -o -name \"*.pdf\" -o -name \"*.iso\" \\) -exec awk 'NR>200{print FILENAME; exit}' {} +",
+    "cmd": "powershell -Command \"Get-ChildItem -Recurse -File -Exclude '*.png','*.jpg','*.zip','*.exe','*.dll','*.bin','*.pdf','*.iso' | ForEach-Object {if ((Get-Content $_.FullName -TotalCount 201 -ErrorAction SilentlyContinue).Count -gt 200) { $_.FullName } }\"",
+    "powershell": "Get-ChildItem -Recurse -File -Exclude '*.png','*.jpg','*.zip','*.exe','*.dll','*.bin','*.pdf','*.iso' | ForEach-Object {if ((Get-Content $_.FullName -TotalCount 201 -ErrorAction SilentlyContinue).Count -gt 200) { $_.FullName }}",
+    "wsl": "find . -type f -not \\( -name \"*.png\" -o -name \"*.jpg\" -o -name \"*.zip\" -o -name \"*.exe\" -o -name \"*.dll\" -o -name \"*.bin\" -o -name \"*.pdf\" -o -name \"*.iso\" \\) -exec awk 'NR>200{print FILENAME; exit}' {} +",
+    "zsh": "find . -type f -not \\( -name \"*.png\" -o -name \"*.jpg\" -o -name \"*.zip\" -o -name \"*.exe\" -o -name \"*.dll\" -o -name \"*.bin\" -o -name \"*.pdf\" -o -name \"*.iso\" \\) -exec awk 'NR>200{print FILENAME; exit}' {} +"
+  },
+  "favorite": false
+}

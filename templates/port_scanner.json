@@ -1,0 +1,13 @@
+{
+  "name": "Port Scanner",
+  "description": "Zeigt offene Ports auf localhost oder lokale Listener an.",
+  "category": "Network",
+  "commands": {
+    "bash": "if command -v nmap >/dev/null 2>&1; then nmap -sT localhost; else ss -tulpen; fi",
+    "cmd": "netstat -an | findstr LISTEN",
+    "powershell": "Get-NetTCPConnection | Where-Object {$_.State -eq 'Listen'} | Sort-Object LocalPort",
+    "wsl": "if command -v nmap >/dev/null 2>&1; then nmap -sT localhost; else ss -tulpen; fi",
+    "zsh": "if command -v nmap >/dev/null 2>&1; then nmap -sT localhost; else ss -tulpen; fi"
+  },
+  "favorite": false
+}

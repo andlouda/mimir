@@ -1,0 +1,57 @@
+# Build artifacts
+build/bin
+build/release
+frontend/dist
+frontend/.svelte-kit
+
+# Binaries
+mimir
+*.exe
+*.zip
+*.tar.gz
+*.dmg
+*.AppImage
+
+# Dependencies
+node_modules
+frontend/node_modules
+
+# Sensitive runtime data (defense-in-depth — these live in ~/.config/mimir/)
+*.db
+*.sqlite
+*.sqlite3
+*.cast
+*.jsonl
+*.pem
+*.key
+*.enc
+ssh_profiles.json
+ssh_secrets.enc
+known_hosts
+ai_settings.json
+session.json
+terminal_folders.json
+history_enabled
+
+# Environment / secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI agent working files
+.agent-progress/
+CLAUDE.md
+AGENTS.md

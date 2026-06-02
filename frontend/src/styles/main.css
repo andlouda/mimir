@@ -1,0 +1,211 @@
+/* Main content + terminal area (split from the former monolithic app.css; global, single source) */
+
+  /* ─── MAIN CONTENT ─────────────────────────────────────── */
+
+  .main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--bg-void);
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .terminal-controls {
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    background: var(--bg-deep);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .controls-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .controls-right {
+    display: flex;
+    align-items: center;
+  }
+
+  .terminal-count {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+
+  .terminal-controls select {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-dim);
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--transition);
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 1.4rem;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237d8590' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.4rem center;
+  }
+
+  .terminal-controls select:hover,
+  .terminal-controls select:focus {
+    border-color: var(--accent);
+  }
+
+  .add-btn {
+    background: var(--accent);
+    color: var(--bg-void);
+    border: none;
+    padding: 0.38rem 0.8rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+
+  .add-btn:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .ai-btn {
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-dim);
+    padding: 0.38rem 0.7rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.74rem;
+    font-weight: 600;
+    transition: all var(--transition);
+  }
+
+  .ai-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  .ai-menu-wrap {
+    position: relative;
+  }
+
+  .ai-menu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    min-width: 260px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    z-index: 20;
+  }
+
+  .ai-menu-item {
+    display: grid;
+    gap: 0.18rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.62rem 0.78rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.76rem;
+    transition: all var(--transition);
+  }
+
+  .ai-menu-item span {
+    color: inherit;
+    font-weight: 600;
+  }
+
+  .ai-menu-item small {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    line-height: 1.25;
+  }
+
+  .ai-menu-item:last-child {
+    border-bottom: none;
+  }
+
+  .ai-menu-item:hover {
+    background: var(--accent-glow);
+    color: var(--text-primary);
+  }
+
+  .ai-menu-item:hover small {
+    color: var(--text-secondary);
+  }
+
+  /* ─── TERMINAL AREA (replaces terminal-grid) ────────────── */
+
+  .terminal-and-notes {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .terminal-area {
+    flex-grow: 1;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .notes-divider {
+    width: 5px;
+    cursor: col-resize;
+    background: var(--border-subtle);
+    border: 0;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.12s;
+  }
+  .notes-divider:hover {
+    background: var(--accent);
+  }
+
+  .notes-panel {
+    flex-shrink: 0;
+    height: 100%;
+    overflow: hidden;
+    border-left: 1px solid var(--border-subtle);
+    min-width: 250px;
+    max-width: 800px;
+  }
+
+  .empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }

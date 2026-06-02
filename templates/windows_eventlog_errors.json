@@ -1,0 +1,10 @@
+{
+  "name": "Windows Event Log Errors",
+  "description": "Zeigt die letzten Fehler aus dem Windows-System-Eventlog an.",
+  "category": "Windows",
+  "commands": {
+    "cmd": "powershell \"Get-WinEvent -LogName System -MaxEvents 25 | Where-Object {$_.LevelDisplayName -eq 'Error'} | Select-Object TimeCreated, Id, ProviderName, Message\"",
+    "powershell": "Get-WinEvent -LogName System -MaxEvents 25 | Where-Object {$_.LevelDisplayName -eq 'Error'} | Select-Object TimeCreated, Id, ProviderName, Message"
+  },
+  "favorite": false
+}
