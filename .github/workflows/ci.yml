@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Force the bundled JS actions onto Node 24 (they still ship a Node 20 runtime,
+# which GitHub deprecates). Tag-agnostic — no need to chase action major versions.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
