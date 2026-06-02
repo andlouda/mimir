@@ -40,9 +40,8 @@ mkdir -p "$RELEASE_DIR"
 
 mapfile -t GO_PACKAGES < <(find . -path './frontend' -prune -o -path './build' -prune -o -name '*.go' -printf '%h\n' | sort -u)
 
-echo "== Go tests =="
-go test "${GO_PACKAGES[@]}"
-
+# Build the frontend first so go:embed (all:frontend/dist) and the Wails build
+# both find frontend/dist. go test compiles the main package, which embeds dist.
 echo "== Frontend install =="
 (
   cd frontend
@@ -57,6 +56,9 @@ echo "== Frontend install =="
   fi
 )
 
+echo "== Go tests =="
+go test "${GO_PACKAGES[@]}"
+
 if command -v govulncheck >/dev/null 2>&1; then
   echo "== govulncheck =="
   govulncheck "${GO_PACKAGES[@]}"
@@ -69,7 +71,8 @@ LDFLAGS="-X main.AppVersion=$VERSION"
 if [[ "$UPDATE_REPOSITORY" != "" ]]; then
   LDFLAGS="$LDFLAGS -X main.UpdateRepository=$UPDATE_REPOSITORY"
 fi
-wails build -ldflags "$LDFLAGS"
+# -s: skip Wails' own frontend build; frontend/dist is already built above.
+wails build -s -ldflags "$LDFLAGS"
 
 APP_PATH="$PROJECT_ROOT/build/bin/mimir.app"
 BINARY_PATH="$PROJECT_ROOT/build/bin/mimir"

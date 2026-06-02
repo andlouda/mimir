@@ -19,6 +19,16 @@ $GoPackages = Get-ChildItem -Recurse -Filter *.go |
   ForEach-Object { Resolve-Path -Relative $_.DirectoryName } |
   Sort-Object -Unique
 
+# Build the frontend first (always) so go:embed (all:frontend/dist) and the Wails
+# build both find frontend/dist — independent of -SkipChecks.
+Write-Host "== Frontend install =="
+Push-Location frontend
+npm ci
+
+Write-Host "== Frontend build =="
+npm run build
+Pop-Location
+
 if (-not $SkipChecks) {
   Write-Host "== Go tests =="
   go test @GoPackages
@@ -26,14 +36,8 @@ if (-not $SkipChecks) {
   Write-Host "== Go race tests =="
   go test -race @GoPackages
 
-  Write-Host "== Frontend install =="
-  Push-Location frontend
-  npm ci
-
-  Write-Host "== Frontend build =="
-  npm run build
-
   Write-Host "== npm audit =="
+  Push-Location frontend
   npm audit --audit-level=moderate
   Pop-Location
 
@@ -50,7 +54,8 @@ $Ldflags = "-X main.AppVersion=$Version"
 if ($UpdateRepository -ne "") {
   $Ldflags = "$Ldflags -X main.UpdateRepository=$UpdateRepository"
 }
-wails build -ldflags $Ldflags
+# -s: skip Wails' own frontend build; frontend/dist is already built above.
+wails build -s -ldflags $Ldflags
 
 $BinaryPath = Join-Path $ProjectRoot "build\bin\mimir.exe"
 if (-not (Test-Path $BinaryPath)) {
