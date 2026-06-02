@@ -11,15 +11,15 @@ export GOMODCACHE="${GOMODCACHE:-/tmp/mimir-go-mod-cache}"
 
 cd "$PROJECT_ROOT"
 
-mapfile -t GO_PACKAGES < <(find . -path './frontend' -prune -o -path './build' -prune -o -name '*.go' -printf '%h\n' | sort -u)
-
-echo "== Go tests =="
-go test "${GO_PACKAGES[@]}"
-
+# go test ./... covers every Go package and is portable (no GNU mapfile / find -printf).
+# Build the frontend first so go:embed (all:frontend/dist) resolves during go test.
 echo "== Frontend build =="
 (
   cd frontend
   npm run build
 )
+
+echo "== Go tests =="
+go test ./...
 
 echo "== Local check complete =="

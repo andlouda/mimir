@@ -32,7 +32,7 @@ export GOMODCACHE="${GOMODCACHE:-/tmp/mimir-go-mod-cache}"
 cd "$PROJECT_ROOT"
 mkdir -p "$RELEASE_DIR"
 
-mapfile -t GO_PACKAGES < <(find . -path './frontend' -prune -o -path './build' -prune -o -name '*.go' -printf '%h\n' | sort -u)
+# go test ./... covers every Go package and is portable (no GNU mapfile / find -printf).
 
 # Build the frontend first so go:embed (all:frontend/dist) and the Wails build
 # both find frontend/dist. go test compiles the main package, which embeds dist.
@@ -51,14 +51,14 @@ echo "== Frontend install =="
 )
 
 echo "== Go tests =="
-go test "${GO_PACKAGES[@]}"
+go test ./...
 
 echo "== Go race tests =="
-go test -race "${GO_PACKAGES[@]}"
+go test -race ./...
 
 if command -v govulncheck >/dev/null 2>&1; then
   echo "== govulncheck =="
-  govulncheck "${GO_PACKAGES[@]}"
+  govulncheck ./...
 else
   echo "Skipping govulncheck; install with: go install golang.org/x/vuln/cmd/govulncheck@latest"
 fi
