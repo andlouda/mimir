@@ -42,6 +42,24 @@ func markerPath(dir string) string {
 	return filepath.Join(dir, "update-pending.json")
 }
 
+// PendingMarkerPath returns the marker path for a staged update.
+func PendingMarkerPath() (string, error) {
+	dir, err := stagingDir()
+	if err != nil {
+		return "", err
+	}
+	return markerPath(dir), nil
+}
+
+// PendingDirPath returns the directory that contains staged update binaries.
+func PendingDirPath() (string, error) {
+	dir, err := stagingDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "pending"), nil
+}
+
 // WritePendingMarker atomically writes the update marker file.
 func WritePendingMarker(p PendingUpdate) error {
 	dir, err := stagingDir()
@@ -97,6 +115,10 @@ func RemovePendingMarker() error {
 // Call this at app startup before anything else.
 // Returns nil if no update is pending.
 func ApplyPendingUpdate() error {
+	if runtime.GOOS == "windows" {
+		return fmt.Errorf("windows updates must be applied by external restart updater")
+	}
+
 	pending, err := ReadPendingMarker()
 	if err != nil {
 		return fmt.Errorf("check pending update: %w", err)

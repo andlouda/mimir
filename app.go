@@ -156,13 +156,39 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.TerminalManager.SetContext(ctx)
 
-	if err := update.ApplyPendingUpdate(); err != nil {
+	if runtime.GOOS == "windows" {
+		updateStarted, err := a.applyWindowsPendingUpdateOnStartup()
+		if err != nil {
+			log.Printf("Failed to apply pending Windows update: %v", err)
+		}
+		if updateStarted {
+			return
+		}
+	} else if err := update.ApplyPendingUpdate(); err != nil {
 		log.Printf("Failed to apply pending update: %v", err)
 	}
 
 	if err := desktop.Install(a.appIconPNG); err != nil {
 		log.Printf("Desktop integration: %v", err)
 	}
+}
+
+func (a *App) applyWindowsPendingUpdateOnStartup() (bool, error) {
+	pending, err := update.ReadPendingMarker()
+	if err != nil {
+		return false, fmt.Errorf("check pending update: %w", err)
+	}
+	if pending == nil {
+		return false, nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return false, fmt.Errorf("resolve executable: %w", err)
+	}
+	if err := a.restartAfterWindowsPendingUpdate(pending, exe); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // getTemplateContext gathers dynamic information for template execution.

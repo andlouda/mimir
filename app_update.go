@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
+	"strings"
 	"sync"
 
 	"mimir/update"
@@ -96,6 +98,15 @@ func (a *App) RestartApp() error {
 	if err != nil {
 		return fmt.Errorf("resolve executable: %w", err)
 	}
+	if runtime.GOOS == "windows" {
+		pending, err := update.ReadPendingMarker()
+		if err != nil {
+			return fmt.Errorf("check pending update: %w", err)
+		}
+		if pending != nil {
+			return a.restartAfterWindowsPendingUpdate(pending, exe)
+		}
+	}
 	cmd := exec.Command(exe)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -104,6 +115,41 @@ func (a *App) RestartApp() error {
 	}
 	wailsruntime.Quit(a.ctx)
 	return nil
+}
+
+func (a *App) restartAfterWindowsPendingUpdate(pending *update.PendingUpdate, exe string) error {
+	if _, err := os.Stat(pending.BinaryPath); err != nil {
+		_ = update.RemovePendingMarker()
+		return fmt.Errorf("staged binary not found: %w", err)
+	}
+	markerPath, err := update.PendingMarkerPath()
+	if err != nil {
+		return fmt.Errorf("resolve update marker: %w", err)
+	}
+	pendingDir, err := update.PendingDirPath()
+	if err != nil {
+		return fmt.Errorf("resolve pending dir: %w", err)
+	}
+
+	script := fmt.Sprintf(`
+$ErrorActionPreference = 'Stop'
+Wait-Process -Id %d
+Copy-Item -LiteralPath %s -Destination %s -Force
+Remove-Item -LiteralPath %s -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath %s -Recurse -Force -ErrorAction SilentlyContinue
+Start-Process -FilePath %s
+`, os.Getpid(), psQuote(pending.BinaryPath), psQuote(exe), psQuote(markerPath), psQuote(pendingDir), psQuote(exe))
+
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", script)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start windows update helper: %w", err)
+	}
+	wailsruntime.Quit(a.ctx)
+	return nil
+}
+
+func psQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 // GetPendingUpdate returns info about a staged update, or null JSON if none.
