@@ -67,9 +67,9 @@ func pinnedAggAsset() (aggAsset, error) {
 		}
 		if runtime.GOARCH == "amd64" {
 			return aggAsset{
-				name:   "agg-x86_64-unknown-linux-gnu",
-				sha256: "f111e315cd71056b116302342553dd765b7297579ed511f111d0cedb442aeda6",
-				size:   15904064,
+				name:   "agg-x86_64-unknown-linux-musl",
+				sha256: "ddcbf6ca044c8ac3a434dcb9ee89fb9e3be87209982b7c2adb55f782e8f0f390",
+				size:   16009840,
 			}, nil
 		}
 	}
