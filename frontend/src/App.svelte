@@ -604,8 +604,117 @@
     }
   }
 
+  function templateNameFromTool(tool) {
+    return String(tool || '').replace(/^template:/, '');
+  }
+
+  function templateForWorkflowStep(step) {
+    const templateName = templateNameFromTool(step.tool);
+    if (!templateName) return null;
+    return templates.find(t => t.name === templateName) || null;
+  }
+
+  function workflowStepCommand(template, terminalType) {
+    if (!template?.commands) return '';
+    return template.commands[terminalType] || (terminalType === 'ssh' ? template.commands.bash : '') || '';
+  }
+
+  function buildWorkflowPromptFields(playbook, terminalType) {
+    const fields = [];
+    for (const [stepIndex, step] of (playbook.steps || []).entries()) {
+      if (step.type !== 'run_tool' || !step.tool) continue;
+      const template = templateForWorkflowStep(step);
+      if (!template) continue;
+      const command = workflowStepCommand(template, terminalType);
+      const variableNames = command ? extractTemplateVariables(command) : Object.keys(step.inputs || {});
+      if (variableNames.length === 0) continue;
+
+      const paramMap = {};
+      for (const parameter of (template.parameters || [])) {
+        paramMap[parameter.name] = parameter;
+      }
+
+      for (const name of variableNames) {
+        const currentValue = step.inputs?.[name] || '';
+        fields.push({
+          name: `${step.id}:${name}`,
+          inputName: name,
+          stepIndex,
+          stepId: step.id,
+          label: `${template.name} · ${buildPromptLabel(name)}`,
+          value: currentValue,
+          discoveryTool: paramMap[name]?.discoveryTool || '',
+          suggestions: [],
+          loadingSuggestions: false,
+        });
+      }
+    }
+    return fields;
+  }
+
+  function workflowPromptVariables(fields) {
+    const variables = {};
+    for (const field of fields || []) {
+      variables[field.inputName || field.name] = field.value || '';
+    }
+    return variables;
+  }
+
+  function loadPromptFieldSuggestions(field, state, terminalType) {
+    if (!field.discoveryTool) return;
+    field.loadingSuggestions = true;
+    window['go']['main']['App']['RunDiscoveryJSON'](
+      field.discoveryTool,
+      terminalType,
+      JSON.stringify(workflowPromptVariables(state.fields))
+    )
+      .then(raw => {
+        const values = JSON.parse(raw);
+        field.suggestions = Array.isArray(values) ? values : [];
+        field.loadingSuggestions = false;
+        templatePromptState = templatePromptState;
+      })
+      .catch(() => { field.loadingSuggestions = false; templatePromptState = templatePromptState; });
+  }
+
+  function openWorkflowPrompt(playbook, activeTerminal) {
+    const fields = buildWorkflowPromptFields(playbook, activeTerminal.type);
+    if (fields.length === 0) {
+      return false;
+    }
+
+    templatePromptState = {
+      kind: 'workflow',
+      templateName: playbook.name,
+      workflowPlaybook: playbook,
+      terminalType: activeTerminal.type,
+      terminalId: activeTerminal.id,
+      terminalName: activeTerminal.name || '',
+      terminalOutput: activeTerminal.outputBuffer || '',
+      fields,
+    };
+
+    for (const field of templatePromptState.fields) {
+      loadPromptFieldSuggestions(field, templatePromptState, activeTerminal.type);
+    }
+
+    return true;
+  }
+
   function closeTemplatePrompt() {
     templatePromptState = null;
+  }
+
+  function handleTemplatePromptFieldChange(changedField) {
+    if (!templatePromptState || templatePromptState.kind !== 'workflow') {
+      return;
+    }
+
+    for (const field of templatePromptState.fields || []) {
+      if (field === changedField || !field.discoveryTool) continue;
+      field.suggestions = [];
+      loadPromptFieldSuggestions(field, templatePromptState, templatePromptState.terminalType || '');
+    }
   }
 
   async function submitTemplatePrompt() {
@@ -623,6 +732,13 @@
     }
 
     try {
+      if (templatePromptState.kind === 'workflow') {
+        await runPromptedWorkflow(templatePromptState, variables);
+        errorMessage = "";
+        closeTemplatePrompt();
+        return;
+      }
+
       await window['go']['main']['App']['ApplyTemplateWithVariables'](
         templatePromptState.terminalId,
         templatePromptState.templateName,
@@ -634,6 +750,39 @@
     } catch (error) {
       errorMessage = `Failed to apply template: ${error.message || error}`;
     }
+  }
+
+  async function runPromptedWorkflow(promptState, variables) {
+    const playbook = promptState.workflowPlaybook;
+    const steps = (playbook.steps || []).map((step) => ({
+      ...step,
+      inputs: step.inputs ? { ...step.inputs } : {},
+    }));
+
+    for (const field of promptState.fields || []) {
+      const stepIndex = Number(field.stepIndex);
+      if (!steps[stepIndex]) continue;
+      steps[stepIndex].inputs = {
+        ...(steps[stepIndex].inputs || {}),
+        [field.inputName || field.name]: variables[field.name],
+      };
+    }
+
+    const definition = JSON.stringify({
+      id: playbook.id,
+      name: playbook.name,
+      description: playbook.description || '',
+      mode: playbook.mode || 'assist',
+      steps,
+    });
+
+    await window['go']['main']['App']['RunWorkflowDraftJSON'](
+      definition,
+      Number(promptState.terminalId),
+      promptState.terminalType || '',
+      promptState.terminalName || '',
+      promptState.terminalOutput || ''
+    );
   }
 
   // ─── Layout tree helpers ───────────────────────────────
@@ -685,7 +834,7 @@
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       fontSize: 13,
       lineHeight: 1.35,
-      scrollback: 5000,
+      scrollback: 100000,
       theme: {
         background: '#0c0e14',
         foreground: '#c9d1d9',
@@ -1316,6 +1465,10 @@
       errorMessage = 'Active terminal not found.';
       return;
     }
+    if (openWorkflowPrompt(playbook, activeTerminal)) {
+      errorMessage = '';
+      return;
+    }
     try {
       const definition = JSON.stringify({
         id: playbook.id,
@@ -1897,6 +2050,7 @@
     bind:templatePromptState
     {closeTemplatePrompt}
     {submitTemplatePrompt}
+    {handleTemplatePromptFieldChange}
     bind:aiPanelState
     {terminals}
     {closeAIPanel}

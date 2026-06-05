@@ -205,7 +205,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 				// closing and reopening the app. Falls back to a plain shell
 				// when tmux is not installed in the WSL distro.
 				inner += `if command -v tmux >/dev/null 2>&1; then exec tmux -L mimir new-session -A -s ` + name +
-					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i' \; set status off \; set escape-time 0 \; set prefix None \; set prefix2 None; ` +
+					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i' \; set status off \; set escape-time 0 \; set mouse on \; set history-limit 100000 \; set prefix None \; set prefix2 None; ` +
 					`else exec bash --rcfile ~/.cache/mimir/shell/bashrc -i; fi`
 				usingTmux = true
 				tmuxName = name

@@ -14,14 +14,14 @@ export const histOn = '; fc -P 2>/dev/null; set -o history 2>/dev/null';
 
 export function buildSSHTmuxCommand(sessionName, reattaching) {
   if (reattaching) {
-    return `tmux new-session -A -s ${sessionName} \\; set status off \\; set prefix None \\; set prefix2 None`;
+    return `tmux new-session -A -s ${sessionName} \\; set status off \\; set escape-time 0 \\; set mouse on \\; set history-limit 100000 \\; set prefix None \\; set prefix2 None`;
   }
-  return `tmux new-session -s ${sessionName} \\; set status off \\; set prefix None \\; set prefix2 None`;
+  return `tmux new-session -s ${sessionName} \\; set status off \\; set escape-time 0 \\; set mouse on \\; set history-limit 100000 \\; set prefix None \\; set prefix2 None`;
 }
 
 export function buildLocalTmuxCommand(sessionName, reattaching) {
   if (reattaching) {
-    return `tmux -L mimir new-session -A -s ${sessionName} \\; set status off \\; set prefix None \\; set prefix2 None`;
+    return `tmux -L mimir new-session -A -s ${sessionName} \\; set status off \\; set escape-time 0 \\; set mouse on \\; set history-limit 100000 \\; set prefix None \\; set prefix2 None`;
   }
-  return `tmux -L mimir new-session -s ${sessionName} \\; set status off \\; set prefix None \\; set prefix2 None`;
+  return `tmux -L mimir new-session -s ${sessionName} \\; set status off \\; set escape-time 0 \\; set mouse on \\; set history-limit 100000 \\; set prefix None \\; set prefix2 None`;
 }

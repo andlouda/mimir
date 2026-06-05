@@ -68,6 +68,23 @@
     if (!term.rcMode || term.rcMode === 'off') return $t('splitPane.noRcApplied');
     return $t('splitPane.rcModeTitle', { mode: term.rcMode });
   }
+
+  function handleTerminalWheel(event, term) {
+    const xterm = term?.terminal;
+    if (!xterm || xterm.buffer?.active?.type === 'alternate') {
+      return;
+    }
+
+    const unit = event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? xterm.rows : event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 1 : 1 / 40;
+    const lines = Math.trunc(event.deltaY * unit);
+    if (lines === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    xterm.scrollLines(lines);
+  }
 </script>
 
 {#if node.type === 'leaf'}
@@ -148,7 +165,7 @@
           <button class="header-btn close-btn" on:click|stopPropagation={() => dispatch('close', node.terminalId)} title={$t('splitPane.close')}>&#x2715;</button>
         </div>
       </div>
-      <div class="terminal-container">
+      <div class="terminal-container" on:wheel|capture|nonpassive={(e) => handleTerminalWheel(e, term)}>
         <div id="terminal-{term.id}" class="terminal"></div>
         {#if term.restoredTranscript && term.restoreClass === 'transcript-restored' && !term.restoreDismissed}
           <div

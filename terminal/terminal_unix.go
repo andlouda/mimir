@@ -393,6 +393,8 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 				"new-session", "-A", "-s", tmuxSessionName, launch.tmuxCommand,
 				";", "set", "status", "off",
 				";", "set", "escape-time", "0",
+				";", "set", "mouse", "on",
+				";", "set", "history-limit", "100000",
 				";", "set", "prefix", "None",
 				";", "set", "prefix2", "None",
 			}

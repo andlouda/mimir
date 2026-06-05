@@ -23,5 +23,8 @@ func TestDefaultPlaybooks(t *testing.T) {
 		if playbook.Name == "" {
 			t.Fatalf("expected playbook %s to have a name", playbook.ID)
 		}
+		if err := ValidateDefinition(playbook); err != nil {
+			t.Fatalf("expected playbook %s to validate: %v", playbook.ID, err)
+		}
 	}
 }

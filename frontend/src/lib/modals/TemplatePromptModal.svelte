@@ -7,6 +7,7 @@
   export let state;             // templatePromptState: { templateName, fields: [{ name, label, value }] }
   export let onClose = () => {};
   export let onSubmit = () => {};
+  export let onFieldChange = () => {};
 </script>
 
 <div
@@ -33,12 +34,16 @@
       {#each state.fields as field, index (field.name)}
         <label class="template-prompt-field">
           <span>{field.label}{#if field.loadingSuggestions} <span class="discovery-loading">…</span>{/if}</span>
-          {#if field.suggestions && field.suggestions.length > 0}
+          {#if field.discoveryTool}
             <select
               bind:value={state.fields[index].value}
+              on:change={() => onFieldChange(state.fields[index])}
               on:keydown={(e) => { if (e.key === 'Enter') onSubmit(); }}
             >
-              <option value="">{field.label}...</option>
+              <option value="">{field.loadingSuggestions ? 'Loading...' : `${field.label}...`}</option>
+              {#if field.value && !(field.suggestions || []).includes(field.value)}
+                <option value={field.value}>{field.value}</option>
+              {/if}
               {#each field.suggestions as s}
                 <option value={s}>{s}</option>
               {/each}
@@ -48,6 +53,7 @@
               type="text"
               bind:value={state.fields[index].value}
               placeholder={field.name}
+              on:change={() => onFieldChange(state.fields[index])}
               on:keydown={(e) => { if (e.key === 'Enter') onSubmit(); }}
             />
           {/if}

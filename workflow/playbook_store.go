@@ -143,29 +143,39 @@ func (s *PlaybookStore) IsProtectedID(id string) bool {
 	return false
 }
 
+// retiredDefaultIDs lists IDs of previously shipped defaults that have been
+// replaced or removed. ensureSeeded cleans these up so stale playbooks don't
+// linger on disk.
+var retiredDefaultIDs = []string{
+	"playbook:docker-compose-debug",
+	"playbook:k8s-pod-triage",
+	"playbook:k8s-cluster-overview",
+	"playbook:docker-logs",
+}
+
 func (s *PlaybookStore) ensureSeeded() error {
 	if err := s.ensureDir(); err != nil {
 		return err
 	}
 
+	// Remove retired defaults that are no longer shipped.
+	for _, id := range retiredDefaultIDs {
+		path := s.pathForID(id)
+		_ = os.Remove(path)
+	}
+
+	// Seed or update current defaults.
 	for _, def := range s.defaults {
 		normalized, err := normalizePlaybookDefinition(def)
 		if err != nil {
 			return err
 		}
 
-		path := s.pathForID(normalized.ID)
-		if _, err := os.Stat(path); err == nil {
-			continue
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("failed to inspect playbook seed %s: %w", normalized.ID, err)
-		}
-
 		payload, err := yaml.Marshal(normalized)
 		if err != nil {
 			return fmt.Errorf("failed to encode default playbook %s: %w", normalized.ID, err)
 		}
-		if err := safeio.AtomicWriteFile(path, payload, 0600); err != nil {
+		if err := safeio.AtomicWriteFile(s.pathForID(normalized.ID), payload, 0600); err != nil {
 			return fmt.Errorf("failed to seed playbook %s: %w", normalized.ID, err)
 		}
 	}

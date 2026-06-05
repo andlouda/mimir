@@ -42,6 +42,15 @@ html, body, #app {
   height: 100% !important;
 }
 
+.terminal .xterm-viewport {
+  overflow-y: scroll !important;
+  scrollbar-width: thin;
+}
+
+.terminal .xterm-rows {
+  width: 100%;
+}
+
 .xterm-screen {
   padding: 0;
   margin: 0;

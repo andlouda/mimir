@@ -319,6 +319,51 @@
     gap: 0.7rem;
   }
 
+  .discovery-input-field {
+    min-width: 0;
+  }
+
+  .discovery-input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 34px;
+    gap: 0.4rem;
+    align-items: stretch;
+  }
+
+  .discovery-refresh-button {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    background: var(--bg-overlay);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    line-height: 1;
+  }
+
+  .discovery-refresh-button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent-hover);
+    background: var(--accent-glow);
+  }
+
+  .discovery-refresh-button:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .discovery-input-error {
+    color: var(--warning);
+    font-size: 0.7rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
   .approval-toggle {
     display: inline-flex;
     align-items: center;

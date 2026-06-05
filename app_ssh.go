@@ -42,7 +42,7 @@ func sshTmuxBootstrapCommand(profileID string, shellCommand string) string {
 		fallback = "exec " + shellCommand
 	}
 	script := fmt.Sprintf(
-		`if command -v tmux >/dev/null 2>&1; then exec tmux new-session -A -s %s%s \; set status off \; set escape-time 0 \; set prefix None \; set prefix2 None; else %s; fi`,
+		`if command -v tmux >/dev/null 2>&1; then exec tmux new-session -A -s %s%s \; set status off \; set escape-time 0 \; set mouse on \; set history-limit 100000 \; set prefix None \; set prefix2 None; else %s; fi`,
 		shellQuote(sessionName),
 		tmuxShell,
 		fallback,

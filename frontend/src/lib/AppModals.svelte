@@ -15,6 +15,7 @@
   export let templatePromptState = null;
   export let closeTemplatePrompt = () => {};
   export let submitTemplatePrompt = () => {};
+  export let handleTemplatePromptFieldChange = () => {};
   export let aiPanelState = null;
   export let terminals = [];
   export let closeAIPanel = () => {};
@@ -77,6 +78,7 @@
     bind:state={templatePromptState}
     onClose={closeTemplatePrompt}
     onSubmit={submitTemplatePrompt}
+    onFieldChange={handleTemplatePromptFieldChange}
   />
 {/if}
 

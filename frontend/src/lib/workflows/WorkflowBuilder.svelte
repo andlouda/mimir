@@ -37,6 +37,9 @@
   let showApprovalDialog = false;
   let approvalLoading = false;
   let approvalDecisionMessage = '';
+  let inputSuggestions = {};
+  let inputSuggestionLoading = {};
+  let inputSuggestionErrors = {};
 
   function normalizeCatalogEntry(entry) {
     return {
@@ -90,6 +93,75 @@
     }
 
     return base;
+  }
+
+  function stepInputKey(step, inputKey) {
+    return `${step.id}::${inputKey}`;
+  }
+
+  function catalogEntryForStep(step) {
+    return functionCatalog.find((entry) =>
+      entry.id === step.tool ||
+      entry.id === step.functionId ||
+      (step.discoveryTool && entry.discoveryTool === step.discoveryTool)
+    ) || null;
+  }
+
+  function parameterForStepInput(step, inputKey) {
+    const entry = catalogEntryForStep(step);
+    return (entry?.parameters || []).find((parameter) => parameter.name === inputKey) || null;
+  }
+
+  function inputUsesDiscovery(step, inputKey) {
+    const parameter = parameterForStepInput(step, inputKey);
+    return Boolean(parameter?.discoveryTool);
+  }
+
+  function suggestionsForInput(step, inputKey) {
+    return inputSuggestions[stepInputKey(step, inputKey)] || [];
+  }
+
+  function suggestionLoadingForInput(step, inputKey) {
+    return Boolean(inputSuggestionLoading[stepInputKey(step, inputKey)]);
+  }
+
+  function suggestionErrorForInput(step, inputKey) {
+    return inputSuggestionErrors[stepInputKey(step, inputKey)] || '';
+  }
+
+  function inputValueHasSuggestion(step, inputKey) {
+    const value = step.inputs?.[inputKey] || '';
+    return value !== '' && suggestionsForInput(step, inputKey).includes(value);
+  }
+
+  async function loadInputSuggestions(step, inputKey, force = false) {
+    const parameter = parameterForStepInput(step, inputKey);
+    if (!parameter?.discoveryTool) {
+      return;
+    }
+
+    const key = stepInputKey(step, inputKey);
+    if (!force && (inputSuggestionLoading[key] || inputSuggestions[key]?.length > 0)) {
+      return;
+    }
+
+    inputSuggestionLoading = { ...inputSuggestionLoading, [key]: true };
+    inputSuggestionErrors = { ...inputSuggestionErrors, [key]: '' };
+
+    try {
+      const payload = await window['go']['main']['App']['RunDiscoveryJSON'](
+        parameter.discoveryTool,
+        activeTerminalType || '',
+        JSON.stringify(step.inputs || {})
+      );
+      const values = JSON.parse(payload);
+      inputSuggestions = { ...inputSuggestions, [key]: Array.isArray(values) ? values : [] };
+    } catch (error) {
+      inputSuggestions = { ...inputSuggestions, [key]: [] };
+      inputSuggestionErrors = { ...inputSuggestionErrors, [key]: error.message || String(error) };
+    } finally {
+      inputSuggestionLoading = { ...inputSuggestionLoading, [key]: false };
+    }
   }
 
   function saveDraft() {
@@ -203,7 +275,7 @@
       description: '',
       type: step.type || 'run_tool',
       tool: step.tool || '',
-      aiMode: '',
+      aiMode: step.aiMode || '',
       prompt: step.prompt || '',
       requiresApproval: Boolean(step.requiresApproval),
       inputs: step.inputs ? { ...step.inputs } : {},
@@ -287,18 +359,31 @@
       name: workflowName || 'Untitled Workflow',
       description: workflowDescription,
       mode: workflowMode,
-      steps: workflowSteps.map((step) => ({
-        id: step.id,
-        type: step.type,
-        tool: step.tool,
-        discoveryTool: step.discoveryTool || '',
-        prompt: step.prompt || '',
-        inputs: step.inputs || {},
-        requiresApproval: Boolean(step.requiresApproval),
-        aiMode: step.aiMode || '',
-        functionId: step.functionId,
-        functionName: step.functionName,
-      })),
+      steps: workflowSteps.map((step) => {
+        const definitionStep = {
+          id: step.id,
+          type: step.type,
+          requiresApproval: Boolean(step.requiresApproval),
+        };
+
+        if (step.tool) {
+          definitionStep.tool = step.tool;
+        }
+        if (step.discoveryTool) {
+          definitionStep.discoveryTool = step.discoveryTool;
+        }
+        if (step.prompt) {
+          definitionStep.prompt = step.prompt;
+        }
+        if (step.aiMode) {
+          definitionStep.aiMode = step.aiMode;
+        }
+        if (step.inputs && Object.keys(step.inputs).length > 0) {
+          definitionStep.inputs = step.inputs;
+        }
+
+        return definitionStep;
+      }),
     };
   }
 
@@ -714,9 +799,41 @@
               {#if Object.keys(step.inputs || {}).length > 0}
                 <div class="step-input-grid">
                   {#each Object.keys(step.inputs) as inputKey (`${step.id}-${inputKey}`)}
-                    <label class="form-field">
+                    <label class="form-field discovery-input-field">
                       <span>{inputKey}</span>
-                      <input type="text" bind:value={workflowSteps[index].inputs[inputKey]} placeholder={inputKey} />
+                      {#if inputUsesDiscovery(step, inputKey)}
+                        <div class="discovery-input-row">
+                          <select
+                            bind:value={workflowSteps[index].inputs[inputKey]}
+                            on:focus={() => loadInputSuggestions(workflowSteps[index], inputKey)}
+                            on:click={() => loadInputSuggestions(workflowSteps[index], inputKey)}
+                          >
+                            <option value="">
+                              {suggestionLoadingForInput(step, inputKey) ? 'Loading...' : `Select ${inputKey}...`}
+                            </option>
+                            {#if workflowSteps[index].inputs[inputKey] && !inputValueHasSuggestion(step, inputKey)}
+                              <option value={workflowSteps[index].inputs[inputKey]}>{workflowSteps[index].inputs[inputKey]}</option>
+                            {/if}
+                            {#each suggestionsForInput(step, inputKey) as suggestion (`${step.id}-${inputKey}-${suggestion}`)}
+                              <option value={suggestion}>{suggestion}</option>
+                            {/each}
+                          </select>
+                          <button
+                            type="button"
+                            class="discovery-refresh-button"
+                            on:click={() => loadInputSuggestions(workflowSteps[index], inputKey, true)}
+                            disabled={suggestionLoadingForInput(step, inputKey)}
+                            title="Refresh discovery"
+                          >
+                            ↻
+                          </button>
+                        </div>
+                        {#if suggestionErrorForInput(step, inputKey)}
+                          <small class="discovery-input-error">{suggestionErrorForInput(step, inputKey)}</small>
+                        {/if}
+                      {:else}
+                        <input type="text" bind:value={workflowSteps[index].inputs[inputKey]} placeholder={inputKey} />
+                      {/if}
                     </label>
                   {/each}
                 </div>

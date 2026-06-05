@@ -60,6 +60,8 @@ func TestSSHTmuxBootstrapCommand(t *testing.T) {
 		"tmux new-session -A -s",
 		"mimir-ssh-prod-01",
 		"set status off",
+		"set mouse on",
+		"set history-limit 100000",
 		"set prefix None",
 		`exec "${SHELL:-sh}"`,
 	}
