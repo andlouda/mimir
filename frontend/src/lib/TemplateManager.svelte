@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
   import { t } from './i18n.js';
 
   export let SaveTemplate;
@@ -41,6 +41,7 @@
   let categoryViews = [];
   let visibleTemplateCount = 0;
   let templateSearchQuery = '';
+  let editorPanelElement;
 
   function normalizeTemplate(template) {
     return {
@@ -290,6 +291,12 @@
     showForm = false;
   }
 
+  async function revealForm() {
+    await tick();
+    editorPanelElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('templateName')?.focus();
+  }
+
   $: if (templateToEdit) {
     const normalizedTemplate = normalizeTemplate(templateToEdit);
     templateName = normalizedTemplate.name;
@@ -305,6 +312,7 @@
     templateDangerLevel = normalizedTemplate.dangerLevel;
     isFavorite = normalizedTemplate.favorite;
     showForm = true;
+    revealForm();
   }
 
   function startCreateTemplate() {
@@ -313,6 +321,7 @@
     errorMessage = '';
     successMessage = '';
     showForm = true;
+    revealForm();
   }
 
   async function handleSubmit() {
@@ -432,6 +441,50 @@
     <div class="success-message">{successMessage}</div>
   {/if}
 
+  {#if showForm}
+    <section class="editor-panel" bind:this={editorPanelElement}>
+      <h2>{templateToEdit ? $t('templateManager.editTitle') : $t('templateManager.createTitle')}</h2>
+
+      <form on:submit|preventDefault={handleSubmit}>
+        <div class="form-group">
+          <label for="templateName">{$t('templateManager.name')}</label>
+          <input type="text" id="templateName" bind:value={templateName} required />
+        </div>
+
+        <div class="form-group">
+          <label for="templateDescription">{$t('templateManager.description')}</label>
+          <textarea id="templateDescription" bind:value={templateDescription}></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="templateCategory">{$t('templateManager.category')}</label>
+          <select id="templateCategory" bind:value={templateCategory}>
+            {#each categoryOrder as category (category)}
+              <option value={category}>{category}</option>
+            {/each}
+          </select>
+        </div>
+
+        <h3>{$t('templateManager.commandsHeader')}</h3>
+        <div class="form-group">
+          <label for="bashCommand">{$t('templateManager.bashLabel')}</label>
+          <input type="text" id="bashCommand" bind:value={bashCommand} on:input={syncBashCommands} placeholder={$t('templateManager.bashPlaceholder')} />
+        </div>
+        <div class="form-group">
+          <label for="cmdCommand">{$t('templateManager.cmdLabel')}</label>
+          <input type="text" id="cmdCommand" bind:value={cmdCommand} placeholder={$t('templateManager.cmdPlaceholder')} />
+        </div>
+        <div class="form-group">
+          <label for="powershellCommand">{$t('templateManager.powershellLabel')}</label>
+          <input type="text" id="powershellCommand" bind:value={powershellCommand} placeholder={$t('templateManager.powershellPlaceholder')} />
+        </div>
+
+        <button type="submit">{templateToEdit ? $t('templateManager.update') : $t('templateManager.save')}</button>
+        <button type="button" on:click={resetForm} class="cancel-button">{templateToEdit ? $t('templateManager.cancelEdit') : $t('templateManager.close')}</button>
+      </form>
+    </section>
+  {/if}
+
   {#if templates.length === 0}
     <p>{$t('templateManager.emptyNone')}</p>
   {:else if categoryViews.length === 0}
@@ -521,49 +574,5 @@
         {/if}
       </section>
     {/each}
-  {/if}
-
-  {#if showForm}
-    <section class="editor-panel">
-      <h2>{templateToEdit ? $t('templateManager.editTitle') : $t('templateManager.createTitle')}</h2>
-
-      <form on:submit|preventDefault={handleSubmit}>
-        <div class="form-group">
-          <label for="templateName">{$t('templateManager.name')}</label>
-          <input type="text" id="templateName" bind:value={templateName} required />
-        </div>
-
-        <div class="form-group">
-          <label for="templateDescription">{$t('templateManager.description')}</label>
-          <textarea id="templateDescription" bind:value={templateDescription}></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="templateCategory">{$t('templateManager.category')}</label>
-          <select id="templateCategory" bind:value={templateCategory}>
-            {#each categoryOrder as category (category)}
-              <option value={category}>{category}</option>
-            {/each}
-          </select>
-        </div>
-
-        <h3>{$t('templateManager.commandsHeader')}</h3>
-        <div class="form-group">
-          <label for="bashCommand">{$t('templateManager.bashLabel')}</label>
-          <input type="text" id="bashCommand" bind:value={bashCommand} on:input={syncBashCommands} placeholder={$t('templateManager.bashPlaceholder')} />
-        </div>
-        <div class="form-group">
-          <label for="cmdCommand">{$t('templateManager.cmdLabel')}</label>
-          <input type="text" id="cmdCommand" bind:value={cmdCommand} placeholder={$t('templateManager.cmdPlaceholder')} />
-        </div>
-        <div class="form-group">
-          <label for="powershellCommand">{$t('templateManager.powershellLabel')}</label>
-          <input type="text" id="powershellCommand" bind:value={powershellCommand} placeholder={$t('templateManager.powershellPlaceholder')} />
-        </div>
-
-        <button type="submit">{templateToEdit ? $t('templateManager.update') : $t('templateManager.save')}</button>
-        <button type="button" on:click={resetForm} class="cancel-button">{templateToEdit ? $t('templateManager.cancelEdit') : $t('templateManager.close')}</button>
-      </form>
-    </section>
   {/if}
 </div>
