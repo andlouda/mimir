@@ -338,6 +338,39 @@
     return lines.join('\n');
   }
 
+  async function runPlaybook(playbook) {
+    runLoading = true;
+    try {
+      const definition = JSON.stringify({
+        id: playbook.id,
+        name: playbook.name,
+        description: playbook.description || '',
+        mode: playbook.mode || 'assist',
+        steps: playbook.steps || [],
+      });
+      const payload = await window['go']['main']['App']['RunWorkflowDraftJSON'](
+        definition,
+        Number(activeTerminalId || 0),
+        activeTerminalType || '',
+        activeTerminalName || '',
+        activeTerminalOutput || ''
+      );
+      lastRunState = JSON.parse(payload);
+      showApprovalDialog = Boolean(lastRunState?.pendingApproval);
+      approvalDecisionMessage = '';
+      successMessage = `Playbook "${playbook.name}" run completed.`;
+      errorMessage = '';
+      workflowView = 'builder';
+      loadPlaybook(playbook);
+    } catch (error) {
+      lastRunState = null;
+      errorMessage = `Failed to run playbook: ${error.message || error}`;
+      successMessage = '';
+    } finally {
+      runLoading = false;
+    }
+  }
+
   async function runWorkflowDraft() {
     runLoading = true;
     try {
@@ -628,6 +661,7 @@
       {prettyMode}
       {startCustomWorkflow}
       {loadPlaybook}
+      {runPlaybook}
     />
   {/if}
 

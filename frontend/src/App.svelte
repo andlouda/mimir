@@ -276,6 +276,9 @@
   let sshProfiles = [];
   let showSSHProfileModal = false;
   let showTemplatePicker = false;
+  let showWorkflowPicker = false;
+  let workflowPickerPlaybooks = [];
+  let workflowPickerLoading = false;
   let sshSecretBackend = '';
   let sshConnecting = false;
   let hostKeyVerifyState = null; // { status, host, fingerprint, keyType, message, profileID, profile }
@@ -682,7 +685,6 @@
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       fontSize: 13,
       lineHeight: 1.35,
-      allowTransparency: true,
       theme: {
         background: '#0c0e14',
         foreground: '#c9d1d9',
@@ -938,14 +940,28 @@
     if (!sourceTerm) return;
 
     const type = sourceTerm.type;
-    const name = `${type.toUpperCase()} ${terminals.length + 1}`;
 
     try {
-      const tmuxSessionName = tmuxCapableTerminalTypes.has(type) ? generateTmuxSessionName('mimir') : '';
-      const newId = await startTerminalBackend(type, tmuxSessionName);
+      let newId;
+      let name;
+      let sshProfileId = '';
+
+      if (type === 'ssh' && sourceTerm.sshProfileId) {
+        const profile = sshProfiles.find(p => p.id === sourceTerm.sshProfileId);
+        if (!profile) {
+          errorMessage = 'SSH profile not found. Cannot split this terminal.';
+          return;
+        }
+        newId = await StartSSHTerminal(profile.id);
+        name = `SSH: ${profile.name}`;
+        sshProfileId = profile.id;
+      } else {
+        const tmuxSessionName = tmuxCapableTerminalTypes.has(type) ? generateTmuxSessionName('mimir') : '';
+        newId = await startTerminalBackend(type, tmuxSessionName);
+        name = `${type.toUpperCase()} ${terminals.length + 1}`;
+      }
       if (!newId) return;
 
-      // Update tree: replace the target leaf with a split containing old + new
       const newLeaf = { type: 'leaf', terminalId: newId };
       layoutTree = replaceLeaf(layoutTree, terminalId, {
         type: 'split',
@@ -957,11 +973,10 @@
         ]
       });
 
-      const newTerminal = await createTerminalInstance(newId, type, name, false, sourceTerm.sshProfileId || '', false, tmuxSessionName, '', 'fresh');
-      persistTerminalState({ ...newTerminal, minimized: false });
+      const newTerminal = await createTerminalInstance(newId, type, name, false, sshProfileId, false, '', '', 'fresh');
+      persistTerminalState({ ...newTerminal, minimized: false, sshProfileId });
       activeTerminalId = newId;
 
-      // Re-attach ALL terminals whose DOM elements were recreated by the tree change
       await reinitializeTerminals();
     } catch (error) {
       errorMessage = error.message || 'Failed to split terminal.';
@@ -1124,10 +1139,20 @@
       showTemplatePicker = !showTemplatePicker;
       return;
     }
-    // Escape → close the template picker, then any search bars
+    // Ctrl+Shift+W → toggle workflow picker (search & run a workflow)
+    if (event.ctrlKey && event.shiftKey && (event.key === 'W' || event.key === 'w')) {
+      event.preventDefault();
+      toggleWorkflowPicker();
+      return;
+    }
+    // Escape → close pickers, then any search bars
     if (event.key === 'Escape') {
       if (showTemplatePicker) {
         showTemplatePicker = false;
+        return;
+      }
+      if (showWorkflowPicker) {
+        showWorkflowPicker = false;
         return;
       }
       const anySearchVisible = terminals.some(t => t.searchVisible);
@@ -1259,6 +1284,55 @@
       errorMessage = "";
     } catch (error) {
       errorMessage = `Failed to apply template: ${error.message || error}`;
+    }
+  }
+
+  async function toggleWorkflowPicker() {
+    if (showWorkflowPicker) {
+      showWorkflowPicker = false;
+      return;
+    }
+    if (activeTerminalId === null) {
+      errorMessage = $tr('workflowPicker.noTerminal');
+      return;
+    }
+    showWorkflowPicker = true;
+    workflowPickerLoading = true;
+    try {
+      const payload = await window['go']['main']['App']['GetPlaybooksJSON']();
+      workflowPickerPlaybooks = JSON.parse(payload);
+    } catch (error) {
+      workflowPickerPlaybooks = [];
+      errorMessage = `Failed to load workflows: ${error.message || error}`;
+    } finally {
+      workflowPickerLoading = false;
+    }
+  }
+
+  async function runWorkflowFromPicker(playbook) {
+    const activeTerminal = terminals.find(t => t.id === activeTerminalId);
+    if (!activeTerminal) {
+      errorMessage = 'Active terminal not found.';
+      return;
+    }
+    try {
+      const definition = JSON.stringify({
+        id: playbook.id,
+        name: playbook.name,
+        description: playbook.description || '',
+        mode: playbook.mode || 'assist',
+        steps: playbook.steps || [],
+      });
+      await window['go']['main']['App']['RunWorkflowDraftJSON'](
+        definition,
+        Number(activeTerminal.id),
+        activeTerminal.type || '',
+        activeTerminal.name || '',
+        activeTerminal.outputBuffer || ''
+      );
+      errorMessage = '';
+    } catch (error) {
+      errorMessage = `Failed to run workflow: ${error.message || error}`;
     }
   }
 
@@ -1814,6 +1888,11 @@
     bind:showTemplatePicker
     {templates}
     {applyTemplate}
+    bind:showWorkflowPicker
+    {workflowPickerPlaybooks}
+    {workflowPickerLoading}
+    {runWorkflowFromPicker}
+    closeWorkflowPicker={() => { showWorkflowPicker = false; }}
     bind:templatePromptState
     {closeTemplatePrompt}
     {submitTemplatePrompt}

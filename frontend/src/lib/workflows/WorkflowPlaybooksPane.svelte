@@ -6,6 +6,7 @@
   export let prettyMode = (mode) => mode;
   export let startCustomWorkflow = () => {};
   export let loadPlaybook = () => {};
+  export let runPlaybook = () => {};
 </script>
 
 <section class="playbook-hero">
@@ -51,7 +52,10 @@
             </div>
           {/each}
         </div>
-        <button type="button" class="add-button" on:click={() => loadPlaybook(playbook)}>{$t('workflowBuilder.openInBuilder')}</button>
+        <div class="playbook-actions">
+          <button type="button" class="add-button" on:click={() => runPlaybook(playbook)}>{$t('workflowBuilder.runPlaybook')}</button>
+          <button type="button" class="secondary-button" on:click={() => loadPlaybook(playbook)}>{$t('workflowBuilder.openInBuilder')}</button>
+        </div>
       </article>
     {/each}
   </div>

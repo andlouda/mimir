@@ -110,6 +110,13 @@ export default {
       newPlaceholder: 'New folder name...',
       delete: 'Delete folder',
     },
+    shortcuts: {
+      title: 'Keyboard Shortcuts',
+      templatePicker: 'Open template picker',
+      workflowPicker: 'Open workflow picker',
+      terminalSearch: 'Search in terminal',
+      notesPanel: 'Toggle notes panel',
+    },
     updatePanel: {
       status: 'Update Status',
       current: 'Current',
@@ -136,6 +143,13 @@ export default {
     search: 'Search templates...',
     empty: 'No templates found.',
     hint: '↑↓ to navigate · Enter to apply · Esc to close',
+  },
+  workflowPicker: {
+    search: 'Search workflows...',
+    empty: 'No workflows found.',
+    loading: 'Loading workflows...',
+    hint: '↑↓ to navigate · Enter to run · Esc to close',
+    noTerminal: 'Please select a terminal first.',
   },
   aiPanel: {
     titles: {
@@ -550,6 +564,7 @@ export default {
     discoveryCount: '{n} discovery',
     aiCount: '{n} AI',
     protectedTag: 'protected',
+    runPlaybook: 'Run',
     openInBuilder: 'Open in Builder',
     functionCatalog: 'Function Catalog',
     functionsCount: '{n} functions',

@@ -110,6 +110,13 @@ export default {
       newPlaceholder: 'Neuer Ordnername...',
       delete: 'Ordner löschen',
     },
+    shortcuts: {
+      title: 'Tastenkürzel',
+      templatePicker: 'Template-Auswahl öffnen',
+      workflowPicker: 'Workflow-Auswahl öffnen',
+      terminalSearch: 'Im Terminal suchen',
+      notesPanel: 'Notizen ein-/ausblenden',
+    },
     updatePanel: {
       status: 'Update-Status',
       current: 'Aktuell',
@@ -136,6 +143,13 @@ export default {
     search: 'Templates durchsuchen...',
     empty: 'Keine Templates gefunden.',
     hint: '↑↓ navigieren · Enter anwenden · Esc schließen',
+  },
+  workflowPicker: {
+    search: 'Workflows durchsuchen...',
+    empty: 'Keine Workflows gefunden.',
+    loading: 'Workflows werden geladen...',
+    hint: '↑↓ navigieren · Enter ausführen · Esc schließen',
+    noTerminal: 'Bitte zuerst ein Terminal auswählen.',
   },
   aiPanel: {
     titles: {
@@ -550,6 +564,7 @@ export default {
     discoveryCount: '{n} Discovery',
     aiCount: '{n} AI',
     protectedTag: 'geschützt',
+    runPlaybook: 'Ausführen',
     openInBuilder: 'Im Builder öffnen',
     functionCatalog: 'Funktionskatalog',
     functionsCount: '{n} Funktionen',

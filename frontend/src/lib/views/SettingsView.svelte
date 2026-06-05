@@ -123,6 +123,28 @@
     </button>
   </div>
 
+  <div class="shortcuts-panel">
+    <h3>{$t('settings.shortcuts.title')}</h3>
+    <div class="shortcuts-grid">
+      <div class="shortcut-row">
+        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd>
+        <span>{$t('settings.shortcuts.templatePicker')}</span>
+      </div>
+      <div class="shortcut-row">
+        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd>
+        <span>{$t('settings.shortcuts.workflowPicker')}</span>
+      </div>
+      <div class="shortcut-row">
+        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd>
+        <span>{$t('settings.shortcuts.terminalSearch')}</span>
+      </div>
+      <div class="shortcut-row">
+        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>N</kbd>
+        <span>{$t('settings.shortcuts.notesPanel')}</span>
+      </div>
+    </div>
+  </div>
+
   {#if showFolderManager}
     <div class="folder-manager">
       <h3>{$t('settings.folderManager.title')}</h3>
@@ -256,5 +278,43 @@
     padding: 0.35rem 0.5rem;
     font-family: var(--font-sans);
     font-size: 0.78rem;
+  }
+  .shortcuts-panel {
+    margin-top: 1.2rem;
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    padding: 1rem 1.2rem;
+  }
+  .shortcuts-panel h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+  }
+  .shortcuts-grid {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .shortcut-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+  .shortcut-row span {
+    margin-left: 0.6rem;
+  }
+  .shortcut-row kbd {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.72rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+    box-shadow: 0 1px 0 var(--border-dim);
   }
 </style>

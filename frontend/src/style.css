@@ -38,6 +38,10 @@ html, body, #app {
   background: rgba(99, 179, 237, 0.4);
 }
 
+.terminal .xterm {
+  height: 100% !important;
+}
+
 .xterm-viewport, .xterm-screen {
   padding: 0;
   margin: 0;

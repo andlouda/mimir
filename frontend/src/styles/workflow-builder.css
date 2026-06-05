@@ -198,6 +198,12 @@
     gap: 0.65rem;
   }
 
+  .playbook-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
   .catalog-item p {
     margin: 0;
     color: var(--text-secondary);

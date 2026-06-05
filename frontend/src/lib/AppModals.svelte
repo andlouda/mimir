@@ -1,5 +1,6 @@
 <script>
   import TemplatePicker from './modals/TemplatePicker.svelte';
+  import WorkflowPicker from './modals/WorkflowPicker.svelte';
   import TemplatePromptModal from './modals/TemplatePromptModal.svelte';
   import AIPanelModal from './modals/AIPanelModal.svelte';
   import AISettingsModal from './modals/AISettingsModal.svelte';
@@ -43,6 +44,11 @@
   export let hostKeyVerifyState = null;
   export let acceptHostKey = () => {};
   export let rejectHostKey = () => {};
+  export let showWorkflowPicker = false;
+  export let workflowPickerPlaybooks = [];
+  export let workflowPickerLoading = false;
+  export let runWorkflowFromPicker = () => {};
+  export let closeWorkflowPicker = () => {};
   export let aggDownloadInfo = null;
   export let downloadingAgg = false;
   export let cancelAggDownload = () => {};
@@ -54,6 +60,15 @@
     templates={templates}
     onSelect={(name) => { showTemplatePicker = false; applyTemplate(name); }}
     onClose={() => { showTemplatePicker = false; }}
+  />
+{/if}
+
+{#if showWorkflowPicker}
+  <WorkflowPicker
+    playbooks={workflowPickerPlaybooks}
+    loading={workflowPickerLoading}
+    onSelect={(pb) => { showWorkflowPicker = false; runWorkflowFromPicker(pb); }}
+    onClose={closeWorkflowPicker}
   />
 {/if}
 
