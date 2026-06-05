@@ -9,38 +9,46 @@ import (
 
 func TestSSHTmuxSessionNameSanitizesProfileID(t *testing.T) {
 	tests := []struct {
-		name      string
-		profileID string
-		want      string
+		name       string
+		profileID  string
+		wantPrefix string
 	}{
 		{
-			name:      "short safe id",
-			profileID: "prod_01",
-			want:      "mimir-ssh-prod_01",
+			name:       "short safe id",
+			profileID:  "prod_01",
+			wantPrefix: "mimir-ssh-prod_01-",
 		},
 		{
-			name:      "long id is shortened before sanitize",
-			profileID: "abcdefghi",
-			want:      "mimir-ssh-abcdefgh",
+			name:       "long id is shortened before sanitize",
+			profileID:  "abcdefghi",
+			wantPrefix: "mimir-ssh-abcdefgh-",
 		},
 		{
-			name:      "unsafe chars are removed",
-			profileID: "a/b:c d!",
-			want:      "mimir-ssh-abcd",
+			name:       "unsafe chars are removed",
+			profileID:  "a/b:c d!",
+			wantPrefix: "mimir-ssh-abcd-",
 		},
 		{
-			name:      "empty after sanitize falls back",
-			profileID: "////",
-			want:      "mimir-ssh-default",
+			name:       "empty after sanitize falls back",
+			profileID:  "////",
+			wantPrefix: "mimir-ssh-default-",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := sshTmuxSessionName(tt.profileID); got != tt.want {
-				t.Fatalf("sshTmuxSessionName(%q) = %q, want %q", tt.profileID, got, tt.want)
+			got := sshTmuxSessionName(tt.profileID)
+			if !strings.HasPrefix(got, tt.wantPrefix) {
+				t.Fatalf("sshTmuxSessionName(%q) = %q, want prefix %q", tt.profileID, got, tt.wantPrefix)
 			}
 		})
+	}
+
+	// Each call must produce a unique name.
+	a := sshTmuxSessionName("test")
+	b := sshTmuxSessionName("test")
+	if a == b {
+		t.Fatalf("sshTmuxSessionName should produce unique names, got %q twice", a)
 	}
 }
 

@@ -237,6 +237,19 @@ func (e *RunToolExecutor) Execute(runCtx RunContext, state *State, step Step) er
 	for key, value := range step.Inputs {
 		inputs[key] = value
 	}
+	// Fill empty inputs from preceding discovery results.
+	if state.Discovery != nil {
+		for key, value := range inputs {
+			if value == "" {
+				for _, discoveryValues := range state.Discovery {
+					if len(discoveryValues) > 0 {
+						inputs[key] = discoveryValues[0]
+						break
+					}
+				}
+			}
+		}
+	}
 
 	state.Events = append(state.Events, Event{
 		StepID:  step.ID,
@@ -260,6 +273,9 @@ func (e *RunToolExecutor) Execute(runCtx RunContext, state *State, step Step) er
 	})
 
 	result, err := tool.Run(runCtx.ToolContext, inputs)
+	if state.Outputs == nil {
+		state.Outputs = map[string]string{}
+	}
 	if err != nil {
 		_ = activitylog.Append(activitylog.KindToolExecutions, activitylog.ToolExecutionEntry{
 			Timestamp:    time.Now().Format(time.RFC3339),
@@ -273,12 +289,20 @@ func (e *RunToolExecutor) Execute(runCtx RunContext, state *State, step Step) er
 			Inputs:       inputs,
 			Error:        err.Error(),
 		})
-		return err
+		state.Outputs[step.ID] = fmt.Sprintf("tool failed: %s", err.Error())
+		state.Events = append(state.Events, Event{
+			StepID:  step.ID,
+			Type:    "step_warning",
+			Message: fmt.Sprintf("Tool %s failed: %s — continuing workflow", tool.Name(), err.Error()),
+			Metadata: map[string]string{
+				"tool_id":   tool.ID(),
+				"tool_name": tool.Name(),
+				"error":     err.Error(),
+			},
+		})
+		return nil
 	}
 
-	if state.Outputs == nil {
-		state.Outputs = map[string]string{}
-	}
 	if result.Output != "" {
 		state.Outputs[step.ID] = result.Output
 	}

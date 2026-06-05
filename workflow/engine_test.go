@@ -150,14 +150,17 @@ func TestEngineRunCapturesToolFailure(t *testing.T) {
 			{ID: "step-1", Type: StepRunTool, Tool: "template:failing"},
 		},
 	})
-	if err == nil {
-		t.Fatal("expected workflow run to fail")
+	if err != nil {
+		t.Fatalf("tool failures should be non-fatal, got error: %v", err)
 	}
-	if len(state.Events) < 2 {
-		t.Fatalf("expected failure events, got %+v", state.Events)
+	hasWarning := false
+	for _, ev := range state.Events {
+		if ev.Type == "step_warning" && ev.StepID == "step-1" {
+			hasWarning = true
+		}
 	}
-	if state.Events[len(state.Events)-1].Type != "step_failed" {
-		t.Fatalf("expected trailing step_failed event, got %+v", state.Events)
+	if !hasWarning {
+		t.Fatalf("expected step_warning event for failed tool, got %+v", state.Events)
 	}
 }
 

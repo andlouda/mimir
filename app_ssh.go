@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"mimir/ssh"
@@ -17,6 +18,8 @@ import (
 )
 
 var sshTmuxNameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
+var sshTmuxCounter uint64
 
 const maxSSHRCBytes = 64 * 1024
 
@@ -56,7 +59,8 @@ func sshTmuxSessionName(profileID string) string {
 	if shortID == "" {
 		shortID = "default"
 	}
-	return "mimir-ssh-" + shortID
+	n := atomic.AddUint64(&sshTmuxCounter, 1)
+	return fmt.Sprintf("mimir-ssh-%s-%d", shortID, n)
 }
 
 func shellQuote(value string) string {
