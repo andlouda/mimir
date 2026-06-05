@@ -201,22 +201,26 @@
       }}
       on:exportscrubbed={async (e) => {
         try {
-          await ExportRecordingScrubbed(e.detail);
+          const path = await ExportRecordingScrubbed(e.detail);
+          if (path) onError(`Export saved: ${path}`);
         } catch (err) { onError(`Export scrubbed failed: ${err.message || err}`); }
       }}
       on:exportgif={async (e) => {
         try {
-          await ExportRecordingGIF(e.detail);
+          const path = await ExportRecordingGIF(e.detail);
+          if (path) onError(`GIF export saved: ${path}`);
         } catch (err) { onError(`GIF export failed: ${err.message || err}`); }
       }}
       on:exporttrimmed={async (e) => {
         try {
-          await ExportRecordingTrimmed(e.detail.id, JSON.stringify(e.detail.cuts));
+          const path = await ExportRecordingTrimmed(e.detail.id, JSON.stringify(e.detail.cuts));
+          if (path) onError(`Trimmed export saved: ${path}`);
         } catch (err) { onError(`Trimmed export failed: ${err.message || err}`); }
       }}
       on:exporttrimmedgif={async (e) => {
         try {
-          await ExportRecordingTrimmedGIF(e.detail.id, JSON.stringify(e.detail.cuts));
+          const path = await ExportRecordingTrimmedGIF(e.detail.id, JSON.stringify(e.detail.cuts));
+          if (path) onError(`Trimmed GIF export saved: ${path}`);
         } catch (err) { onError(`Trimmed GIF export failed: ${err.message || err}`); }
       }}
     />

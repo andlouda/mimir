@@ -231,6 +231,13 @@ func copyGeneratedFile(src string, dst string) error {
 		os.Remove(tmpPath)
 		return fmt.Errorf("install exported file: %w", err)
 	}
+	finalStat, err := os.Stat(dst)
+	if err != nil {
+		return fmt.Errorf("verify exported file: %w", err)
+	}
+	if finalStat.Size() == 0 {
+		return fmt.Errorf("verify exported file: file is empty")
+	}
 	return nil
 }
 
