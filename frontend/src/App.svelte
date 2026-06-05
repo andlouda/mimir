@@ -567,6 +567,12 @@
   $: sidebarGroups = groupedSidebarTerminals(terminals, customFolders);
 
   function openTemplatePrompt(template, terminalType, terminalId, variableNames) {
+    const paramMap = {};
+    if (template.parameters) {
+      for (const p of template.parameters) {
+        paramMap[p.name] = p;
+      }
+    }
     templatePromptState = {
       templateName: template.name,
       terminalType,
@@ -574,9 +580,25 @@
       fields: variableNames.map((name) => ({
         name,
         label: buildPromptLabel(name),
-        value: ''
+        value: '',
+        discoveryTool: paramMap[name]?.discoveryTool || '',
+        suggestions: [],
+        loadingSuggestions: false,
       }))
     };
+    for (const field of templatePromptState.fields) {
+      if (field.discoveryTool) {
+        field.loadingSuggestions = true;
+        window['go']['main']['App']['RunDiscoveryJSON'](field.discoveryTool, terminalType, '{}')
+          .then(raw => {
+            const values = JSON.parse(raw);
+            field.suggestions = Array.isArray(values) ? values : [];
+            field.loadingSuggestions = false;
+            templatePromptState = templatePromptState;
+          })
+          .catch(() => { field.loadingSuggestions = false; templatePromptState = templatePromptState; });
+      }
+    }
   }
 
   function closeTemplatePrompt() {

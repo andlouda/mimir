@@ -32,13 +32,25 @@
     <div class="template-prompt-fields">
       {#each state.fields as field, index (field.name)}
         <label class="template-prompt-field">
-          <span>{field.label}</span>
-          <input
-            type="text"
-            bind:value={state.fields[index].value}
-            placeholder={field.name}
-            on:keydown={(e) => { if (e.key === 'Enter') onSubmit(); }}
-          />
+          <span>{field.label}{#if field.loadingSuggestions} <span class="discovery-loading">…</span>{/if}</span>
+          {#if field.suggestions && field.suggestions.length > 0}
+            <select
+              bind:value={state.fields[index].value}
+              on:keydown={(e) => { if (e.key === 'Enter') onSubmit(); }}
+            >
+              <option value="">{field.label}...</option>
+              {#each field.suggestions as s}
+                <option value={s}>{s}</option>
+              {/each}
+            </select>
+          {:else}
+            <input
+              type="text"
+              bind:value={state.fields[index].value}
+              placeholder={field.name}
+              on:keydown={(e) => { if (e.key === 'Enter') onSubmit(); }}
+            />
+          {/if}
         </label>
       {/each}
     </div>
@@ -48,3 +60,20 @@
     </div>
   </div>
 </div>
+
+<style>
+  .discovery-loading {
+    font-size: 0.75rem;
+    opacity: 0.6;
+  }
+  select {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+  }
+</style>
