@@ -226,6 +226,7 @@ func copyGeneratedFile(src string, dst string) error {
 		os.Remove(tmpPath)
 		return fmt.Errorf("close export temp file: %w", err)
 	}
+	_ = os.Remove(dst)
 	if err := os.Rename(tmpPath, dst); err != nil {
 		os.Remove(tmpPath)
 		return fmt.Errorf("install exported file: %w", err)

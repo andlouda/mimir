@@ -342,14 +342,9 @@ func (s *Store) ExportTrimmed(id string, cuts []CutRegion, scrub bool) (string, 
 
 // ExportTrimmedGIF generates a GIF from a trimmed recording using `agg`.
 func (s *Store) ExportTrimmedGIF(id string, cuts []CutRegion) (string, error) {
-	tmpGif, err := os.CreateTemp("", "mimir-trimmed-*.gif")
+	gifPath, err := tempOutputPath("mimir-trimmed-*.gif")
 	if err != nil {
-		return "", fmt.Errorf("recording: create temp gif: %w", err)
-	}
-	gifPath := tmpGif.Name()
-	if err := tmpGif.Close(); err != nil {
-		os.Remove(gifPath)
-		return "", fmt.Errorf("recording: close temp gif: %w", err)
+		return "", err
 	}
 	if err := s.ExportTrimmedGIFTo(id, cuts, gifPath); err != nil {
 		os.Remove(gifPath)
@@ -397,14 +392,9 @@ func (s *Store) ExportTrimmedGIFTo(id string, cuts []CutRegion, gifPath string) 
 
 // ExportGIF generates a GIF from the recording using `agg` and returns the GIF path.
 func (s *Store) ExportGIF(id string) (string, error) {
-	tmpGif, err := os.CreateTemp("", "mimir-recording-*.gif")
+	gifPath, err := tempOutputPath("mimir-recording-*.gif")
 	if err != nil {
-		return "", fmt.Errorf("recording: create temp gif: %w", err)
-	}
-	gifPath := tmpGif.Name()
-	if err := tmpGif.Close(); err != nil {
-		os.Remove(gifPath)
-		return "", fmt.Errorf("recording: close temp gif: %w", err)
+		return "", err
 	}
 	if err := s.ExportGIFTo(id, gifPath); err != nil {
 		os.Remove(gifPath)
@@ -435,6 +425,22 @@ func (s *Store) ExportGIFTo(id string, gifPath string) error {
 		return err
 	}
 	return nil
+}
+
+func tempOutputPath(pattern string) (string, error) {
+	tmpGif, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", fmt.Errorf("recording: create temp gif path: %w", err)
+	}
+	gifPath := tmpGif.Name()
+	if err := tmpGif.Close(); err != nil {
+		os.Remove(gifPath)
+		return "", fmt.Errorf("recording: close temp gif path: %w", err)
+	}
+	if err := os.Remove(gifPath); err != nil {
+		return "", fmt.Errorf("recording: clear temp gif path: %w", err)
+	}
+	return gifPath, nil
 }
 
 func runAgg(bin, castPath, gifPath string) error {
