@@ -166,18 +166,18 @@ func isPlatformAsset(name string) bool {
 
 	switch goos {
 	case "windows":
-		return (strings.Contains(lower, "windows") || strings.HasSuffix(lower, ".exe") || strings.HasSuffix(lower, ".msi") || strings.HasSuffix(lower, ".zip")) && assetArchMatches(lower)
+		return strings.Contains(lower, "windows") && assetArchMatches(lower)
 	case "linux":
-		return (strings.Contains(lower, "linux") || strings.HasSuffix(lower, ".appimage") || strings.HasSuffix(lower, ".tar.gz")) && assetArchMatches(lower)
+		return strings.Contains(lower, "linux") && assetArchMatches(lower)
 	case "darwin":
-		return (strings.Contains(lower, "darwin") || strings.Contains(lower, "macos") || strings.HasSuffix(lower, ".dmg") || strings.HasSuffix(lower, ".zip")) && assetArchMatches(lower)
+		return (strings.Contains(lower, "darwin") || strings.Contains(lower, "macos")) && assetArchMatches(lower)
 	default:
 		return strings.Contains(lower, goos)
 	}
 }
 
 func assetArchMatches(lowerName string) bool {
-	if strings.Contains(lowerName, "universal") {
+	if strings.Contains(lowerName, "universal") && runtime.GOOS == "darwin" {
 		return true
 	}
 	switch runtime.GOARCH {
