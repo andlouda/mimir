@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -455,7 +456,7 @@ func runAgg(bin, castPath, gifPath string) error {
 		}
 		outputText := string(output)
 		if strings.Contains(outputText, "GLIBC_") || strings.Contains(outputText, "glibc") {
-			return fmt.Errorf("recording: bundled agg is incompatible with this Linux glibc; install agg through your distro/package manager so it is available on PATH, or remove %s and install a compatible agg binary: %s: %w", bin, outputText, err)
+			return fmt.Errorf("recording: agg is incompatible with this system's glibc. Install agg via your package manager (e.g. cargo install agg) so it is available on PATH: %w", err)
 		}
 		return fmt.Errorf("recording: agg failed: %s: %w", string(output), err)
 	}
@@ -499,15 +500,45 @@ func aggPath() string {
 	if dir, err := mimirBinDir(); err == nil {
 		local := filepath.Join(dir, aggBinName())
 		if _, err := os.Stat(local); err == nil {
-			return local
+			if aggUsable(local) {
+				return local
+			}
 		}
 	}
 	return ""
 }
 
+func aggUsable(path string) bool {
+	cmd := exec.Command(path, "--version")
+	hideConsoleWindow(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		s := string(out)
+		if strings.Contains(s, "GLIBC_") || strings.Contains(s, "glibc") {
+			log.Printf("Managed agg at %s is incompatible with system glibc, ignoring", path)
+			return false
+		}
+	}
+	return true
+}
+
 // IsAggInstalled checks if the agg tool is available (local or PATH).
 func (s *Store) IsAggInstalled() bool {
 	return aggPath() != ""
+}
+
+// AggStatus returns "ok", "incompatible", or "missing".
+func (s *Store) AggStatus() string {
+	if aggPath() != "" {
+		return "ok"
+	}
+	if dir, err := mimirBinDir(); err == nil {
+		local := filepath.Join(dir, aggBinName())
+		if _, err := os.Stat(local); err == nil {
+			return "incompatible"
+		}
+	}
+	return "missing"
 }
 
 // AggDownloadInfo contains details about the agg download for user confirmation.

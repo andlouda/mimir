@@ -95,6 +95,7 @@ export default {
         title: 'GIF Export (agg)',
         installedDesc: 'agg ist installiert. Recording-GIF-Export ist verfügbar.',
         missingDesc: 'agg herunterladen um Recordings als GIF zu exportieren.',
+        incompatibleDesc: 'Gebündeltes agg ist inkompatibel mit deinem System. Installiere agg über deinen Paketmanager (z.B. cargo install agg).',
       },
       updates: {
         title: 'Updates',

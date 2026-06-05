@@ -246,6 +246,11 @@ func (a *App) IsAggInstalled() bool {
 	return a.recordingStore.IsAggInstalled()
 }
 
+// GetAggStatus returns "ok", "incompatible", or "missing".
+func (a *App) GetAggStatus() string {
+	return a.recordingStore.AggStatus()
+}
+
 // GetAggDownloadInfo returns download details for user confirmation.
 func (a *App) GetAggDownloadInfo() (recording.AggDownloadInfo, error) {
 	return a.recordingStore.GetAggDownloadInfo()

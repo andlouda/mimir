@@ -189,6 +189,7 @@
   let currentPage = "terminals";
   let recordingList = [];
   let aggAvailable = false;
+  let aggStatus = 'missing';
   let downloadingAgg = false;
   let aggDownloadInfo = null; // {url, destination, platform} — shown in confirm dialog
   let templateToEdit = null;
@@ -1502,6 +1503,7 @@
 
     if (page === "recordings" || page === "settings") {
       aggAvailable = await IsAggInstalled().catch(() => false);
+      aggStatus = await window['go']['main']['App']['GetAggStatus']().catch(() => 'missing');
     }
 
     if (page === "recordings") {
@@ -1720,6 +1722,7 @@
     bind:aiToolFlowConfig
     bind:recordingList
     {aggAvailable}
+    {aggStatus}
     bind:showFolderManager
     bind:historyTrackingEnabled
     {updateChecking}

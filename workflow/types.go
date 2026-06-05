@@ -31,6 +31,7 @@ type Step struct {
 	Prompt           string            `json:"prompt,omitempty" yaml:"prompt,omitempty"`
 	Inputs           map[string]string `json:"inputs,omitempty" yaml:"inputs,omitempty"`
 	RequiresApproval bool              `json:"requiresApproval,omitempty" yaml:"requiresApproval,omitempty"`
+	AIMode           string            `json:"aiMode,omitempty" yaml:"aiMode,omitempty"`
 }
 
 // Definition is the top-level workflow configuration.

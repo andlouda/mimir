@@ -34,6 +34,7 @@
   export let aiToolFlowConfig = {};
   export let recordingList = [];
   export let aggAvailable = false;
+  export let aggStatus = 'missing';
   export let showFolderManager = false;
   export let historyTrackingEnabled = false;
   export let updateChecking = false;
@@ -230,6 +231,7 @@
       bind:showFolderManager
       {historyTrackingEnabled}
       {aggAvailable}
+      {aggStatus}
       {updateChecking}
       {updateInfo}
       {updateDownloading}

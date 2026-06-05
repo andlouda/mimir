@@ -8,6 +8,7 @@
   export let showFolderManager = false;     // bind
   export let historyTrackingEnabled = false;
   export let aggAvailable = false;
+  export let aggStatus = 'missing';
   export let updateChecking = false;
   export let updateInfo = null;
   export let customFolders = [];
@@ -97,7 +98,7 @@
         <span class="ai-hub-link">{aggAvailable ? $t('settings.actions.installed') : $t('settings.actions.install')}</span>
       </div>
       <strong>{$t('settings.cards.agg.title')}</strong>
-      <p>{aggAvailable ? $t('settings.cards.agg.installedDesc') : $t('settings.cards.agg.missingDesc')}</p>
+      <p>{#if aggAvailable}{$t('settings.cards.agg.installedDesc')}{:else if aggStatus === 'incompatible'}{$t('settings.cards.agg.incompatibleDesc')}{:else}{$t('settings.cards.agg.missingDesc')}{/if}</p>
     </button>
 
     <button type="button" class="ai-hub-card" on:click={onCheckUpdates} disabled={updateChecking}>
