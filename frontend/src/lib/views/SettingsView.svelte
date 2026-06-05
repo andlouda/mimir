@@ -169,7 +169,9 @@
         {#if updateInfo.platformAsset}
           <p>{$t('settings.updatePanel.asset')}: {updateInfo.platformAsset.name}</p>
         {/if}
-        {#if updateInfo.checksumAsset}
+        {#if updateInfo.expectedSHA256}
+          <p>SHA256: <code class="sha256-hash">{updateInfo.expectedSHA256}</code></p>
+        {:else if updateInfo.checksumAsset}
           <p>{$t('settings.updatePanel.checksums')}: {updateInfo.checksumAsset.name}</p>
         {/if}
         {#if updateInfo.executablePath}
@@ -201,6 +203,12 @@
 </div>
 
 <style>
+  .sha256-hash {
+    font-size: 0.7rem;
+    word-break: break-all;
+    user-select: all;
+    opacity: 0.8;
+  }
   .update-staged-msg {
     color: var(--accent);
     font-size: 0.78rem;

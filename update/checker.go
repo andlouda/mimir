@@ -42,6 +42,7 @@ type Info struct {
 	Error            string  `json:"error,omitempty"`
 	Repository       string  `json:"repository,omitempty"`
 	ManualUpdateOnly bool    `json:"manualUpdateOnly"`
+	ExpectedSHA256   string  `json:"expectedSHA256,omitempty"`
 }
 
 type githubRelease struct {
@@ -125,6 +126,12 @@ func CheckGitHubRelease(ctx context.Context, repository string, currentVersion s
 
 	if info.PlatformAsset != nil {
 		info.ManualUpdateOnly = false
+	}
+
+	if info.PlatformAsset != nil && info.ChecksumAsset != nil {
+		if sha, err := resolveExpectedSHA(ctx, info); err == nil {
+			info.ExpectedSHA256 = sha
+		}
 	}
 
 	return info, nil
