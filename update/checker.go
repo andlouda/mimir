@@ -122,6 +122,10 @@ func CheckGitHubRelease(ctx context.Context, repository string, currentVersion s
 		}
 	}
 
+	if info.PlatformAsset != nil {
+		info.ManualUpdateOnly = false
+	}
+
 	return info, nil
 }
 
@@ -173,6 +177,9 @@ func isPlatformAsset(name string) bool {
 }
 
 func assetArchMatches(lowerName string) bool {
+	if strings.Contains(lowerName, "universal") {
+		return true
+	}
 	switch runtime.GOARCH {
 	case "amd64":
 		return strings.Contains(lowerName, "amd64") || strings.Contains(lowerName, "x86_64") || strings.Contains(lowerName, "x64")

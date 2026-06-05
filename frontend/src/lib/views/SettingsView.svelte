@@ -19,6 +19,10 @@
   export let onInstallAgg = () => {};
   export let onCheckUpdates = () => {};
   export let onOpenUpdatePage = () => {};
+  export let onDownloadUpdate = () => {};
+  export let updateDownloading = false;
+  export let updateProgress = null;
+  export let updateInstalled = false;
   export let onCreateFolder = () => {};
   export let onRenameFolder = () => {};
   export let onDeleteFolder = () => {};
@@ -104,6 +108,8 @@
       <p>
         {#if updateInfo?.error}
           {updateInfo.error}
+        {:else if updateInstalled}
+          {$t('settings.cards.updates.pendingDesc', { version: updateInfo?.latestVersion || '?' })}
         {:else if updateInfo?.updateAvailable}
           {$t('settings.cards.updates.availableDesc', { version: updateInfo.latestVersion })}
         {:else if updateInfo}
@@ -169,14 +175,58 @@
         {/if}
       </div>
       <div class="settings-inline-actions">
-        <button type="button" class="modal-secondary-button" on:click={onCheckUpdates} disabled={updateChecking}>{$t('settings.updatePanel.refresh')}</button>
-        <button type="button" class="modal-primary-button" on:click={onOpenUpdatePage} disabled={!updateInfo.configured}>{$t('settings.updatePanel.openRelease')}</button>
+        <button type="button" class="modal-secondary-button" on:click={onCheckUpdates} disabled={updateChecking || updateDownloading}>{$t('settings.updatePanel.refresh')}</button>
+        {#if updateInstalled}
+          <span class="update-staged-msg">{$t('settings.updatePanel.restartRequired')}</span>
+        {:else if updateDownloading}
+          <div class="update-progress-inline">
+            <span class="update-progress-label">{$t(`settings.updatePanel.stage_${updateProgress?.stage || 'downloading'}`)}</span>
+            {#if updateProgress?.percent >= 0}
+              <progress value={updateProgress.percent} max="100"></progress>
+            {/if}
+          </div>
+        {:else if updateInfo?.updateAvailable && !updateInfo?.manualUpdateOnly}
+          <button type="button" class="modal-primary-button" on:click={onDownloadUpdate}>{$t('settings.updatePanel.downloadInstall')}</button>
+        {/if}
+        <button type="button" class="modal-secondary-button" on:click={onOpenUpdatePage} disabled={!updateInfo.configured}>{$t('settings.updatePanel.openRelease')}</button>
       </div>
     </div>
   {/if}
 </div>
 
 <style>
+  .update-staged-msg {
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .update-progress-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+  }
+  .update-progress-inline progress {
+    width: 120px;
+    height: 6px;
+    appearance: none;
+    border: none;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--bg-void);
+  }
+  .update-progress-inline progress::-webkit-progress-bar {
+    background: var(--bg-void);
+    border-radius: 3px;
+  }
+  .update-progress-inline progress::-webkit-progress-value {
+    background: var(--accent);
+    border-radius: 3px;
+  }
+  .update-progress-label {
+    white-space: nowrap;
+  }
   .settings-language {
     display: flex;
     align-items: center;

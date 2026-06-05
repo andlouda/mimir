@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"mimir/activitylog"
+	"mimir/desktop"
 	"mimir/folder"
 	"mimir/history"
 	"mimir/notes"
@@ -24,6 +25,7 @@ import (
 	"mimir/template"
 	"mimir/terminal"
 	"mimir/transcript"
+	"mimir/update"
 	"mimir/workflow"
 
 	gossh "golang.org/x/crypto/ssh"
@@ -52,15 +54,17 @@ type App struct {
 	noteStore            *notes.NoteStore
 	recordingStore       *recording.Store
 	folderStore          *folder.FolderStore
+	appIconPNG           []byte
 }
 
 // NewApp creates a new App application struct
-func NewApp(embeddedTemplates embed.FS) *App {
+func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 	app := &App{
 		TerminalManager:      terminal.NewManager(),
 		TemplateManager:      template.NewManager(embeddedTemplates),
 		activeTerminalStates: make(map[int]session.TerminalState),
 		pendingHostKeys:      make(map[string]gossh.PublicKey),
+		appIconPNG:           iconPNG,
 	}
 
 	// Load templates during app initialization
@@ -151,6 +155,14 @@ func NewApp(embeddedTemplates embed.FS) *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.TerminalManager.SetContext(ctx)
+
+	if err := update.ApplyPendingUpdate(); err != nil {
+		log.Printf("Failed to apply pending update: %v", err)
+	}
+
+	if err := desktop.Install(a.appIconPNG); err != nil {
+		log.Printf("Desktop integration: %v", err)
+	}
 }
 
 // getTemplateContext gathers dynamic information for template execution.

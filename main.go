@@ -16,9 +16,12 @@ var assets embed.FS
 //go:embed templates
 var templates embed.FS
 
+//go:embed build/appicon.png
+var appIconPNG []byte
+
 func main() {
 	// Create an instance of the app structure
-	app := NewApp(templates)
+	app := NewApp(templates, appIconPNG)
 
 	// Create application with options
 	err := wails.Run(&options.App{

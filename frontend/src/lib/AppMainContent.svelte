@@ -38,6 +38,9 @@
   export let historyTrackingEnabled = false;
   export let updateChecking = false;
   export let updateInfo = null;
+  export let updateDownloading = false;
+  export let updateProgress = null;
+  export let updateInstalled = false;
   export let customFolders = [];
   export let newFolderName = '';
 
@@ -73,6 +76,7 @@
   export let openAISettings = () => {};
   export let checkForUpdates = () => {};
   export let openUpdatePage = () => {};
+  export let downloadUpdate = () => {};
   export let createFolder = () => {};
   export let renameFolder = () => {};
   export let deleteFolder = () => {};
@@ -223,6 +227,9 @@
       {aggAvailable}
       {updateChecking}
       {updateInfo}
+      {updateDownloading}
+      {updateProgress}
+      {updateInstalled}
       {customFolders}
       bind:newFolderName
       onOpenAISettings={openAISettings}
@@ -232,6 +239,7 @@
       onInstallAgg={async () => { if (aggAvailable) return; try { onAggDownloadInfo(await GetAggDownloadInfo()); } catch (err) { onError(`Failed to get agg info: ${err.message || err}`); } }}
       onCheckUpdates={checkForUpdates}
       onOpenUpdatePage={openUpdatePage}
+      onDownloadUpdate={downloadUpdate}
       onCreateFolder={createFolder}
       onRenameFolder={renameFolder}
       onDeleteFolder={deleteFolder}

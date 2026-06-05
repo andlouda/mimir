@@ -290,6 +290,9 @@
   let historyConsentDismissed = false;
   let updateInfo = null;
   let updateChecking = false;
+  let updateDownloading = false;
+  let updateProgress = null;
+  let updateInstalled = false;
   let notesPanelOpen = false;
   let notesPanelWidth = parseInt(localStorage.getItem('mimir-notes-width') || '380');
   let sessionSaveTimer = null;
@@ -364,6 +367,24 @@
       await window['go']['main']['App']['OpenUpdatePage'](updateInfo?.releaseUrl || '');
     } catch (error) {
       errorMessage = `Update-Seite konnte nicht geoeffnet werden: ${error.message || error}`;
+    }
+  }
+
+  async function downloadUpdate() {
+    updateDownloading = true;
+    updateProgress = { stage: 'downloading', percent: 0 };
+    try {
+      const raw = await window['go']['main']['App']['StartUpdateDownload']();
+      const result = JSON.parse(raw);
+      if (result.error) {
+        errorMessage = `Update failed: ${result.error}`;
+        updateProgress = null;
+        updateDownloading = false;
+      }
+    } catch (error) {
+      errorMessage = `Update failed: ${error.message || error}`;
+      updateProgress = null;
+      updateDownloading = false;
     }
   }
 
@@ -1592,6 +1613,12 @@
       aiToolFlowConfig = normalizeAIToolFlowConfig(JSON.parse(await window['go']['main']['App']['GetAIToolFlowConfigJSON']()));
       syncAIToolFlowListsFromConfig();
 
+      try {
+        const pendingRaw = await window['go']['main']['App']['GetPendingUpdate']();
+        const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
+        if (pending?.version) updateInstalled = true;
+      } catch (_) {}
+
       const savedSession = await GetLoadedSessionData();
       const savedTerminals = dedupeSavedSessionTerminals(savedSession?.terminals || []);
       if (savedTerminals.length > 0) {
@@ -1612,8 +1639,23 @@
     }
   });
 
+    const offUpdateProgress = EventsOn('update-progress', (data) => {
+      try {
+        const progress = JSON.parse(data);
+        updateProgress = progress;
+        if (progress.stage === 'done') {
+          updateDownloading = false;
+          updateInstalled = true;
+        } else if (progress.stage === 'error') {
+          updateDownloading = false;
+          errorMessage = `Update failed: ${progress.error}`;
+        }
+      } catch (_) {}
+    });
+
 	  onDestroy(() => {
 	    window.removeEventListener('resize', handleResize);
+      offUpdateProgress();
 	    terminals.forEach((term) => cleanupTerminalResources(term));
 	    if (sessionSaveTimer) {
 	      clearTimeout(sessionSaveTimer);
@@ -1673,6 +1715,9 @@
     bind:historyTrackingEnabled
     {updateChecking}
     {updateInfo}
+    {updateDownloading}
+    {updateProgress}
+    {updateInstalled}
     {customFolders}
     bind:newFolderName
     {persistDefaultTerminalType}
@@ -1707,6 +1752,7 @@
     {openAISettings}
     {checkForUpdates}
     {openUpdatePage}
+    {downloadUpdate}
     {createFolder}
     {renameFolder}
     {deleteFolder}
