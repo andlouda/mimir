@@ -2,6 +2,7 @@ package recording
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -21,6 +22,7 @@ import (
 const (
 	aggPinnedVersion = "v1.9.0"
 	aggMaxBytes      = 32 * 1024 * 1024
+	aggRenderTimeout = 2 * time.Minute
 )
 
 type aggAsset struct {
@@ -340,62 +342,114 @@ func (s *Store) ExportTrimmed(id string, cuts []CutRegion, scrub bool) (string, 
 
 // ExportTrimmedGIF generates a GIF from a trimmed recording using `agg`.
 func (s *Store) ExportTrimmedGIF(id string, cuts []CutRegion) (string, error) {
+	tmpGif, err := os.CreateTemp("", "mimir-trimmed-*.gif")
+	if err != nil {
+		return "", fmt.Errorf("recording: create temp gif: %w", err)
+	}
+	gifPath := tmpGif.Name()
+	if err := tmpGif.Close(); err != nil {
+		os.Remove(gifPath)
+		return "", fmt.Errorf("recording: close temp gif: %w", err)
+	}
+	if err := s.ExportTrimmedGIFTo(id, cuts, gifPath); err != nil {
+		os.Remove(gifPath)
+		return "", err
+	}
+	return gifPath, nil
+}
+
+// ExportTrimmedGIFTo generates a trimmed GIF at the selected output path.
+func (s *Store) ExportTrimmedGIFTo(id string, cuts []CutRegion, gifPath string) error {
 	trimmed, err := s.ExportTrimmed(id, cuts, false)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	bin := aggPath()
 	if bin == "" {
-		return "", fmt.Errorf("recording: agg is not installed")
+		return fmt.Errorf("recording: agg is not installed")
+	}
+	if strings.TrimSpace(gifPath) == "" {
+		return fmt.Errorf("recording: gif output path is empty")
 	}
 
 	tmpFile, err := os.CreateTemp("", "mimir-trimmed-*.cast")
 	if err != nil {
-		return "", fmt.Errorf("recording: create temp file: %w", err)
+		return fmt.Errorf("recording: create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
 
 	if _, err := tmpFile.WriteString(trimmed); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpPath)
-		return "", fmt.Errorf("recording: write temp file: %w", err)
+		return fmt.Errorf("recording: write temp file: %w", err)
 	}
 	tmpFile.Close()
 
-	gifPath := strings.TrimSuffix(tmpPath, ".cast") + ".gif"
-	cmd := exec.Command(bin, tmpPath, gifPath)
-	hideConsoleWindow(cmd)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	if err := runAgg(bin, tmpPath, gifPath); err != nil {
 		os.Remove(tmpPath)
-		return "", fmt.Errorf("recording: agg failed: %s: %w", string(output), err)
+		os.Remove(gifPath)
+		return err
 	}
 	os.Remove(tmpPath)
-	return gifPath, nil
+	return nil
 }
 
 // ExportGIF generates a GIF from the recording using `agg` and returns the GIF path.
 func (s *Store) ExportGIF(id string) (string, error) {
+	tmpGif, err := os.CreateTemp("", "mimir-recording-*.gif")
+	if err != nil {
+		return "", fmt.Errorf("recording: create temp gif: %w", err)
+	}
+	gifPath := tmpGif.Name()
+	if err := tmpGif.Close(); err != nil {
+		os.Remove(gifPath)
+		return "", fmt.Errorf("recording: close temp gif: %w", err)
+	}
+	if err := s.ExportGIFTo(id, gifPath); err != nil {
+		os.Remove(gifPath)
+		return "", err
+	}
+	return gifPath, nil
+}
+
+// ExportGIFTo generates a GIF from the recording at the selected output path.
+func (s *Store) ExportGIFTo(id string, gifPath string) error {
 	bin := aggPath()
 	if bin == "" {
-		return "", fmt.Errorf("recording: agg is not installed")
+		return fmt.Errorf("recording: agg is not installed")
+	}
+	if strings.TrimSpace(gifPath) == "" {
+		return fmt.Errorf("recording: gif output path is empty")
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	path, err := s.resolvePath(id)
+	s.mu.Unlock()
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	gifPath := strings.TrimSuffix(path, ".cast") + ".gif"
-	cmd := exec.Command(bin, path, gifPath)
+	if err := runAgg(bin, path, gifPath); err != nil {
+		os.Remove(gifPath)
+		return err
+	}
+	return nil
+}
+
+func runAgg(bin, castPath, gifPath string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), aggRenderTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, bin, castPath, gifPath)
 	hideConsoleWindow(cmd)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("recording: agg failed: %s: %w", string(output), err)
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("recording: agg timed out after %s", aggRenderTimeout)
+		}
+		return fmt.Errorf("recording: agg failed: %s: %w", string(output), err)
 	}
-	return gifPath, nil
+	return nil
 }
 
 // aggBinName returns the platform-specific agg binary name.

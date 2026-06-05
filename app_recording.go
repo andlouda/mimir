@@ -82,12 +82,6 @@ func (a *App) ExportRecordingScrubbed(id string) (string, error) {
 
 // ExportRecordingGIF opens a save dialog and generates a GIF from the recording.
 func (a *App) ExportRecordingGIF(id string) (string, error) {
-	// Generate GIF first to a temp location
-	tmpPath, err := a.recordingStore.ExportGIF(id)
-	if err != nil {
-		return "", err
-	}
-
 	path, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
 		DefaultFilename: id + ".gif",
 		Title:           "Export Recording as GIF",
@@ -97,24 +91,14 @@ func (a *App) ExportRecordingGIF(id string) (string, error) {
 		},
 	})
 	if err != nil {
-		os.Remove(tmpPath)
 		return "", fmt.Errorf("save dialog: %w", err)
 	}
 	if path == "" {
-		os.Remove(tmpPath)
 		return "", nil // user cancelled
 	}
 
-	// Move temp GIF to chosen path
-	if tmpPath != path {
-		data, err := os.ReadFile(tmpPath)
-		if err != nil {
-			return "", fmt.Errorf("read temp gif: %w", err)
-		}
-		if err := os.WriteFile(path, data, 0644); err != nil {
-			return "", fmt.Errorf("write gif: %w", err)
-		}
-		os.Remove(tmpPath)
+	if err := a.recordingStore.ExportGIFTo(id, path); err != nil {
+		return "", err
 	}
 
 	return path, nil
@@ -160,11 +144,6 @@ func (a *App) ExportRecordingTrimmedGIF(id string, cutsJSON string) (string, err
 		return "", fmt.Errorf("parse cuts: %w", err)
 	}
 
-	tmpPath, err := a.recordingStore.ExportTrimmedGIF(id, cuts)
-	if err != nil {
-		return "", err
-	}
-
 	path, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
 		DefaultFilename: id + "-trimmed.gif",
 		Title:           "Export Trimmed Recording as GIF",
@@ -174,23 +153,14 @@ func (a *App) ExportRecordingTrimmedGIF(id string, cutsJSON string) (string, err
 		},
 	})
 	if err != nil {
-		os.Remove(tmpPath)
 		return "", fmt.Errorf("save dialog: %w", err)
 	}
 	if path == "" {
-		os.Remove(tmpPath)
 		return "", nil
 	}
 
-	if tmpPath != path {
-		data, err := os.ReadFile(tmpPath)
-		if err != nil {
-			return "", fmt.Errorf("read temp gif: %w", err)
-		}
-		if err := os.WriteFile(path, data, 0644); err != nil {
-			return "", fmt.Errorf("write gif: %w", err)
-		}
-		os.Remove(tmpPath)
+	if err := a.recordingStore.ExportTrimmedGIFTo(id, cuts, path); err != nil {
+		return "", err
 	}
 
 	return path, nil
