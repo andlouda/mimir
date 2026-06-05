@@ -7,6 +7,7 @@ import (
 
 func TestAppendAndReadTail(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	path, err := Append("resume-test", "hello")
@@ -32,6 +33,7 @@ func TestAppendAndReadTail(t *testing.T) {
 
 func TestReadTailMissingFileReturnsEmpty(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	got, err := ReadTail("missing", 128)
@@ -45,6 +47,7 @@ func TestReadTailMissingFileReturnsEmpty(t *testing.T) {
 
 func TestRejectsUnsafeResumeID(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	if _, err := Append("../outside", "data"); err == nil {

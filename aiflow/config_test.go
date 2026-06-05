@@ -128,19 +128,9 @@ func TestApprovalPolicyFromConfig(t *testing.T) {
 
 func TestSaveConfigAndLoadFromUserPath(t *testing.T) {
 	tmpDir := t.TempDir()
-	originalConfigHome := os.Getenv("XDG_CONFIG_HOME")
-	originalEnv := os.Getenv(configEnvVar)
-	t.Cleanup(func() {
-		_ = os.Setenv("XDG_CONFIG_HOME", originalConfigHome)
-		_ = os.Setenv(configEnvVar, originalEnv)
-	})
-
-	if err := os.Setenv("XDG_CONFIG_HOME", tmpDir); err != nil {
-		t.Fatalf("failed to set config home: %v", err)
-	}
-	if err := os.Unsetenv(configEnvVar); err != nil {
-		t.Fatalf("failed to clear config env: %v", err)
-	}
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+	t.Setenv(configEnvVar, "")
 
 	cfg := DefaultConfig()
 	cfg.Prompt.PrePrompt = "Be conservative."

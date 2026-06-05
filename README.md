@@ -8,14 +8,15 @@ It focuses on local-first terminal workflows: local shells, SSH sessions, tmux-b
 
 Mimir is pre-MVP software. Expect breaking changes while the terminal, SSH, recording, and update flows are hardened.
 
-## Tested Platforms
+## Platform Support
 
-Current manual runtime testing is limited to:
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Windows 11 | **Primary** | Main development platform, most tested |
+| Linux (Debian/Ubuntu) | Experimental | Builds and runs; WebKit2GTK quirks possible |
+| macOS (Apple Silicon) | Experimental | CI-built; limited manual testing |
 
-- Windows 11, version 10.0.26200, build 26200
-- Debian 12, 64-bit, KDE desktop, running in VMware Workstation 17 Player
-
-Other Windows, Linux, and macOS versions may build or run, but they are not yet validated by the maintainer. Treat non-listed platforms as experimental.
+Other OS versions may build or run but are not validated. Treat unlisted platforms as unsupported.
 
 ## Features
 

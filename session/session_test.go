@@ -5,8 +5,15 @@ import (
 	"testing"
 )
 
+func setTestConfigHome(t *testing.T) {
+	t.Helper()
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+}
+
 func TestSaveAndLoadSession(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	setTestConfigHome(t)
 
 	filePath, err := getSessionFilePath()
 	if err != nil {
@@ -56,7 +63,7 @@ func TestSaveAndLoadSession(t *testing.T) {
 }
 
 func TestLoadSessionFileNotExists(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	setTestConfigHome(t)
 
 	filePath, err := getSessionFilePath()
 	if err != nil {
@@ -76,7 +83,7 @@ func TestLoadSessionFileNotExists(t *testing.T) {
 }
 
 func TestLoadSessionCorruptedFile(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	setTestConfigHome(t)
 
 	filePath, err := getSessionFilePath()
 	if err != nil {
@@ -96,7 +103,7 @@ func TestLoadSessionCorruptedFile(t *testing.T) {
 }
 
 func TestSaveEmptySession(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	setTestConfigHome(t)
 
 	emptyData := SessionData{}
 	if err := SaveSession(emptyData); err != nil {

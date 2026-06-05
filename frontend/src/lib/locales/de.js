@@ -445,6 +445,7 @@ export default {
     link: 'Link',
     list: 'Liste',
     editorPlaceholder: 'Schreibe dein Markdown hier...',
+    emptyFilename: 'Bitte einen Dateinamen eingeben.',
   },
   historyDashboard: {
     title: 'Verlauf',

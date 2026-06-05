@@ -8,7 +8,12 @@ import (
 
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	tmp := t.TempDir()
+	// On macOS UserConfigDir uses $HOME/Library/Application Support,
+	// on Linux it uses $XDG_CONFIG_HOME or $HOME/.config.
+	// Set both to isolate tests on all platforms.
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	store, err := NewStore()
 	if err != nil {
@@ -20,6 +25,7 @@ func newTestStore(t *testing.T) *Store {
 
 func TestNewStoreUsesUserConfigDir(t *testing.T) {
 	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 
 	store, err := NewStore()
@@ -28,7 +34,11 @@ func TestNewStoreUsesUserConfigDir(t *testing.T) {
 	}
 	defer store.Close()
 
-	expected := filepath.Join(tmp, "mimir", "command_history.db")
+	cfgDir, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatalf("UserConfigDir: %v", err)
+	}
+	expected := filepath.Join(cfgDir, "mimir", "command_history.db")
 	if _, err := os.Stat(expected); err != nil {
 		t.Fatalf("expected history database at %s: %v", expected, err)
 	}

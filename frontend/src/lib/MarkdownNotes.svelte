@@ -82,7 +82,10 @@
 
   async function createNote() {
     let name = newNoteFilename.trim();
-    if (!name) return;
+    if (!name) {
+      errorMessage = $t('markdownNotes.emptyFilename') || 'Please enter a filename';
+      return;
+    }
     if (!name.endsWith('.md')) name += '.md';
     try {
       await SaveNote(name, '');
@@ -210,6 +213,10 @@
     }
   }
 
+  function autofocusAction(node) {
+    requestAnimationFrame(() => node.focus());
+  }
+
   $: renderedMarkdown = activeNote && editorTab === 'preview' ? sanitizeHtml(marked(editorContent || '')) : '';
 </script>
 
@@ -253,6 +260,7 @@
         type="text"
         bind:value={newNoteFilename}
         placeholder={$t('markdownNotes.filenamePlaceholder')}
+        use:autofocusAction
         on:keydown={(e) => { if (e.key === 'Enter') createNote(); if (e.key === 'Escape') { showNewNoteInput = false; newNoteFilename = ''; }}}
       />
       <button on:click={createNote}>{$t('markdownNotes.create')}</button>

@@ -445,6 +445,7 @@ export default {
     link: 'Link',
     list: 'List',
     editorPlaceholder: 'Write your markdown here...',
+    emptyFilename: 'Please enter a filename.',
   },
   historyDashboard: {
     title: 'History',
