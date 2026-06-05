@@ -349,9 +349,6 @@ func (e *RunDiscoveryExecutor) Execute(runCtx RunContext, state *State, step Ste
 	})
 
 	values, err := runCtx.DiscoveryResolver.Resolve(step.DiscoveryTool, runCtx.ToolContext.TerminalType, inputs)
-	if err != nil {
-		return err
-	}
 
 	if state.Outputs == nil {
 		state.Outputs = map[string]string{}
@@ -359,19 +356,37 @@ func (e *RunDiscoveryExecutor) Execute(runCtx RunContext, state *State, step Ste
 	if state.Discovery == nil {
 		state.Discovery = map[string][]string{}
 	}
-	state.Discovery[step.ID] = append([]string(nil), values...)
-	state.Outputs[step.ID] = fmt.Sprintf("%d discovery values", len(values))
+
+	if err != nil {
+		state.Discovery[step.ID] = []string{}
+		state.Outputs[step.ID] = fmt.Sprintf("discovery failed: %s", err.Error())
+		state.Events = append(state.Events, Event{
+			StepID:  step.ID,
+			Type:    "step_warning",
+			Message: fmt.Sprintf("Discovery %s failed: %s — continuing with empty results", step.DiscoveryTool, err.Error()),
+			Metadata: map[string]string{
+				"discovery_tool": step.DiscoveryTool,
+				"error":          err.Error(),
+			},
+		})
+	} else {
+		state.Discovery[step.ID] = append([]string(nil), values...)
+		state.Outputs[step.ID] = fmt.Sprintf("%d discovery values", len(values))
+		state.Events = append(state.Events, Event{
+			StepID:  step.ID,
+			Type:    "step_completed",
+			Message: state.Outputs[step.ID],
+			Metadata: map[string]string{
+				"discovery_tool": step.DiscoveryTool,
+				"count":          fmt.Sprintf("%d", len(values)),
+			},
+		})
+	}
 
 	metadata := map[string]string{
 		"discovery_tool": step.DiscoveryTool,
-		"count":          fmt.Sprintf("%d", len(values)),
+		"count":          fmt.Sprintf("%d", len(state.Discovery[step.ID])),
 	}
-	state.Events = append(state.Events, Event{
-		StepID:   step.ID,
-		Type:     "step_completed",
-		Message:  state.Outputs[step.ID],
-		Metadata: metadata,
-	})
 	_ = activitylog.Append(activitylog.KindToolExecutions, activitylog.ToolExecutionEntry{
 		Timestamp:    time.Now().Format(time.RFC3339),
 		Source:       "workflow",

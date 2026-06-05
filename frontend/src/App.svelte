@@ -685,6 +685,7 @@
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       fontSize: 13,
       lineHeight: 1.35,
+      scrollback: 5000,
       theme: {
         background: '#0c0e14',
         foreground: '#c9d1d9',
