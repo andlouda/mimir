@@ -1688,6 +1688,7 @@
     openPage={openPage}
     openTerminals={openTerminals}
     openSSHProfilePicker={openSSHProfilePicker}
+    refreshSSHProfiles={loadSSHProfiles}
     isAuditPage={isAuditPage}
     assignTerminalToFolder={assignTerminalToFolder}
     toggleTerminalFolder={toggleTerminalFolder}
@@ -1811,7 +1812,7 @@
     {sshConnecting}
     {connectSSHProfile}
     closeSSHProfileModal={() => { showSSHProfileModal = false; }}
-    onProfilesChanged={(p) => { sshProfiles = p; }}
+    onProfilesChanged={async (p) => { sshProfiles = Array.isArray(p) ? p : []; await loadSSHProfiles(); }}
     {hostKeyVerifyState}
     {acceptHostKey}
     {rejectHostKey}

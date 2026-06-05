@@ -13,6 +13,7 @@
   export let openPage = () => {};
   export let openTerminals = () => {};    // clears edit state + opens terminals page
   export let openSSHProfilePicker = () => {};
+  export let refreshSSHProfiles = () => {};
   export let isAuditPage = () => false;
   export let assignTerminalToFolder = () => {};
   export let toggleTerminalFolder = () => {};
@@ -27,6 +28,13 @@
   let auditNavOpen = false;
   let dragOverFolder = null;
   let dragTerminalId = null;
+
+  function toggleSSHNav() {
+    sshNavOpen = !sshNavOpen;
+    if (sshNavOpen) {
+      refreshSSHProfiles();
+    }
+  }
 </script>
 
 <nav class="sidebar" class:collapsed={collapsed}>
@@ -141,8 +149,8 @@
 
     <div class="sidebar-section sidebar-section-compact">
       <div class="sidebar-heading"
-        on:click={() => { sshNavOpen = !sshNavOpen; }}
-        on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { sshNavOpen = !sshNavOpen; } }}
+        on:click={toggleSSHNav}
+        on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { toggleSSHNav(); } }}
         tabindex="0" role="button"
         aria-expanded={sshNavOpen}
       >
