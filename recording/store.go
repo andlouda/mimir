@@ -345,6 +345,11 @@ func (s *Store) ExportTrimmedGIF(id string, cuts []CutRegion) (string, error) {
 		return "", err
 	}
 
+	bin := aggPath()
+	if bin == "" {
+		return "", fmt.Errorf("recording: agg is not installed")
+	}
+
 	tmpFile, err := os.CreateTemp("", "mimir-trimmed-*.cast")
 	if err != nil {
 		return "", fmt.Errorf("recording: create temp file: %w", err)
@@ -359,7 +364,8 @@ func (s *Store) ExportTrimmedGIF(id string, cuts []CutRegion) (string, error) {
 	tmpFile.Close()
 
 	gifPath := strings.TrimSuffix(tmpPath, ".cast") + ".gif"
-	cmd := exec.Command(aggPath(), tmpPath, gifPath)
+	cmd := exec.Command(bin, tmpPath, gifPath)
+	hideConsoleWindow(cmd)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		os.Remove(tmpPath)
 		return "", fmt.Errorf("recording: agg failed: %s: %w", string(output), err)
@@ -370,6 +376,11 @@ func (s *Store) ExportTrimmedGIF(id string, cuts []CutRegion) (string, error) {
 
 // ExportGIF generates a GIF from the recording using `agg` and returns the GIF path.
 func (s *Store) ExportGIF(id string) (string, error) {
+	bin := aggPath()
+	if bin == "" {
+		return "", fmt.Errorf("recording: agg is not installed")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -379,7 +390,8 @@ func (s *Store) ExportGIF(id string) (string, error) {
 	}
 
 	gifPath := strings.TrimSuffix(path, ".cast") + ".gif"
-	cmd := exec.Command(aggPath(), path, gifPath)
+	cmd := exec.Command(bin, path, gifPath)
+	hideConsoleWindow(cmd)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("recording: agg failed: %s: %w", string(output), err)
 	}
@@ -388,7 +400,7 @@ func (s *Store) ExportGIF(id string) (string, error) {
 
 // aggBinName returns the platform-specific agg binary name.
 func aggBinName() string {
-	if strings.Contains(strings.ToLower(os.Getenv("OS")), "windows") {
+	if runtime.GOOS == "windows" {
 		return "agg.exe"
 	}
 	return "agg"

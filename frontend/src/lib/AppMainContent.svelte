@@ -196,27 +196,27 @@
         try {
           await DeleteRecording(e.detail);
           recordingList = await ListRecordings();
-        } catch (err) { console.error('Delete recording failed:', err); }
+        } catch (err) { onError(`Delete recording failed: ${err.message || err}`); }
       }}
       on:exportscrubbed={async (e) => {
         try {
           await ExportRecordingScrubbed(e.detail);
-        } catch (err) { console.error('Export scrubbed failed:', err); }
+        } catch (err) { onError(`Export scrubbed failed: ${err.message || err}`); }
       }}
       on:exportgif={async (e) => {
         try {
           await ExportRecordingGIF(e.detail);
-        } catch (err) { console.error('GIF export failed:', err); }
+        } catch (err) { onError(`GIF export failed: ${err.message || err}`); }
       }}
       on:exporttrimmed={async (e) => {
         try {
           await ExportRecordingTrimmed(e.detail.id, JSON.stringify(e.detail.cuts));
-        } catch (err) { console.error('Trimmed export failed:', err); }
+        } catch (err) { onError(`Trimmed export failed: ${err.message || err}`); }
       }}
       on:exporttrimmedgif={async (e) => {
         try {
           await ExportRecordingTrimmedGIF(e.detail.id, JSON.stringify(e.detail.cuts));
-        } catch (err) { console.error('Trimmed GIF export failed:', err); }
+        } catch (err) { onError(`Trimmed GIF export failed: ${err.message || err}`); }
       }}
     />
   {:else if currentPage === "settings"}
