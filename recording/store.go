@@ -453,6 +453,10 @@ func runAgg(bin, castPath, gifPath string) error {
 		if ctx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("recording: agg timed out after %s", aggRenderTimeout)
 		}
+		outputText := string(output)
+		if strings.Contains(outputText, "GLIBC_") || strings.Contains(outputText, "glibc") {
+			return fmt.Errorf("recording: bundled agg is incompatible with this Linux glibc; install agg through your distro/package manager so it is available on PATH, or remove %s and install a compatible agg binary: %s: %w", bin, outputText, err)
+		}
 		return fmt.Errorf("recording: agg failed: %s: %w", string(output), err)
 	}
 	stat, err := os.Stat(gifPath)
@@ -486,9 +490,12 @@ func mimirBinDir() (string, error) {
 	return dir, nil
 }
 
-// aggPath returns the managed agg binary path. It intentionally does not fall
-// back to PATH: recording conversion executes the returned binary directly.
+// aggPath returns an agg binary path. Prefer PATH so distro/package-manager
+// installs can match the host libc; fall back to Mimir's managed download.
 func aggPath() string {
+	if path, err := exec.LookPath(aggBinName()); err == nil && path != "" {
+		return path
+	}
 	if dir, err := mimirBinDir(); err == nil {
 		local := filepath.Join(dir, aggBinName())
 		if _, err := os.Stat(local); err == nil {
