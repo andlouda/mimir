@@ -18,6 +18,15 @@ func (r workflowAIRunner) Run(prompt string, terminalType string, terminalName s
 	if r.app == nil {
 		return "", fmt.Errorf("app is required")
 	}
+
+	if strings.HasPrefix(prompt, "AI mode: ") {
+		mode := strings.TrimPrefix(prompt, "AI mode: ")
+		builtIn, err := buildAIPrompt(mode, "", terminalType, terminalName, terminalOutput)
+		if err == nil {
+			prompt = builtIn
+		}
+	}
+
 	settings := r.app.currentAISettings()
 	sanitized := sanitizeTerminalOutputForAI(settings.Provider, terminalOutput)
 	input := fmt.Sprintf(

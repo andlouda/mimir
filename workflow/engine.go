@@ -405,7 +405,7 @@ func (e *AskAIExecutor) Execute(runCtx RunContext, state *State, step Step) erro
 	if runCtx.AIRunner == nil {
 		return fmt.Errorf("AI runner is required")
 	}
-	if step.Prompt == "" {
+	if step.Prompt == "" && step.AIMode == "" {
 		return fmt.Errorf("workflow step %s has no AI prompt configured", step.ID)
 	}
 
@@ -418,7 +418,11 @@ func (e *AskAIExecutor) Execute(runCtx RunContext, state *State, step Step) erro
 		},
 	})
 
-	result, err := runCtx.AIRunner.Run(step.Prompt, runCtx.ToolContext.TerminalType, runCtx.TerminalName, runCtx.TerminalOutput)
+	prompt := step.Prompt
+	if prompt == "" && step.AIMode != "" {
+		prompt = "AI mode: " + step.AIMode
+	}
+	result, err := runCtx.AIRunner.Run(prompt, runCtx.ToolContext.TerminalType, runCtx.TerminalName, runCtx.TerminalOutput)
 	if err != nil {
 		return err
 	}

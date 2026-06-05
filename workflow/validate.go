@@ -77,8 +77,8 @@ func ValidateDefinition(def Definition) error {
 				return fmt.Errorf("workflow %s step %s discovery tool reference is too long", def.ID, stepID)
 			}
 		case StepAskAI:
-			if strings.TrimSpace(step.Prompt) == "" {
-				return fmt.Errorf("workflow %s step %s requires an AI prompt", def.ID, stepID)
+			if strings.TrimSpace(step.Prompt) == "" && strings.TrimSpace(step.AIMode) == "" {
+				return fmt.Errorf("workflow %s step %s requires an AI prompt or AI mode", def.ID, stepID)
 			}
 			if len(step.Prompt) > maxPromptLen {
 				return fmt.Errorf("workflow %s step %s prompt exceeds maximum length", def.ID, stepID)
