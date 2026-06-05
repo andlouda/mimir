@@ -60,6 +60,15 @@ func PendingDirPath() (string, error) {
 	return filepath.Join(dir, "pending"), nil
 }
 
+// HelperLogPath returns the log path used by external update helpers.
+func HelperLogPath() (string, error) {
+	dir, err := stagingDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "update-helper.log"), nil
+}
+
 // WritePendingMarker atomically writes the update marker file.
 func WritePendingMarker(p PendingUpdate) error {
 	dir, err := stagingDir()
@@ -129,14 +138,9 @@ func ApplyPendingUpdate() error {
 
 	log.Printf("Applying pending update v%s", pending.Version)
 
-	if _, err := os.Stat(pending.BinaryPath); err != nil {
+	if err := ValidatePendingUpdate(pending); err != nil {
 		RemovePendingMarker()
-		return fmt.Errorf("staged binary not found: %w", err)
-	}
-
-	if err := verifyBinarySHA256(pending.BinaryPath, pending.SHA256); err != nil {
-		RemovePendingMarker()
-		return fmt.Errorf("staged binary verification failed: %w", err)
+		return err
 	}
 
 	currentExe, err := os.Executable()
@@ -168,6 +172,20 @@ func ApplyPendingUpdate() error {
 
 	RemovePendingMarker()
 	log.Printf("Update v%s applied successfully", pending.Version)
+	return nil
+}
+
+// ValidatePendingUpdate checks that the staged binary exists and matches the marker hash.
+func ValidatePendingUpdate(pending *PendingUpdate) error {
+	if pending == nil {
+		return fmt.Errorf("no pending update")
+	}
+	if _, err := os.Stat(pending.BinaryPath); err != nil {
+		return fmt.Errorf("staged binary not found: %w", err)
+	}
+	if err := verifyBinarySHA256(pending.BinaryPath, pending.SHA256); err != nil {
+		return fmt.Errorf("staged binary verification failed: %w", err)
+	}
 	return nil
 }
 

@@ -171,6 +171,9 @@
         {#if updateInfo.checksumAsset}
           <p>{$t('settings.updatePanel.checksums')}: {updateInfo.checksumAsset.name}</p>
         {/if}
+        {#if updateInfo.executablePath}
+          <p>{$t('settings.updatePanel.executable')}: <code>{updateInfo.executablePath}</code></p>
+        {/if}
         {#if !updateInfo.configured}
           <p>{$t('settings.updatePanel.notConfigured')}</p>
         {/if}

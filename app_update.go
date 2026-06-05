@@ -28,6 +28,9 @@ func (a *App) CheckForUpdates() string {
 	if err != nil {
 		info.Error = err.Error()
 	}
+	if exe, exeErr := os.Executable(); exeErr == nil {
+		info.ExecutablePath = exe
+	}
 	payload, marshalErr := json.Marshal(info)
 	if marshalErr != nil {
 		return fmt.Sprintf(`{"configured":false,"currentVersion":%q,"error":%q}`, AppVersion, marshalErr.Error())
@@ -98,14 +101,12 @@ func (a *App) RestartApp() error {
 	if err != nil {
 		return fmt.Errorf("resolve executable: %w", err)
 	}
-	if runtime.GOOS == "windows" {
-		pending, err := update.ReadPendingMarker()
-		if err != nil {
-			return fmt.Errorf("check pending update: %w", err)
-		}
-		if pending != nil {
-			return a.restartAfterWindowsPendingUpdate(pending, exe)
-		}
+	pending, err := update.ReadPendingMarker()
+	if err != nil {
+		return fmt.Errorf("check pending update: %w", err)
+	}
+	if pending != nil {
+		return a.restartAfterPendingUpdate(pending, exe)
 	}
 	cmd := exec.Command(exe)
 	cmd.Stdout = os.Stdout
@@ -117,11 +118,18 @@ func (a *App) RestartApp() error {
 	return nil
 }
 
-func (a *App) restartAfterWindowsPendingUpdate(pending *update.PendingUpdate, exe string) error {
-	if _, err := os.Stat(pending.BinaryPath); err != nil {
+func (a *App) restartAfterPendingUpdate(pending *update.PendingUpdate, exe string) error {
+	if err := update.ValidatePendingUpdate(pending); err != nil {
 		_ = update.RemovePendingMarker()
-		return fmt.Errorf("staged binary not found: %w", err)
+		return err
 	}
+	if runtime.GOOS == "windows" {
+		return a.restartAfterWindowsPendingUpdate(pending, exe)
+	}
+	return a.restartAfterUnixPendingUpdate(pending, exe)
+}
+
+func (a *App) restartAfterWindowsPendingUpdate(pending *update.PendingUpdate, exe string) error {
 	markerPath, err := update.PendingMarkerPath()
 	if err != nil {
 		return fmt.Errorf("resolve update marker: %w", err)
@@ -130,15 +138,36 @@ func (a *App) restartAfterWindowsPendingUpdate(pending *update.PendingUpdate, ex
 	if err != nil {
 		return fmt.Errorf("resolve pending dir: %w", err)
 	}
+	logPath, err := update.HelperLogPath()
+	if err != nil {
+		return fmt.Errorf("resolve helper log: %w", err)
+	}
 
 	script := fmt.Sprintf(`
 $ErrorActionPreference = 'Stop'
-Wait-Process -Id %d
-Copy-Item -LiteralPath %s -Destination %s -Force
-Remove-Item -LiteralPath %s -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath %s -Recurse -Force -ErrorAction SilentlyContinue
-Start-Process -FilePath %s
-`, os.Getpid(), psQuote(pending.BinaryPath), psQuote(exe), psQuote(markerPath), psQuote(pendingDir), psQuote(exe))
+function Log($Message) { Add-Content -LiteralPath %s -Value ((Get-Date).ToString('s') + ' ' + $Message) }
+try {
+  Log 'waiting for Mimir to exit'
+  Wait-Process -Id %d -ErrorAction SilentlyContinue
+  for ($i = 0; $i -lt 60; $i++) {
+    try {
+      Copy-Item -LiteralPath %s -Destination %s -Force
+      Log 'copied staged binary'
+      break
+    } catch {
+      if ($i -eq 59) { throw }
+      Start-Sleep -Milliseconds 250
+    }
+  }
+  Remove-Item -LiteralPath %s -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath %s -Recurse -Force -ErrorAction SilentlyContinue
+  Start-Process -FilePath %s
+  Log 'started updated Mimir'
+} catch {
+  Log ('failed: ' + $_.Exception.Message)
+  exit 1
+}
+`, psQuote(logPath), os.Getpid(), psQuote(pending.BinaryPath), psQuote(exe), psQuote(markerPath), psQuote(pendingDir), psQuote(exe))
 
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", script)
 	if err := cmd.Start(); err != nil {
@@ -148,8 +177,58 @@ Start-Process -FilePath %s
 	return nil
 }
 
+func (a *App) restartAfterUnixPendingUpdate(pending *update.PendingUpdate, exe string) error {
+	markerPath, err := update.PendingMarkerPath()
+	if err != nil {
+		return fmt.Errorf("resolve update marker: %w", err)
+	}
+	pendingDir, err := update.PendingDirPath()
+	if err != nil {
+		return fmt.Errorf("resolve pending dir: %w", err)
+	}
+	logPath, err := update.HelperLogPath()
+	if err != nil {
+		return fmt.Errorf("resolve helper log: %w", err)
+	}
+
+	script := fmt.Sprintf(`set -eu
+log=%s
+printf '%%s waiting for Mimir to exit\n' "$(date -Iseconds)" >> "$log"
+while kill -0 %d 2>/dev/null; do sleep 0.2; done
+i=0
+while :; do
+  if cp %s %s; then
+    chmod 755 %s || true
+    printf '%%s copied staged binary\n' "$(date -Iseconds)" >> "$log"
+    break
+  fi
+  i=$((i + 1))
+  if [ "$i" -ge 60 ]; then
+    printf '%%s failed to copy staged binary\n' "$(date -Iseconds)" >> "$log"
+    exit 1
+  fi
+  sleep 0.25
+done
+rm -f %s
+rm -rf %s
+nohup %s >/dev/null 2>&1 &
+printf '%%s started updated Mimir\n' "$(date -Iseconds)" >> "$log"
+`, shQuote(logPath), os.Getpid(), shQuote(pending.BinaryPath), shQuote(exe), shQuote(exe), shQuote(markerPath), shQuote(pendingDir), shQuote(exe))
+
+	cmd := exec.Command("sh", "-c", script)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start update helper: %w", err)
+	}
+	wailsruntime.Quit(a.ctx)
+	return nil
+}
+
 func psQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
+
+func shQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 // GetPendingUpdate returns info about a staged update, or null JSON if none.

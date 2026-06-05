@@ -35,6 +35,7 @@ type Info struct {
 	PublishedAt      string  `json:"publishedAt"`
 	Body             string  `json:"body"`
 	Platform         string  `json:"platform"`
+	ExecutablePath   string  `json:"executablePath,omitempty"`
 	PlatformAsset    *Asset  `json:"platformAsset,omitempty"`
 	ChecksumAsset    *Asset  `json:"checksumAsset,omitempty"`
 	Assets           []Asset `json:"assets"`

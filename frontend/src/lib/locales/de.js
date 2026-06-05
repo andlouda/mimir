@@ -114,6 +114,7 @@ export default {
       current: 'Aktuell',
       latest: 'Neueste',
       platform: 'Plattform',
+      executable: 'Programmdatei',
       asset: 'Asset',
       checksums: 'Checksums',
       notConfigured: 'Update-Repository ist noch nicht konfiguriert. Release-Builds setzen es per ldflags.',

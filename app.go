@@ -156,16 +156,12 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.TerminalManager.SetContext(ctx)
 
-	if runtime.GOOS == "windows" {
-		updateStarted, err := a.applyWindowsPendingUpdateOnStartup()
-		if err != nil {
-			log.Printf("Failed to apply pending Windows update: %v", err)
-		}
-		if updateStarted {
-			return
-		}
-	} else if err := update.ApplyPendingUpdate(); err != nil {
+	updateStarted, err := a.applyPendingUpdateOnStartup()
+	if err != nil {
 		log.Printf("Failed to apply pending update: %v", err)
+	}
+	if updateStarted {
+		return
 	}
 
 	if err := desktop.Install(a.appIconPNG); err != nil {
@@ -173,7 +169,7 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
-func (a *App) applyWindowsPendingUpdateOnStartup() (bool, error) {
+func (a *App) applyPendingUpdateOnStartup() (bool, error) {
 	pending, err := update.ReadPendingMarker()
 	if err != nil {
 		return false, fmt.Errorf("check pending update: %w", err)
@@ -185,7 +181,7 @@ func (a *App) applyWindowsPendingUpdateOnStartup() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("resolve executable: %w", err)
 	}
-	if err := a.restartAfterWindowsPendingUpdate(pending, exe); err != nil {
+	if err := a.restartAfterPendingUpdate(pending, exe); err != nil {
 		return false, err
 	}
 	return true, nil
