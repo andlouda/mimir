@@ -360,6 +360,9 @@ func (m *Manager) ApplyTemplate(id int, templateName string, terminalType string
 			selectedTemplate = t
 			normalizeTemplate(&selectedTemplate)
 			cmd, cmdOk := t.Commands[terminalType]
+			if !cmdOk && terminalType == "ssh" {
+				cmd, cmdOk = t.Commands["bash"]
+			}
 			if !cmdOk {
 				return fmt.Errorf("template %s does not support terminal type %s", templateName, terminalType)
 			}

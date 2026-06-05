@@ -401,8 +401,12 @@
     downloadingAgg = true;
     try {
       await DownloadAgg();
-      aggAvailable = true;
+      aggAvailable = await IsAggInstalled().catch(() => false);
+      aggStatus = await window['go']['main']['App']['GetAggStatus']().catch(() => 'missing');
       aggDownloadInfo = null;
+      if (!aggAvailable && aggStatus === 'incompatible') {
+        errorMessage = 'agg was downloaded but is incompatible with your system. Install agg via your package manager (e.g. cargo install agg).';
+      }
     } catch (err) {
       errorMessage = `agg Download fehlgeschlagen: ${err.message || err}`;
     } finally {
@@ -1215,9 +1219,10 @@
       return;
     }
 
-    const commandToExecute = template.commands[activeTerminal.type];
+    const termType = activeTerminal.type;
+    const commandToExecute = template.commands[termType] || (termType === 'ssh' ? template.commands['bash'] : null);
     if (!commandToExecute) {
-      errorMessage = `Template '${templateName}' does not have a command for terminal type '${activeTerminal.type}'.`;
+      errorMessage = `Template '${templateName}' does not have a command for terminal type '${termType}'.`;
       return;
     }
 
