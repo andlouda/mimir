@@ -59,7 +59,7 @@ func (a *App) SavePlaybookJSON(definitionJSON string, previousID string) (string
 	}
 
 	var definition workflow.Definition
-	if err := strictUnmarshalJSON(definitionJSON, &definition); err != nil {
+	if err := json.Unmarshal([]byte(definitionJSON), &definition); err != nil {
 		return "", fmt.Errorf("failed to parse playbook definition: %w", err)
 	}
 
