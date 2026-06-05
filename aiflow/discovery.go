@@ -87,27 +87,40 @@ func buildDiscoveryCacheKey(discoveryTool string, terminalType string, variables
 func discoveryCommand(discoveryTool string, terminalType string, variables map[string]string) (string, []string, error) {
 	switch strings.TrimSpace(discoveryTool) {
 	case "discovery:list_k8s_namespaces":
-		return wrapDiscoveryCommand(terminalType, "kubectl", "get", "namespaces", "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
+		return wrapDiscoveryCommand(terminalType, discoveryExecutable("kubectl"), "get", "namespaces", "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
 	case "discovery:list_k8s_pods":
 		namespace := strings.TrimSpace(variables["Namespace"])
 		if namespace == "" {
 			return "", nil, fmt.Errorf("Namespace is required for discovery:list_k8s_pods")
 		}
-		return wrapDiscoveryCommand(terminalType, "kubectl", "get", "pods", "-n", namespace, "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
+		return wrapDiscoveryCommand(terminalType, discoveryExecutable("kubectl"), "get", "pods", "-n", namespace, "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
 	case "discovery:list_docker_containers":
-		return wrapDiscoveryCommand(terminalType, "docker", "ps", "--format", "{{.Names}}")
+		return wrapDiscoveryCommand(terminalType, discoveryExecutable("docker"), "ps", "--format", "{{.Names}}")
 	case "discovery:list_compose_services":
-		return wrapDiscoveryCommand(terminalType, "docker", "compose", "config", "--services")
+		return wrapDiscoveryCommand(terminalType, discoveryExecutable("docker"), "compose", "config", "--services")
 	case "discovery:list_k8s_resources":
 		namespace := strings.TrimSpace(variables["Namespace"])
 		resourceType := strings.TrimSpace(variables["ResourceType"])
 		if namespace == "" || resourceType == "" {
 			return "", nil, fmt.Errorf("Namespace and ResourceType are required for discovery:list_k8s_resources")
 		}
-		return wrapDiscoveryCommand(terminalType, "kubectl", "get", resourceType, "-n", namespace, "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
+		return wrapDiscoveryCommand(terminalType, discoveryExecutable("kubectl"), "get", resourceType, "-n", namespace, "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
 	default:
 		return "", nil, fmt.Errorf("unknown discovery tool %s", discoveryTool)
 	}
+}
+
+func discoveryExecutable(name string) string {
+	if path, err := exec.LookPath(name); err == nil && path != "" {
+		return path
+	}
+	for _, dir := range []string{"/usr/local/bin", "/usr/bin", "/bin", "/snap/bin", "/opt/homebrew/bin"} {
+		path := filepath.Join(dir, name)
+		if resolved, err := exec.LookPath(path); err == nil && resolved != "" {
+			return resolved
+		}
+	}
+	return name
 }
 
 func wrapDiscoveryCommand(terminalType string, baseCommand string, args ...string) (string, []string, error) {

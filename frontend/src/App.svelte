@@ -646,6 +646,7 @@
           discoveryTool: paramMap[name]?.discoveryTool || '',
           suggestions: [],
           loadingSuggestions: false,
+          suggestionError: '',
         });
       }
     }
@@ -663,6 +664,7 @@
   function loadPromptFieldSuggestions(field, state, terminalType) {
     if (!field.discoveryTool) return;
     field.loadingSuggestions = true;
+    field.suggestionError = '';
     window['go']['main']['App']['RunDiscoveryJSON'](
       field.discoveryTool,
       terminalType,
@@ -674,7 +676,12 @@
         field.loadingSuggestions = false;
         templatePromptState = templatePromptState;
       })
-      .catch(() => { field.loadingSuggestions = false; templatePromptState = templatePromptState; });
+      .catch((error) => {
+        field.suggestions = [];
+        field.loadingSuggestions = false;
+        field.suggestionError = error.message || String(error);
+        templatePromptState = templatePromptState;
+      });
   }
 
   function openWorkflowPrompt(playbook, activeTerminal) {

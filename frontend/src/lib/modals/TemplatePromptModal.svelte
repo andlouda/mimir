@@ -48,6 +48,9 @@
                 <option value={s}>{s}</option>
               {/each}
             </select>
+            {#if field.suggestionError}
+              <small class="discovery-error">{field.suggestionError}</small>
+            {/if}
           {:else}
             <input
               type="text"
@@ -71,6 +74,14 @@
   .discovery-loading {
     font-size: 0.75rem;
     opacity: 0.6;
+  }
+  .discovery-error {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--warning);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
   }
   select {
     width: 100%;
