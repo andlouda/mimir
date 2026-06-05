@@ -449,6 +449,13 @@ func runAgg(bin, castPath, gifPath string) error {
 		}
 		return fmt.Errorf("recording: agg failed: %s: %w", string(output), err)
 	}
+	stat, err := os.Stat(gifPath)
+	if err != nil {
+		return fmt.Errorf("recording: agg did not create gif %s: %w", gifPath, err)
+	}
+	if stat.Size() == 0 {
+		return fmt.Errorf("recording: agg created an empty gif at %s", gifPath)
+	}
 	return nil
 }
 

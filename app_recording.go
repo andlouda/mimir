@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"mimir/recording"
 
@@ -96,11 +99,17 @@ func (a *App) ExportRecordingGIF(id string) (string, error) {
 	if path == "" {
 		return "", nil // user cancelled
 	}
+	path = ensureGIFExtension(path)
 
-	if err := a.recordingStore.ExportGIFTo(id, path); err != nil {
+	tmpPath, err := a.recordingStore.ExportGIF(id)
+	if err != nil {
 		return "", err
 	}
+	defer os.Remove(tmpPath)
 
+	if err := copyGeneratedFile(tmpPath, path); err != nil {
+		return "", err
+	}
 	return path, nil
 }
 
@@ -158,12 +167,70 @@ func (a *App) ExportRecordingTrimmedGIF(id string, cutsJSON string) (string, err
 	if path == "" {
 		return "", nil
 	}
+	path = ensureGIFExtension(path)
 
-	if err := a.recordingStore.ExportTrimmedGIFTo(id, cuts, path); err != nil {
+	tmpPath, err := a.recordingStore.ExportTrimmedGIF(id, cuts)
+	if err != nil {
 		return "", err
 	}
+	defer os.Remove(tmpPath)
 
+	if err := copyGeneratedFile(tmpPath, path); err != nil {
+		return "", err
+	}
 	return path, nil
+}
+
+func ensureGIFExtension(path string) string {
+	if strings.EqualFold(filepath.Ext(path), ".gif") {
+		return path
+	}
+	return path + ".gif"
+}
+
+func copyGeneratedFile(src string, dst string) error {
+	stat, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("generated file missing: %w", err)
+	}
+	if stat.Size() == 0 {
+		return fmt.Errorf("generated file is empty")
+	}
+
+	in, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open generated file: %w", err)
+	}
+	defer in.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return fmt.Errorf("create export directory: %w", err)
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".mimir-export-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create export temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+
+	if _, err := io.Copy(tmp, in); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("write export temp file: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("sync export temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("close export temp file: %w", err)
+	}
+	if err := os.Rename(tmpPath, dst); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("install exported file: %w", err)
+	}
+	return nil
 }
 
 // IsAggInstalled checks if the agg tool is available for GIF export.
