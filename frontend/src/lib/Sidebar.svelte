@@ -1,6 +1,7 @@
 <script>
   // Left navigation sidebar. Collapse/disclosure/drag state is local to this
   // component; data and actions come from the parent via props/callbacks.
+  import { onMount } from 'svelte';
   import { t } from './i18n.js';
 
   export let currentPage = 'terminals';
@@ -35,6 +36,12 @@
       refreshSSHProfiles();
     }
   }
+
+  onMount(() => {
+    if (sshNavOpen) {
+      refreshSSHProfiles();
+    }
+  });
 </script>
 
 <nav class="sidebar" class:collapsed={collapsed}>

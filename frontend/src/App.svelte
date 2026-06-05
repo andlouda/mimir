@@ -1611,10 +1611,10 @@
 
 	  onMount(async () => {
 	    window.addEventListener('resize', handleResize);
+      await loadSSHProfiles();
 	    try {
 	      await loadAvailableTerminalTypes();
 	      await loadTemplates();
-      await loadSSHProfiles();
       await loadCustomFolders();
       historyTrackingEnabled = await IsHistoryTrackingEnabled();
       aiSettings = JSON.parse(await window['go']['main']['App']['GetAISettingsJSON']());
