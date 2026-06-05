@@ -32,11 +32,13 @@ type SSHConnectConfig struct {
 	TmuxError       string
 	RCMode          string
 	RCStatus        string
+	ProxyClient     *ssh.Client
 }
 
 // SSHSession implements TerminalSession over an SSH connection.
 type SSHSession struct {
 	client        *ssh.Client
+	proxyClient   *ssh.Client
 	session       *ssh.Session
 	stdin         io.WriteCloser
 	stdout        io.Reader
@@ -61,9 +63,24 @@ func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
 		Timeout:         cfg.ConnectTimeout,
 	}
 
-	client, err := ssh.Dial("tcp", addr, clientCfg)
-	if err != nil {
-		return nil, fmt.Errorf("ssh dial failed: %w", err)
+	var client *ssh.Client
+	if cfg.ProxyClient != nil {
+		conn, err := cfg.ProxyClient.Dial("tcp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("ssh proxy dial failed: %w", err)
+		}
+		clientConn, chans, reqs, err := ssh.NewClientConn(conn, addr, clientCfg)
+		if err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("ssh proxy client handshake failed: %w", err)
+		}
+		client = ssh.NewClient(clientConn, chans, reqs)
+	} else {
+		var err error
+		client, err = ssh.Dial("tcp", addr, clientCfg)
+		if err != nil {
+			return nil, fmt.Errorf("ssh dial failed: %w", err)
+		}
 	}
 
 	session, err := client.NewSession()
@@ -117,6 +134,7 @@ func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
 
 	s := &SSHSession{
 		client:        client,
+		proxyClient:   cfg.ProxyClient,
 		session:       session,
 		stdin:         stdin,
 		stdout:        stdout,
@@ -175,5 +193,11 @@ func (s *SSHSession) Close() error {
 	close(s.keepaliveDone)
 	_ = s.stdin.Close()
 	_ = s.session.Close()
-	return s.client.Close()
+	err := s.client.Close()
+	if s.proxyClient != nil {
+		if proxyErr := s.proxyClient.Close(); err == nil {
+			err = proxyErr
+		}
+	}
+	return err
 }

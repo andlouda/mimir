@@ -27,8 +27,6 @@ import (
 	"mimir/transcript"
 	"mimir/update"
 	"mimir/workflow"
-
-	gossh "golang.org/x/crypto/ssh"
 )
 
 // App struct
@@ -48,7 +46,7 @@ type App struct {
 	sshProfileStore      *ssh.ProfileStore
 	sshSecretStore       *ssh.SecretStore
 	knownHostStore       *ssh.KnownHostStore
-	pendingHostKeys      map[string]gossh.PublicKey
+	pendingHostKeys      map[string]pendingSSHHostKey
 	pendingHostKeyMu     sync.Mutex
 	historyStore         *history.Store
 	noteStore            *notes.NoteStore
@@ -63,7 +61,7 @@ func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 		TerminalManager:      terminal.NewManager(),
 		TemplateManager:      template.NewManager(embeddedTemplates),
 		activeTerminalStates: make(map[int]session.TerminalState),
-		pendingHostKeys:      make(map[string]gossh.PublicKey),
+		pendingHostKeys:      make(map[string]pendingSSHHostKey),
 		appIconPNG:           iconPNG,
 	}
 

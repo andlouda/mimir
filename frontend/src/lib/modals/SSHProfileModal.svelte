@@ -14,7 +14,25 @@
   export let onProfilesChanged = () => {};
   export let onError = () => {};
 
-  const emptyForm = () => ({ name: '', host: '', port: 22, username: '', authMethod: 'password', keyPath: '', password: '', useTmux: true, rcMode: 'off', rcSnippet: '~/.bashrc' });
+  const emptyForm = () => ({
+    name: '',
+    host: '',
+    port: 22,
+    username: '',
+    authMethod: 'password',
+    keyPath: '',
+    password: '',
+    jumpHostEnabled: false,
+    jumpHost: '',
+    jumpPort: 22,
+    jumpUsername: '',
+    jumpAuthMethod: 'password',
+    jumpKeyPath: '',
+    jumpPassword: '',
+    useTmux: true,
+    rcMode: 'off',
+    rcSnippet: '~/.bashrc',
+  });
 
   let editingId = null; // null = list view, '__new__' = new profile, else profile id
   let form = emptyForm();
@@ -23,7 +41,25 @@
   function openEditor(profile) {
     if (profile) {
       editingId = profile.id;
-      form = { name: profile.name, host: profile.host, port: profile.port, username: profile.username, authMethod: profile.authMethod, keyPath: profile.keyPath || '', password: '', useTmux: profile.useTmux !== false, rcMode: profile.rcMode || 'off', rcSnippet: profile.rcSnippet || '~/.bashrc' };
+      form = {
+        name: profile.name,
+        host: profile.host,
+        port: profile.port,
+        username: profile.username,
+        authMethod: profile.authMethod,
+        keyPath: profile.keyPath || '',
+        password: '',
+        jumpHostEnabled: Boolean(profile.jumpHostEnabled),
+        jumpHost: profile.jumpHost || '',
+        jumpPort: profile.jumpPort || 22,
+        jumpUsername: profile.jumpUsername || '',
+        jumpAuthMethod: profile.jumpAuthMethod || 'password',
+        jumpKeyPath: profile.jumpKeyPath || '',
+        jumpPassword: '',
+        useTmux: profile.useTmux !== false,
+        rcMode: profile.rcMode || 'off',
+        rcSnippet: profile.rcSnippet || '~/.bashrc',
+      };
     } else {
       editingId = '__new__';
       form = emptyForm();
@@ -58,6 +94,12 @@
         username: form.username,
         authMethod: form.authMethod,
         keyPath: form.authMethod === 'key' ? form.keyPath : '',
+        jumpHostEnabled: Boolean(form.jumpHostEnabled),
+        jumpHost: form.jumpHostEnabled ? form.jumpHost : '',
+        jumpPort: form.jumpHostEnabled ? (parseInt(form.jumpPort) || 22) : 22,
+        jumpUsername: form.jumpHostEnabled ? form.jumpUsername : '',
+        jumpAuthMethod: form.jumpHostEnabled ? form.jumpAuthMethod : 'password',
+        jumpKeyPath: form.jumpHostEnabled && form.jumpAuthMethod === 'key' ? form.jumpKeyPath : '',
         useTmux: Boolean(form.useTmux),
         rcMode: form.rcMode || 'off',
         rcSnippet: form.rcMode === 'local-snippet' ? form.rcSnippet : '',
@@ -75,6 +117,12 @@
         const saved = updated.find((p) => p.name === profileData.name && p.host === profileData.host);
         if (saved) {
           await SetSSHPassword(saved.id, form.password);
+        }
+      }
+      if (form.jumpPassword) {
+        const saved = updated.find((p) => p.id === profileData.id) || updated.find((p) => p.name === profileData.name && p.host === profileData.host);
+        if (saved) {
+          await SetSSHPassword(`${saved.id}:jump`, form.jumpPassword);
         }
       }
 
@@ -119,6 +167,9 @@
               <div class="ssh-profile-info">
                 <span class="ssh-profile-name">{profile.name}</span>
                 <span class="ssh-profile-detail">{profile.username}@{profile.host}:{profile.port}</span>
+                {#if profile.jumpHostEnabled}
+                  <span class="ssh-profile-detail">{$t('sshProfile.jumpVia')} {profile.jumpUsername}@{profile.jumpHost}:{profile.jumpPort || 22}</span>
+                {/if}
               </div>
               <div class="ssh-profile-actions">
                 <button class="add-btn" on:click={() => onConnect(profile)} disabled={connecting}>
@@ -190,6 +241,49 @@
             <input type="password" bind:value={form.password} placeholder={$t('sshProfile.passphrasePlaceholder')} />
           </label>
         {/if}
+
+        <div class="ssh-session-settings">
+          <label class="ssh-toggle-row">
+            <input type="checkbox" bind:checked={form.jumpHostEnabled} />
+            <span>{$t('sshProfile.useJumpHost')}</span>
+          </label>
+          {#if form.jumpHostEnabled}
+            <label>
+              <span>{$t('sshProfile.jumpHost')}</span>
+              <input type="text" bind:value={form.jumpHost} placeholder="bastion.example.com" />
+            </label>
+            <label>
+              <span>{$t('sshProfile.jumpPort')}</span>
+              <input type="number" bind:value={form.jumpPort} min="1" max="65535" />
+            </label>
+            <label>
+              <span>{$t('sshProfile.jumpUsername')}</span>
+              <input type="text" bind:value={form.jumpUsername} placeholder="jump-user" />
+            </label>
+            <label>
+              <span>{$t('sshProfile.jumpAuthMethod')}</span>
+              <select bind:value={form.jumpAuthMethod}>
+                <option value="password">{$t('sshProfile.authPassword')}</option>
+                <option value="key">{$t('sshProfile.authKey')}</option>
+              </select>
+            </label>
+            {#if form.jumpAuthMethod === 'password'}
+              <label>
+                <span>{$t('sshProfile.jumpPassword')}</span>
+                <input type="password" bind:value={form.jumpPassword} placeholder={$t('sshProfile.passwordPlaceholder')} />
+              </label>
+            {:else}
+              <label>
+                <span>{$t('sshProfile.jumpKeyPath')}</span>
+                <input type="text" bind:value={form.jumpKeyPath} placeholder="~/.ssh/id_ed25519" />
+              </label>
+              <label>
+                <span>{$t('sshProfile.jumpPassphrase')}</span>
+                <input type="password" bind:value={form.jumpPassword} placeholder={$t('sshProfile.passphrasePlaceholder')} />
+              </label>
+            {/if}
+          {/if}
+        </div>
 
         <div class="ssh-session-settings">
           <label class="ssh-toggle-row">

@@ -14,16 +14,22 @@ import (
 
 // Profile represents a saved SSH connection profile.
 type Profile struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Host       string `json:"host"`
-	Port       int    `json:"port"`
-	Username   string `json:"username"`
-	AuthMethod string `json:"authMethod"` // "password" or "key"
-	KeyPath    string `json:"keyPath,omitempty"`
-	UseTmux    *bool  `json:"useTmux,omitempty"`
-	RCMode     string `json:"rcMode,omitempty"` // "off", "remote-default", "mimir", "local-snippet"
-	RCSnippet  string `json:"rcSnippet,omitempty"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Host            string `json:"host"`
+	Port            int    `json:"port"`
+	Username        string `json:"username"`
+	AuthMethod      string `json:"authMethod"` // "password" or "key"
+	KeyPath         string `json:"keyPath,omitempty"`
+	JumpHostEnabled bool   `json:"jumpHostEnabled,omitempty"`
+	JumpHost        string `json:"jumpHost,omitempty"`
+	JumpPort        int    `json:"jumpPort,omitempty"`
+	JumpUsername    string `json:"jumpUsername,omitempty"`
+	JumpAuthMethod  string `json:"jumpAuthMethod,omitempty"` // "password" or "key"
+	JumpKeyPath     string `json:"jumpKeyPath,omitempty"`
+	UseTmux         *bool  `json:"useTmux,omitempty"`
+	RCMode          string `json:"rcMode,omitempty"` // "off", "remote-default", "mimir", "local-snippet"
+	RCSnippet       string `json:"rcSnippet,omitempty"`
 }
 
 // ProfileStore manages SSH profile persistence.
@@ -138,6 +144,22 @@ func (s *ProfileStore) Update(p Profile) ([]Profile, error) {
 func normalizeProfile(p *Profile) {
 	if p.Port == 0 {
 		p.Port = 22
+	}
+	if p.AuthMethod != "key" {
+		p.AuthMethod = "password"
+	}
+	if p.JumpPort == 0 {
+		p.JumpPort = 22
+	}
+	if p.JumpAuthMethod != "key" {
+		p.JumpAuthMethod = "password"
+	}
+	if !p.JumpHostEnabled {
+		p.JumpHost = ""
+		p.JumpPort = 22
+		p.JumpUsername = ""
+		p.JumpAuthMethod = "password"
+		p.JumpKeyPath = ""
 	}
 	if p.UseTmux == nil {
 		enabled := true
