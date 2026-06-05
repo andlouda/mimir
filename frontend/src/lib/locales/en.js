@@ -121,6 +121,7 @@ export default {
       openRelease: 'Open Release',
       downloadInstall: 'Download & Install',
       restartRequired: 'Update staged — restart Mimir to apply.',
+      restartNow: 'Restart Now',
       stage_downloading: 'Downloading...',
       stage_verifying: 'Verifying...',
       stage_extracting: 'Extracting...',

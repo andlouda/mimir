@@ -388,6 +388,14 @@
     }
   }
 
+  async function restartApp() {
+    try {
+      await window['go']['main']['App']['RestartApp']();
+    } catch (err) {
+      errorMessage = `Restart failed: ${err.message || err}`;
+    }
+  }
+
   async function runAggDownload() {
     downloadingAgg = true;
     try {
@@ -1753,6 +1761,7 @@
     {checkForUpdates}
     {openUpdatePage}
     {downloadUpdate}
+    {restartApp}
     {createFolder}
     {renameFolder}
     {deleteFolder}

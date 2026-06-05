@@ -77,6 +77,7 @@
   export let checkForUpdates = () => {};
   export let openUpdatePage = () => {};
   export let downloadUpdate = () => {};
+  export let restartApp = () => {};
   export let createFolder = () => {};
   export let renameFolder = () => {};
   export let deleteFolder = () => {};
@@ -240,6 +241,7 @@
       onCheckUpdates={checkForUpdates}
       onOpenUpdatePage={openUpdatePage}
       onDownloadUpdate={downloadUpdate}
+      onRestartApp={restartApp}
       onCreateFolder={createFolder}
       onRenameFolder={renameFolder}
       onDeleteFolder={deleteFolder}

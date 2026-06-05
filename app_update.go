@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"sync"
 
 	"mimir/update"
@@ -86,6 +88,22 @@ func (a *App) StartUpdateDownload() string {
 	}()
 
 	return `{"started":true}`
+}
+
+// RestartApp launches a new instance of the application and quits the current one.
+func (a *App) RestartApp() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve executable: %w", err)
+	}
+	cmd := exec.Command(exe)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start new instance: %w", err)
+	}
+	wailsruntime.Quit(a.ctx)
+	return nil
 }
 
 // GetPendingUpdate returns info about a staged update, or null JSON if none.

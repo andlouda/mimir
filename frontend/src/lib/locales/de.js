@@ -121,6 +121,7 @@ export default {
       openRelease: 'Release öffnen',
       downloadInstall: 'Herunterladen & Installieren',
       restartRequired: 'Update bereitgestellt — Mimir neustarten zum Anwenden.',
+      restartNow: 'Jetzt neustarten',
       stage_downloading: 'Wird heruntergeladen...',
       stage_verifying: 'Wird verifiziert...',
       stage_extracting: 'Wird entpackt...',

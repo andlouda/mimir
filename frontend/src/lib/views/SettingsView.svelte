@@ -23,6 +23,7 @@
   export let updateDownloading = false;
   export let updateProgress = null;
   export let updateInstalled = false;
+  export let onRestartApp = () => {};
   export let onCreateFolder = () => {};
   export let onRenameFolder = () => {};
   export let onDeleteFolder = () => {};
@@ -178,6 +179,7 @@
         <button type="button" class="modal-secondary-button" on:click={onCheckUpdates} disabled={updateChecking || updateDownloading}>{$t('settings.updatePanel.refresh')}</button>
         {#if updateInstalled}
           <span class="update-staged-msg">{$t('settings.updatePanel.restartRequired')}</span>
+          <button type="button" class="modal-primary-button" on:click={onRestartApp}>{$t('settings.updatePanel.restartNow')}</button>
         {:else if updateDownloading}
           <div class="update-progress-inline">
             <span class="update-progress-label">{$t(`settings.updatePanel.stage_${updateProgress?.stage || 'downloading'}`)}</span>
