@@ -14,6 +14,51 @@
   let loadingTranscript = false;
   let truncated = false;
   let viewerEl;
+  let showRaw = false;
+
+  // Strip terminal control sequences so the viewer shows readable text
+  // instead of the raw bytes the shell emits (ANSI colors, cursor moves,
+  // OSC title pushes, etc.). The raw view is still available via the
+  // toggle and the on-disk file is never modified.
+  const CSI_RE = /\x1B\[[\d;?<>]*[a-zA-Z]/g;
+  const OSC_RE = /\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)/g;
+  const ESC_RE = /\x1B[=>()][AB012]?/g;
+  const CTRL_RE = /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g;
+
+  function stripAnsi(text) {
+    if (!text) return '';
+    return text
+      .replace(CSI_RE, '')
+      .replace(OSC_RE, '')
+      .replace(ESC_RE, '')
+      .replace(CTRL_RE, '');
+  }
+
+  function collapseRepeats(text) {
+    // Shells often redraw the same prompt many times in a row (every
+    // resize, every cursor blink). Squash runs of identical adjacent
+    // lines so the user sees what actually happened.
+    const lines = text.split('\n');
+    const out = [];
+    let prev = null;
+    let runCount = 0;
+    for (const line of lines) {
+      if (line === prev) {
+        runCount += 1;
+        continue;
+      }
+      if (runCount > 1) {
+        out.push(`  ⟨${runCount - 1}× repeated⟩`);
+      }
+      out.push(line);
+      prev = line;
+      runCount = 1;
+    }
+    if (runCount > 1) out.push(`  ⟨${runCount - 1}× repeated⟩`);
+    return out.join('\n');
+  }
+
+  $: displayText = showRaw ? transcriptText : collapseRepeats(stripAnsi(transcriptText));
 
   function formatBytes(n) {
     if (!Number.isFinite(n)) return '';
@@ -96,7 +141,9 @@
   async function copyAll() {
     if (!transcriptText) return;
     try {
-      await navigator.clipboard.writeText(transcriptText);
+      // Copy whatever the user actually sees — clean by default, raw if
+      // they explicitly toggled it.
+      await navigator.clipboard.writeText(displayText);
     } catch (error) {
       onError(`Copy failed: ${error?.message || error}`);
     }
@@ -171,13 +218,16 @@
           {#if truncated}
             <div class="transcript-viewer-truncated">{$t('transcriptViewer.truncated')}</div>
           {/if}
-          <pre bind:this={viewerEl} class="transcript-viewer-content">{transcriptText}</pre>
+          <pre bind:this={viewerEl} class="transcript-viewer-content">{displayText}</pre>
         {/if}
       </section>
     </div>
 
     <footer class="transcript-viewer-footer">
-      <span class="transcript-viewer-hint">{$t('transcriptViewer.hint')}</span>
+      <label class="transcript-viewer-toggle">
+        <input type="checkbox" bind:checked={showRaw} />
+        <span>{$t('transcriptViewer.showRaw')}</span>
+      </label>
       <div class="transcript-viewer-actions">
         <button
           type="button"
@@ -320,9 +370,18 @@
     border-top: 1px solid #2b3140;
     background: #11131a;
   }
-  .transcript-viewer-hint {
+  .transcript-viewer-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 11px;
-    color: #6f7787;
+    color: #8a93a4;
+    user-select: none;
+    cursor: pointer;
+  }
+  .transcript-viewer-toggle input {
+    margin: 0;
+    accent-color: #63b3ed;
   }
   .transcript-viewer-actions {
     display: flex;
