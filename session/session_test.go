@@ -2,6 +2,7 @@ package session
 
 import (
 	"os"
+	"runtime"
 	"testing"
 )
 
@@ -38,8 +39,10 @@ func TestSaveAndLoadSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Session file not created: %v", err)
 	}
-	// Verify file permissions (owner read/write only)
-	if info.Mode().Perm()&0077 != 0 {
+	// Verify file permissions (owner read/write only). Windows does not
+	// honor POSIX permission bits — os.Stat reports a synthesized 0666 for
+	// regular files there — so this check is Unix-only.
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0077 != 0 {
 		t.Errorf("Session file permissions too permissive: %v", info.Mode().Perm())
 	}
 
