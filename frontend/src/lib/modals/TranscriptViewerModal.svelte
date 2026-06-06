@@ -19,6 +19,8 @@
   let transcriptReadBytes = 0;
   let loadingList = true;
   let loadingTranscript = false;
+  let listError = '';
+  let transcriptError = '';
   let truncated = false;
   let showRaw = false;
   // Start collapsed when we were opened with a known resumeId (the user
@@ -32,7 +34,20 @@
   // response clobber a newer one.
   let loadToken = 0;
 
-  $: displayText = showRaw ? transcriptText : cleanTranscript(transcriptText);
+  // Memoize the clean-mode result. Svelte's reactivity recomputes whenever
+  // ANY dependency of a $: statement changes; without the cache we'd re-run
+  // cleanTranscript on every modal-state flip even though neither the input
+  // text nor the mode changed.
+  let cleanCacheKey = '';
+  let cleanCacheValue = '';
+  function getDisplayText(text, raw) {
+    if (raw) return text;
+    if (cleanCacheKey === text) return cleanCacheValue;
+    cleanCacheKey = text;
+    cleanCacheValue = cleanTranscript(text);
+    return cleanCacheValue;
+  }
+  $: displayText = getDisplayText(transcriptText, showRaw);
 
   $: selectedEntry = selectedResumeId
     ? entries.find((entry) => entry.resumeId === selectedResumeId)
@@ -78,13 +93,16 @@
 
   async function loadList() {
     loadingList = true;
+    listError = '';
     try {
       entries = await listTranscripts();
       if (!selectedResumeId && entries.length > 0) {
         selectedResumeId = entries[0].resumeId;
       }
     } catch (error) {
-      onError(`Failed to load transcripts: ${error?.message || error}`);
+      const message = error?.message || String(error);
+      listError = message;
+      onError(`Failed to load transcripts: ${message}`);
       entries = [];
     } finally {
       loadingList = false;
@@ -97,10 +115,12 @@
       transcriptSize = 0;
       transcriptReadBytes = 0;
       truncated = false;
+      transcriptError = '';
       return;
     }
     const token = ++loadToken;
     loadingTranscript = true;
+    transcriptError = '';
     try {
       const content = await getTranscriptContent(resumeId, 0);
       if (token !== loadToken) return; // a newer request superseded us
@@ -112,7 +132,9 @@
       if (viewerEl) viewerEl.scrollTop = viewerEl.scrollHeight;
     } catch (error) {
       if (token !== loadToken) return;
-      onError(`Failed to load transcript: ${error?.message || error}`);
+      const message = error?.message || String(error);
+      transcriptError = message;
+      onError(`Failed to load transcript: ${message}`);
       transcriptText = '';
       transcriptSize = 0;
       transcriptReadBytes = 0;
@@ -120,6 +142,14 @@
     } finally {
       if (token === loadToken) loadingTranscript = false;
     }
+  }
+
+  function retryLoadTranscript() {
+    if (selectedResumeId) loadTranscript(selectedResumeId);
+  }
+
+  function retryLoadList() {
+    loadList();
   }
 
   function select(resumeId) {
@@ -157,8 +187,13 @@
   onMount(async () => {
     document.addEventListener('mousedown', handleDocumentPointer, true);
     document.addEventListener('touchstart', handleDocumentPointer, true);
+    // The reactive `$: if (selectedResumeId) loadTranscript(...)` below is
+    // the single source of truth for the load — calling it explicitly here
+    // (and racing with reactivity-after-loadList) used to fire two
+    // round-trips on every open. loadList alone is enough; selectedResumeId
+    // either was set by the caller (then the reactive fires once already)
+    // or gets set inside loadList (then the reactive fires once after).
     await loadList();
-    if (selectedResumeId) await loadTranscript(selectedResumeId);
   });
 
   onDestroy(() => {
@@ -205,6 +240,13 @@
       <aside class="transcript-viewer-list" aria-label={$t('transcriptViewer.listLabel')}>
         {#if loadingList}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.loadingList')}</div>
+        {:else if listError}
+          <div class="transcript-viewer-empty transcript-viewer-error">
+            <p>{$t('transcriptViewer.listErrorTitle')}</p>
+            <button type="button" class="modal-secondary-button" on:click={retryLoadList}>
+              {$t('transcriptViewer.retry')}
+            </button>
+          </div>
         {:else if entries.length === 0}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.empty')}</div>
         {:else}
@@ -232,6 +274,13 @@
       <section class="transcript-viewer-pane">
         {#if loadingTranscript}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.loadingTranscript')}</div>
+        {:else if transcriptError}
+          <div class="transcript-viewer-empty transcript-viewer-error">
+            <p>{$t('transcriptViewer.loadErrorTitle')}</p>
+            <button type="button" class="modal-secondary-button" on:click={retryLoadTranscript}>
+              {$t('transcriptViewer.retry')}
+            </button>
+          </div>
         {:else if !selectedResumeId}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.pickOne')}</div>
         {:else if !transcriptText}
@@ -411,6 +460,14 @@
     font-size: 13px;
     padding: 24px;
     text-align: center;
+  }
+  .transcript-viewer-error {
+    flex-direction: column;
+    gap: 14px;
+    color: #f3c87a;
+  }
+  .transcript-viewer-error p {
+    margin: 0;
   }
   .transcript-viewer-footer {
     display: flex;
