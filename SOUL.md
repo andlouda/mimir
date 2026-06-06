@@ -44,7 +44,7 @@ They're JSON files, embedded in the binary but editable by the user. 58 ship out
 
 A workflow is a sequence of steps: run a discovery, execute a tool, ask AI to interpret the output, pause for human approval, continue. They bridge the gap between "I know what commands to run" and "I want the computer to run them in order and tell me what it finds."
 
-Four built-in playbooks ship with Mimir: Docker Compose Debug, K8s Pod Triage, Host Basic Triage, API Health Check. Each one is a distillation of what an experienced engineer does in the first ten minutes of an incident — except it doesn't forget steps and it doesn't panic.
+Four built-in playbooks ship with Mimir: Docker Debug, K8s Cluster Overview, Host Basic Triage, API / Network Health Check. Each one is a distillation of what an experienced engineer does in the first ten minutes of an incident — except it doesn't forget steps and it doesn't panic.
 
 Workflows have three modes:
 - **Assist** — run everything, present findings
@@ -85,4 +85,4 @@ A terminal multiplexer named Mimir is a severed head that speaks truth about you
 
 ---
 
-*~32,000 lines of code. 89 Go files. 50 frontend components. One binary. No dependencies at runtime. Ships cross-platform: Linux, macOS, Windows.*
+*~29,000 lines of code. 89 Go files. 29 Svelte components. One binary. No dependencies at runtime. Ships cross-platform: Linux, macOS, Windows.*

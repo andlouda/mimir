@@ -20,20 +20,23 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
 
 ## Features
 
-- Multi-session terminal UI with split panes
-- Windows terminals via ConPTY
-- Linux local terminals via PTY
-- SSH profiles with password/key authentication
-- SSH host-key verification
-- tmux-first SSH reconnect support
-- Optional per-profile SSH RC modes
-- Local command templates
-- Local notes panel
-- Optional command history capture
-- Terminal recording and scrubbed export
-- AI-assisted command and workflow tools
+- Multi-session terminal UI with split panes and folders
+- Windows terminals via ConPTY, Linux via PTY
+- SSH profiles with password/key authentication and jump hosts
+- SSH host-key verification (TOFU)
+- tmux-backed SSH reconnect with unique session isolation
+- SFTP file browser for remote hosts
+- Terminal scrollback search (Ctrl+Shift+F)
+- 58 built-in command templates with discovery-driven variables
+- Workflow engine with playbooks, approval flow, and AI steps
+- Workflow picker (Ctrl+Shift+W) for quick playbook execution
+- AI integration (OpenAI, Ollama, Anthropic) with guardrails
+- Local notes panel with markdown support
+- Optional command history capture and search
+- Terminal recording with scrubbed export and GIF generation
+- Self-update with SHA256 verification and staged install
 - Local audit/activity logs
-- Manual GitHub Releases update check
+- i18n (English, German)
 
 ## Security Model
 
@@ -52,7 +55,8 @@ Mimir is local-first by default.
   off by default. Scrubbing is best-effort, pattern-based, and applied only on
   export — it cannot redact free-form secrets such as a typed password.
 - `agg` GIF export downloads are pinned and SHA256-verified.
-- App updates are checked manually through GitHub Releases. Auto-install is not enabled.
+- Self-updates download from GitHub Releases, verify SHA256 checksums, stage
+  the binary, and apply on restart. The running binary never modifies itself.
 
 See [SECURITY.md](SECURITY.md) and [docs/security-notes.md](docs/security-notes.md).
 
@@ -141,10 +145,13 @@ git push origin v0.1.0
 ├── terminal/               # Local and SSH terminal management
 ├── ssh/                    # SSH profiles, keys, known hosts, secrets
 ├── template/               # Command templates
-├── workflow/               # Workflow engine
+├── workflow/               # Workflow engine, playbooks, approval
+├── update/                 # Update checker, downloader, staging
 ├── aiflow/                 # AI tool-flow policy and context handling
 ├── history/                # Optional command history
 ├── recording/              # Asciicast recording and GIF export
+├── notes/                  # Markdown notes storage
+├── folder/                 # Terminal folder grouping
 ├── frontend/               # Svelte frontend
 ├── docs/                   # Architecture, security, testing, release docs
 └── scripts/                # Local release scripts

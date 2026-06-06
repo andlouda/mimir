@@ -34,7 +34,7 @@
 | `terminal/` | Local/SSH terminal session management. |
 | `tools/` | Tool registry and template tool bridge. |
 | `transcript/` | Terminal transcript persistence. |
-| `update/` | GitHub Releases update check. |
+| `update/` | GitHub Releases update check, download, SHA256 verify, staged install. |
 | `workflow/` | Workflow engine, approvals, playbooks, validation. |
 
 ## Frontend
@@ -50,6 +50,16 @@
 | `frontend/src/lib/RecordingPlayer.svelte` | Recording playback/export UI. |
 | `frontend/src/lib/ActivityLogViewer.svelte` | Activity/audit log viewer. |
 | `frontend/src/lib/workflows/WorkflowBuilder.svelte` | Workflow builder UI. |
+| `frontend/src/lib/workflows/WorkflowPlaybooksPane.svelte` | Playbook cards with run buttons. |
+| `frontend/src/lib/workflows/WorkflowRunSummary.svelte` | Workflow execution results display. |
+| `frontend/src/lib/modals/WorkflowPicker.svelte` | Ctrl+Shift+W command palette for workflows. |
+| `frontend/src/lib/modals/HostKeyModal.svelte` | SSH host key verification TOFU modal. |
+| `frontend/src/lib/modals/TemplatePicker.svelte` | Ctrl+Shift+P command palette for templates. |
+| `frontend/src/lib/views/SettingsView.svelte` | Settings page with update, shortcuts, folders. |
+| `frontend/src/lib/views/AIHubView.svelte` | AI configuration and interaction hub. |
+| `frontend/src/lib/AppModals.svelte` | Central modal orchestration. |
+| `frontend/src/lib/AppMainContent.svelte` | Main content area routing. |
+| `frontend/src/lib/Sidebar.svelte` | Navigation sidebar. |
 | `frontend/src/lib/terminals/` | xterm lifecycle, tmux helpers, layout tree helpers. |
 | `frontend/wailsjs/` | Generated Wails bindings. Do not edit manually. |
 | `frontend/dist/` | Generated Vite output. Ignored by Git. |
