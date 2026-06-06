@@ -9,10 +9,23 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"mimir/safeio"
 )
+
+// appendLocks holds one mutex per resumeID. POSIX guarantees O_APPEND writes
+// are atomic up to PIPE_BUF (≈4 KB) — anything larger, or running on Windows
+// where the guarantee doesn't apply at all, can interleave. Holding a mutex
+// per resumeID for the duration of open/write/close removes the question
+// entirely without serializing writes across different transcripts.
+var appendLocks sync.Map
+
+func appendLockFor(resumeID string) *sync.Mutex {
+	m, _ := appendLocks.LoadOrStore(resumeID, &sync.Mutex{})
+	return m.(*sync.Mutex)
+}
 
 // Metadata is the side-car descriptor written next to a transcript so the
 // terminal's label survives the in-memory session and the saved snapshot.
@@ -152,6 +165,15 @@ func Append(resumeID string, data string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	// Per-resumeID lock: parallel appends to the same transcript serialize,
+	// appends to *different* transcripts run in parallel as before. The
+	// lock covers open+write+close so a torn write is impossible even when
+	// the OS doesn't guarantee O_APPEND atomicity for the given size.
+	lock := appendLockFor(resumeID)
+	lock.Lock()
+	defer lock.Unlock()
+
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return "", fmt.Errorf("failed to open transcript file: %w", err)

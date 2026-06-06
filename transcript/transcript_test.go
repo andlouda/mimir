@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -288,6 +289,56 @@ func TestWriteMetadataIsAtomic(t *testing.T) {
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), ".tmp-") {
 			t.Fatalf("unexpected leftover temp file %s — atomic write did not clean up", e.Name())
+		}
+	}
+}
+
+func TestAppendIsSafeUnderParallelLoad(t *testing.T) {
+	isolateConfigDir(t)
+
+	// Sanity-check that parallel goroutines appending to the *same* resume ID
+	// produce a byte-exact transcript: each fixed-size record lands intact,
+	// and the total byte count matches the expected sum. Without a per-resume
+	// mutex, Append on Windows could interleave writes (POSIX is somewhat
+	// safer for sub-PIPE_BUF writes but not guaranteed for larger ones).
+	const (
+		goroutines    = 16
+		writesPerLine = 200
+		recordSize    = 64
+	)
+
+	record := strings.Repeat("a", recordSize-1) + "\n"
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for g := 0; g < goroutines; g++ {
+		go func() {
+			defer wg.Done()
+			for i := 0; i < writesPerLine; i++ {
+				if _, err := Append("parallel", record); err != nil {
+					t.Errorf("append: %v", err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	got, err := ReadFull("parallel", 0)
+	if err != nil {
+		t.Fatalf("read full: %v", err)
+	}
+	expected := goroutines * writesPerLine * recordSize
+	if len(got) != expected {
+		t.Fatalf("expected %d bytes after parallel appends, got %d", expected, len(got))
+	}
+	// Every line should be the fixed-size record. A torn write would leave
+	// a line shorter than recordSize or with the trailing newline lost.
+	lines := strings.Split(got, "\n")
+	// Trailing empty after last \n.
+	for i, line := range lines[:len(lines)-1] {
+		if len(line) != recordSize-1 {
+			t.Fatalf("line %d has unexpected length %d (record corruption): %q", i, len(line), line)
 		}
 	}
 }
