@@ -269,7 +269,8 @@ func (a *App) GetTerminalTranscriptExcerpt(resumeID string, maxBytes int) (strin
 // Name / Type / SSHProfileID are best-effort and only populated when the
 // resumeID is still present in the most recent session snapshot — fresh-after-
 // reboot lookups still get the resumeID + size + modTime even when context is
-// lost.
+// lost. Active is true while a live terminal still owns the resumeID; the
+// viewer uses it to disable the Delete action and badge the entry.
 type TranscriptListEntry struct {
 	ResumeID     string    `json:"resumeId"`
 	Name         string    `json:"name,omitempty"`
@@ -277,6 +278,7 @@ type TranscriptListEntry struct {
 	SSHProfileID string    `json:"sshProfileId,omitempty"`
 	Size         int64     `json:"size"`
 	ModTime      time.Time `json:"modTime"`
+	Active       bool      `json:"active"`
 }
 
 // ListTranscripts enumerates stored transcripts and joins each one with the
@@ -291,10 +293,12 @@ func (a *App) ListTranscripts() ([]TranscriptListEntry, error) {
 	}
 
 	labels := map[string]session.TerminalState{}
+	activeIDs := map[string]struct{}{}
 	a.stateMu.Lock()
 	for _, state := range a.activeTerminalStates {
 		if state.ResumeID != "" {
 			labels[state.ResumeID] = state
+			activeIDs[state.ResumeID] = struct{}{}
 		}
 	}
 	a.stateMu.Unlock()
@@ -333,6 +337,9 @@ func (a *App) ListTranscripts() ([]TranscriptListEntry, error) {
 		}
 		if listEntry.SSHProfileID == "" && entry.Metadata.SSHProfileID != "" {
 			listEntry.SSHProfileID = entry.Metadata.SSHProfileID
+		}
+		if _, ok := activeIDs[entry.ResumeID]; ok {
+			listEntry.Active = true
 		}
 		out = append(out, listEntry)
 	}

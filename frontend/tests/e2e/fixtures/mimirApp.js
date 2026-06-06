@@ -292,8 +292,8 @@ export async function installMimirMocks(page) {
             truncated: false,
           }),
           ListTranscripts: async () => ([
-            { resumeId: 'sample-resume-1', name: 'API host', type: 'ssh', sshProfileId: 'prod-api', size: 1024, modTime: new Date().toISOString() },
-            { resumeId: 'sample-resume-2', name: 'Local shell', type: 'bash', size: 256, modTime: new Date(Date.now() - 3600000).toISOString() },
+            { resumeId: 'sample-resume-1', name: 'API host', type: 'ssh', sshProfileId: 'prod-api', size: 1024, modTime: new Date().toISOString(), active: true },
+            { resumeId: 'sample-resume-2', name: 'Local shell', type: 'bash', size: 256, modTime: new Date(Date.now() - 3600000).toISOString(), active: false },
           ]),
           SaveTranscriptMetadata: asyncNoop,
           DeleteTranscript: async (resumeId) => ({ resumeId, ok: true }),
