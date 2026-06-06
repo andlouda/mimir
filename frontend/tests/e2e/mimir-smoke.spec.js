@@ -87,10 +87,17 @@ test('opens the transcript viewer from the terminal header', async ({ page }) =>
   await page.locator('.terminal-header .transcript-btn').first().click();
 
   await expect(page.getByRole('heading', { name: 'Terminal Transcripts' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'API host' })).toBeVisible();
   await expect(page.getByText('mocked transcript body — first line')).toBeVisible();
 
+  // The list is collapsed by default when opened from a specific terminal;
+  // toggle "Browse" to see the other transcripts.
+  await expect(page.getByRole('button', { name: 'API host' })).not.toBeVisible();
+  await page.getByRole('button', { name: /Browse \(\d+\)/ }).click();
+  await expect(page.getByRole('button', { name: 'API host' })).toBeVisible();
+
   await page.getByRole('button', { name: 'Local shell' }).click();
+  // Selecting a transcript auto-collapses the list again.
+  await expect(page.getByRole('button', { name: 'API host' })).not.toBeVisible();
   await expect(page.getByText('mocked transcript body — first line')).toBeVisible();
 
   await page.locator('.transcript-viewer').getByRole('button', { name: 'Close' }).first().click();

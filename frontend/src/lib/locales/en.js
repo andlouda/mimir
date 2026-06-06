@@ -655,6 +655,8 @@ export default {
     pickOne: 'Select a transcript on the left.',
     truncated: 'This transcript is large and was truncated to the most recent 10 MiB.',
     showRaw: 'Show raw ANSI',
+    browse: 'Browse ({n})',
+    browseLabel: 'Toggle list of other transcripts',
     unnamed: 'Closed terminal',
     unnamedOf: 'Closed {type} terminal',
     justNow: 'just now',

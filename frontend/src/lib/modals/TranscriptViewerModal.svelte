@@ -29,6 +29,10 @@
   let truncated = false;
   let viewerEl;
   let showRaw = false;
+  // Start collapsed when we were opened with a known resumeId (the user
+  // pressed the button on a specific terminal) so the viewer takes the full
+  // width by default. Browse mode is one click away via the header toggle.
+  let listOpen = !initialResumeId;
 
   // Strip terminal control sequences so the viewer shows readable text
   // instead of the raw bytes the shell emits (ANSI colors, cursor moves,
@@ -148,6 +152,7 @@
   }
 
   function select(resumeId) {
+    listOpen = false;
     if (resumeId === selectedResumeId) return;
     selectedResumeId = resumeId;
   }
@@ -196,12 +201,25 @@
           <p class="transcript-viewer-subtitle">{initialLabel}</p>
         {/if}
       </div>
-      <button type="button" class="modal-close-button" on:click={onClose} aria-label={$t('transcriptViewer.close')}>
-        &#x2715;
-      </button>
+      <div class="transcript-viewer-header-actions">
+        <button
+          type="button"
+          class="transcript-viewer-browse"
+          class:active={listOpen}
+          on:click={() => { listOpen = !listOpen; }}
+          aria-pressed={listOpen}
+          title={$t('transcriptViewer.browseLabel')}
+        >
+          {$t('transcriptViewer.browse', { n: entries.length })}
+        </button>
+        <button type="button" class="modal-close-button" on:click={onClose} aria-label={$t('transcriptViewer.close')}>
+          &#x2715;
+        </button>
+      </div>
     </header>
 
-    <div class="transcript-viewer-body">
+    <div class="transcript-viewer-body" class:list-hidden={!listOpen}>
+      {#if listOpen}
       <aside class="transcript-viewer-list" aria-label={$t('transcriptViewer.listLabel')}>
         {#if loadingList}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.loadingList')}</div>
@@ -227,6 +245,7 @@
           </ul>
         {/if}
       </aside>
+      {/if}
 
       <section class="transcript-viewer-pane">
         {#if loadingTranscript}
@@ -285,6 +304,30 @@
     align-items: flex-start;
     padding: 14px 18px;
     border-bottom: 1px solid #2b3140;
+  }
+  .transcript-viewer-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .transcript-viewer-browse {
+    background: transparent;
+    color: #c8cdd8;
+    border: 1px solid #2b3140;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font: inherit;
+    line-height: 1.4;
+  }
+  .transcript-viewer-browse:hover {
+    background: #1a1d27;
+  }
+  .transcript-viewer-browse.active {
+    background: #1c2230;
+    border-color: #63b3ed;
+    color: #e7ecf3;
   }
   .transcript-viewer-header h3 {
     margin: 0;

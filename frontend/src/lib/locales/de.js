@@ -655,6 +655,8 @@ export default {
     pickOne: 'Wähle links ein Transkript aus.',
     truncated: 'Dieses Transkript ist groß und wurde auf die letzten 10 MiB gekürzt.',
     showRaw: 'Rohe ANSI-Sequenzen zeigen',
+    browse: 'Liste ({n})',
+    browseLabel: 'Liste anderer Transkripte ein-/ausblenden',
     unnamed: 'Geschlossenes Terminal',
     unnamedOf: 'Geschlossenes {type}-Terminal',
     justNow: 'gerade eben',
