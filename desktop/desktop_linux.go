@@ -8,8 +8,7 @@ import (
 	"path/filepath"
 )
 
-// The icon name used in the .desktop Icon= entry. Resolved by the icon theme
-// once the PNG is installed under the hicolor hierarchy.
+// The icon's basename inside the hicolor apps directory.
 const iconName = "mimir"
 
 const desktopTemplate = `[Desktop Entry]
@@ -54,7 +53,12 @@ func Install(iconPNG []byte) error {
 
 	iconPath := filepath.Join(iconDir, iconName+".png")
 	desktopPath := filepath.Join(appsDir, "mimir.desktop")
-	desktopContent := fmt.Sprintf(desktopTemplate, exePath, iconName)
+	// Reference the icon by absolute path. The hicolor install above lets
+	// theme-aware DEs pick it up, but the absolute path keeps the entry
+	// working even when the icon-theme cache has not been rebuilt yet
+	// (~/.local/share/icons/hicolor often has no icon-theme.cache on first
+	// install), and on minimal DEs that don't index user-local hicolor.
+	desktopContent := fmt.Sprintf(desktopTemplate, exePath, iconPath)
 
 	iconChanged, err := writeIfChanged(iconPath, iconPNG, 0o644)
 	if err != nil {
