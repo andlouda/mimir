@@ -3,6 +3,7 @@ package transcript
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -75,6 +76,12 @@ func metadataPath(resumeID string) (string, error) {
 // WriteMetadata persists the descriptor next to the transcript. If a previous
 // descriptor exists the StartedAt is preserved and only UpdatedAt is bumped —
 // callers don't need to track which is the first write themselves.
+//
+// When the existing descriptor already carries the exact same Name / Type /
+// SSHProfileID, the disk write is skipped and the previous file is kept
+// verbatim. This matters because the frontend fires a metadata write on every
+// rename event, and most renames are no-ops in practice (re-saving the same
+// name closes the inline-edit input).
 func WriteMetadata(resumeID string, meta Metadata) error {
 	path, err := metadataPath(resumeID)
 	if err != nil {
@@ -83,8 +90,15 @@ func WriteMetadata(resumeID string, meta Metadata) error {
 	now := time.Now().UTC()
 	if existing, err := os.ReadFile(path); err == nil {
 		var prev Metadata
-		if err := json.Unmarshal(existing, &prev); err == nil && !prev.StartedAt.IsZero() {
-			meta.StartedAt = prev.StartedAt
+		if err := json.Unmarshal(existing, &prev); err == nil {
+			if !prev.StartedAt.IsZero() {
+				meta.StartedAt = prev.StartedAt
+			}
+			if prev.Name == meta.Name &&
+				prev.Type == meta.Type &&
+				prev.SSHProfileID == meta.SSHProfileID {
+				return nil
+			}
 		}
 	}
 	if meta.StartedAt.IsZero() {
@@ -202,7 +216,13 @@ func List() ([]Entry, error) {
 		if err != nil {
 			continue
 		}
-		meta, _ := ReadMetadata(resumeID) // best-effort, missing file is fine
+		meta, metaErr := ReadMetadata(resumeID)
+		if metaErr != nil {
+			// Best-effort: list the transcript without metadata, but surface
+			// the corruption so it doesn't stay hidden forever. The viewer
+			// will fall back to "Closed terminal" labels for this entry.
+			log.Printf("transcript: ignoring corrupt metadata for %s: %v", resumeID, metaErr)
+		}
 		out = append(out, Entry{
 			ResumeID: resumeID,
 			Size:     info.Size(),

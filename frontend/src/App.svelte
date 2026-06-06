@@ -24,6 +24,7 @@
   import { normalizeAIToolFlowConfig, listToText, textToList } from './lib/ai/configHelpers';
   import { normalizeTemplates, extractTemplateVariables, buildPromptLabel } from './lib/templates/templateHelpers';
   import { shellQuotePath, generateResumeId, dedupeSavedSessionTerminals, sanitizeTranscriptPreview } from './lib/util';
+  import { appendTerminalTranscript, getTranscriptExcerpt, saveTranscriptMetadata } from './lib/transcript/transcriptApi.js';
   import { generateTmuxSessionName } from './lib/terminals/tmuxLifecycle';
   import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal } from './lib/terminals/xtermLifecycle';
 
@@ -333,7 +334,7 @@
   async function loadTranscriptExcerpt(resumeId, maxBytes = 8000) {
     if (!resumeId) return '';
     try {
-      const raw = await window['go']['main']['App']['GetTerminalTranscriptExcerpt'](resumeId, maxBytes);
+      const raw = await getTranscriptExcerpt(resumeId, maxBytes);
       return sanitizeTranscriptPreview(raw);
     } catch (error) {
       console.error(`Failed to load transcript excerpt for ${resumeId}:`, error);
@@ -908,12 +909,12 @@
     terminals = [...terminals, newTerminal];
 
     // Side-car so the transcript stays identifiable after this terminal closes.
-    window['go']?.['main']?.['App']?.['SaveTranscriptMetadata']?.(
-      newTerminal.resumeId,
-      newTerminal.name || '',
-      newTerminal.type || '',
-      newTerminal.sshProfileId || ''
-    ).catch(() => {});
+    saveTranscriptMetadata({
+      resumeId: newTerminal.resumeId,
+      name: newTerminal.name,
+      type: newTerminal.type,
+      sshProfileId: newTerminal.sshProfileId,
+    });
 
     await tick();
 
@@ -958,7 +959,7 @@
         const nextOutput = (t.outputBuffer + data).slice(-12000);
         return { ...t, outputBuffer: nextOutput };
       });
-	      window['go']['main']['App']['AppendTerminalTranscript'](newTerminal.resumeId, data).catch(() => {});
+	      appendTerminalTranscript(newTerminal.resumeId, data);
 	    });
 	    newTerminal.cleanupHandlers.push(offOutput);
 
@@ -1415,12 +1416,14 @@
         const newName = event.target.value;
         const next = { ...t, name: newName, editingName: false };
         persistTerminalState(next);
-        window['go']?.['main']?.['App']?.['SaveTranscriptMetadata']?.(
-          next.resumeId || '',
-          newName || '',
-          next.type || '',
-          next.sshProfileId || ''
-        ).catch(() => {});
+        if (next.name !== t.name) {
+          saveTranscriptMetadata({
+            resumeId: next.resumeId,
+            name: next.name,
+            type: next.type,
+            sshProfileId: next.sshProfileId,
+          });
+        }
         return next;
       }
       return t;

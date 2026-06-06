@@ -212,6 +212,52 @@ func TestWriteMetadataPreservesStartedAt(t *testing.T) {
 	}
 }
 
+func TestWriteMetadataIsNoopWhenContentUnchanged(t *testing.T) {
+	isolateConfigDir(t)
+
+	original := Metadata{Name: "stable", Type: "ssh", SSHProfileID: "prod"}
+	if err := WriteMetadata("noop", original); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	path, err := metadataPath("noop")
+	if err != nil {
+		t.Fatalf("path: %v", err)
+	}
+	info1, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+
+	// Sleep enough that any rewrite would land with a newer mtime even on
+	// coarse-resolution filesystems.
+	time.Sleep(20 * time.Millisecond)
+
+	if err := WriteMetadata("noop", original); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	info2, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat 2: %v", err)
+	}
+	if !info2.ModTime().Equal(info1.ModTime()) {
+		t.Fatalf("expected no rewrite when metadata unchanged: %v -> %v", info1.ModTime(), info2.ModTime())
+	}
+
+	// Now actually change something — the file must update.
+	changed := original
+	changed.Name = "renamed"
+	if err := WriteMetadata("noop", changed); err != nil {
+		t.Fatalf("third write: %v", err)
+	}
+	info3, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat 3: %v", err)
+	}
+	if !info3.ModTime().After(info1.ModTime()) {
+		t.Fatalf("expected rewrite when name changed: %v -> %v", info1.ModTime(), info3.ModTime())
+	}
+}
+
 func TestReadMetadataMissingReturnsZero(t *testing.T) {
 	isolateConfigDir(t)
 

@@ -58,13 +58,20 @@ Packages without dedicated tests yet:
 
 ## Frontend Tests
 
-Playwright smoke tests live in `frontend/tests/e2e/`.
+Two layers:
 
-The current frontend gate is:
+- **Vitest unit tests** for pure modules (transcript cleaning pipeline,
+  utility functions). Located next to source files as `*.test.js`.
+- **Playwright smoke tests** for the app shell, workflow flow, transcript
+  viewer, and settings surfaces. Located in `frontend/tests/e2e/`. The
+  Wails backend is mocked in-browser.
+
+The frontend gate is:
 
 ```bash
 npm run build
-npm run test:e2e
+npm test         # vitest run
+npm run test:e2e # playwright
 ```
 
 Known build warnings:
@@ -81,7 +88,8 @@ These warnings do not currently fail the build.
 
 - `npm ci`
 - `npm run build`
-- `npm run test:e2e`
+- `npm test` (Vitest unit tests)
+- `npm run test:e2e` (Playwright smoke)
 - `go test ./...`
 
 ## Recommended MVP Gates

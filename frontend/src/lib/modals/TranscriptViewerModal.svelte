@@ -1,6 +1,8 @@
 <script>
   import { onDestroy, onMount, tick } from 'svelte';
   import { t } from '../i18n.js';
+  import { cleanTranscript } from '../transcript/cleanTranscript.js';
+  import { getFullTranscript, listTranscripts } from '../transcript/transcriptApi.js';
 
   export let initialResumeId = '';
   export let initialLabel = '';
@@ -8,18 +10,7 @@
   export let onError = () => {};
 
   let modalEl;
-
-  // Close on any pointer interaction outside the modal. We listen at the
-  // document level on the capture phase because xterm.js installs its own
-  // bubbling-phase listeners on the terminal area — by the time a click on
-  // the terminal would bubble to our backdrop, xterm has already consumed
-  // the event.
-  function handleDocumentPointer(event) {
-    if (!modalEl) return;
-    if (event.composedPath?.().includes(modalEl)) return;
-    if (modalEl.contains(event.target)) return;
-    onClose();
-  }
+  let viewerEl;
 
   let entries = [];
   let selectedResumeId = initialResumeId || '';
@@ -27,98 +18,27 @@
   let loadingList = true;
   let loadingTranscript = false;
   let truncated = false;
-  let viewerEl;
   let showRaw = false;
   // Start collapsed when we were opened with a known resumeId (the user
   // pressed the button on a specific terminal) so the viewer takes the full
   // width by default. Browse mode is one click away via the header toggle.
   let listOpen = !initialResumeId;
 
-  // Strip terminal control sequences so the viewer shows readable text
-  // instead of the raw bytes the shell emits (ANSI colors, cursor moves,
-  // OSC title pushes, etc.). The raw view is still available via the
-  // toggle and the on-disk file is never modified.
-  const CSI_RE = /\x1B\[[\d;?<>]*[a-zA-Z]/g;
-  const OSC_RE = /\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)/g;
-  const ESC_RE = /\x1B[=>()][AB012]?/g;
-  const CTRL_RE = /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g;
+  // Stale-load guard. Bumped on every loadTranscript call; the in-flight
+  // promise only commits its result if its token still matches. Without this,
+  // switching transcripts faster than the IPC round-trip lets an older
+  // response clobber a newer one.
+  let loadToken = 0;
 
-  function stripAnsi(text) {
-    if (!text) return '';
-    return text
-      .replace(CSI_RE, '')
-      .replace(OSC_RE, '')
-      .replace(ESC_RE, '')
-      .replace(CTRL_RE, '');
-  }
+  $: displayText = showRaw ? transcriptText : cleanTranscript(transcriptText);
 
-  // Resolve carriage returns the way a real terminal would: \r rewinds the
-  // cursor to column 0, and any subsequent writes overwrite from there. In a
-  // transcript that means: within a single line, only the content after the
-  // last \r is what the user actually saw. Without this pass, shells that
-  // redraw the prompt on every keystroke (PowerShell/PSReadLine) produce
-  // glued-together fragments like "ppwpwd" from "p\rpw\rpwd".
-  function applyCarriageReturns(text) {
-    if (!text || !text.includes('\r')) return text;
-    return text
-      .split('\n')
-      .map((line) => {
-        if (!line.includes('\r')) return line;
-        const segments = line.split('\r');
-        // Drop empty trailing segment (line ended with \r before \n).
-        const last = segments[segments.length - 1];
-        return last;
-      })
-      .join('\n');
-  }
+  $: selectedEntry = selectedResumeId
+    ? entries.find((entry) => entry.resumeId === selectedResumeId)
+    : null;
 
-  // Squash truly noisy repetition without obscuring real content:
-  //   - runs of blank lines collapse to a single blank, no marker
-  //   - runs of identical non-blank lines emit a marker only when there
-  //     are at least 4 in a row (otherwise we'd just add a one-liner
-  //     "1× repeated" that's louder than the line itself)
-  const REPEAT_MARKER_MIN = 4;
-
-  function isBlankLine(s) {
-    return s.length === 0 || /^\s*$/.test(s);
-  }
-
-  function collapseRepeats(text) {
-    const lines = text.split('\n');
-    const out = [];
-    let prev = null;
-    let runCount = 0;
-
-    const flush = () => {
-      if (prev === null) return;
-      if (isBlankLine(prev)) {
-        out.push(prev);
-        return;
-      }
-      if (runCount >= REPEAT_MARKER_MIN) {
-        out.push(prev);
-        out.push(`  ⟨${runCount - 1}× more identical⟩`);
-        return;
-      }
-      for (let i = 0; i < runCount; i++) out.push(prev);
-    };
-
-    for (const line of lines) {
-      if (line === prev) {
-        runCount += 1;
-        continue;
-      }
-      flush();
-      prev = line;
-      runCount = 1;
-    }
-    flush();
-    return out.join('\n');
-  }
-
-  $: displayText = showRaw
-    ? transcriptText
-    : collapseRepeats(applyCarriageReturns(stripAnsi(transcriptText)));
+  $: subtitle = selectedEntry
+    ? entryLabel(selectedEntry)
+    : initialLabel;
 
   function formatBytes(n) {
     if (!Number.isFinite(n)) return '';
@@ -157,8 +77,7 @@
   async function loadList() {
     loadingList = true;
     try {
-      const list = await window['go']['main']['App']['ListTranscripts']();
-      entries = Array.isArray(list) ? list : [];
+      entries = await listTranscripts();
       if (!selectedResumeId && entries.length > 0) {
         selectedResumeId = entries[0].resumeId;
       }
@@ -176,20 +95,23 @@
       truncated = false;
       return;
     }
+    const token = ++loadToken;
     loadingTranscript = true;
     try {
-      const text = await window['go']['main']['App']['GetTerminalTranscriptFull'](resumeId, 0);
-      transcriptText = text || '';
+      const text = await getFullTranscript(resumeId, 0);
+      if (token !== loadToken) return; // a newer request superseded us
+      transcriptText = text;
       const entry = entries.find((e) => e.resumeId === resumeId);
       truncated = Boolean(entry && entry.size > transcriptText.length);
       await tick();
       if (viewerEl) viewerEl.scrollTop = viewerEl.scrollHeight;
     } catch (error) {
+      if (token !== loadToken) return;
       onError(`Failed to load transcript: ${error?.message || error}`);
       transcriptText = '';
       truncated = false;
     } finally {
-      loadingTranscript = false;
+      if (token === loadToken) loadingTranscript = false;
     }
   }
 
@@ -212,6 +134,17 @@
 
   function handleKeydown(e) {
     if (e.key === 'Escape') onClose();
+  }
+
+  // Close on any pointer interaction outside the modal. We listen at the
+  // document level on the capture phase because xterm.js installs its own
+  // bubbling-phase listeners on the terminal area — a click on the terminal
+  // would otherwise be swallowed before reaching our backdrop.
+  function handleDocumentPointer(event) {
+    if (!modalEl) return;
+    if (event.composedPath?.().includes(modalEl)) return;
+    if (modalEl.contains(event.target)) return;
+    onClose();
   }
 
   onMount(async () => {
@@ -239,8 +172,8 @@
     <header class="transcript-viewer-header">
       <div>
         <h3>{$t('transcriptViewer.title')}</h3>
-        {#if initialLabel}
-          <p class="transcript-viewer-subtitle">{initialLabel}</p>
+        {#if subtitle}
+          <p class="transcript-viewer-subtitle">{subtitle}</p>
         {/if}
       </div>
       <div class="transcript-viewer-header-actions">
