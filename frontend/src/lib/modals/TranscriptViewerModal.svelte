@@ -1,11 +1,25 @@
 <script>
-  import { onMount, tick } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { t } from '../i18n.js';
 
   export let initialResumeId = '';
   export let initialLabel = '';
   export let onClose = () => {};
   export let onError = () => {};
+
+  let modalEl;
+
+  // Close on any pointer interaction outside the modal. We listen at the
+  // document level on the capture phase because xterm.js installs its own
+  // bubbling-phase listeners on the terminal area — by the time a click on
+  // the terminal would bubble to our backdrop, xterm has already consumed
+  // the event.
+  function handleDocumentPointer(event) {
+    if (!modalEl) return;
+    if (event.composedPath?.().includes(modalEl)) return;
+    if (modalEl.contains(event.target)) return;
+    onClose();
+  }
 
   let entries = [];
   let selectedResumeId = initialResumeId || '';
@@ -154,8 +168,15 @@
   }
 
   onMount(async () => {
+    document.addEventListener('mousedown', handleDocumentPointer, true);
+    document.addEventListener('touchstart', handleDocumentPointer, true);
     await loadList();
     if (selectedResumeId) await loadTranscript(selectedResumeId);
+  });
+
+  onDestroy(() => {
+    document.removeEventListener('mousedown', handleDocumentPointer, true);
+    document.removeEventListener('touchstart', handleDocumentPointer, true);
   });
 
   $: if (selectedResumeId) loadTranscript(selectedResumeId);
@@ -167,7 +188,7 @@
   on:keydown={handleKeydown}
   role="presentation"
 >
-  <div class="transcript-viewer" role="dialog" aria-modal="true" tabindex="-1">
+  <div class="transcript-viewer" bind:this={modalEl} role="dialog" aria-modal="true" tabindex="-1">
     <header class="transcript-viewer-header">
       <div>
         <h3>{$t('transcriptViewer.title')}</h3>
