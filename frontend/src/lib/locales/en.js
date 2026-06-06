@@ -654,6 +654,7 @@ export default {
     emptyTranscript: 'This transcript file is empty.',
     pickOne: 'Select a transcript on the left.',
     truncated: 'This transcript is large and was truncated to the most recent 10 MiB.',
+    truncatedDetail: 'Showing the last {read} of {total}. Older content is in the file but not in the viewer.',
     showRaw: 'Show raw ANSI',
     browse: 'Browse ({n})',
     browseLabel: 'Toggle list of other transcripts',

@@ -260,6 +260,65 @@ func TestWriteMetadataIsNoopWhenContentUnchanged(t *testing.T) {
 	}
 }
 
+func TestReadContentReportsTruncationAuthoritatively(t *testing.T) {
+	isolateConfigDir(t)
+
+	// Write 1000 bytes; ask for 200.
+	full := strings.Repeat("x", 1000)
+	if _, err := Append("trunc", full); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	content, err := ReadContent("trunc", 200)
+	if err != nil {
+		t.Fatalf("read content: %v", err)
+	}
+	if !content.Truncated {
+		t.Fatalf("expected Truncated=true when maxBytes < size: %+v", content)
+	}
+	if content.Size != 1000 {
+		t.Fatalf("expected Size=1000, got %d", content.Size)
+	}
+	if content.ReadBytes != int64(len(content.Text)) {
+		t.Fatalf("ReadBytes (%d) and len(Text) (%d) must match", content.ReadBytes, len(content.Text))
+	}
+	if content.ReadBytes > 200 {
+		t.Fatalf("ReadBytes %d exceeds requested cap 200", content.ReadBytes)
+	}
+}
+
+func TestReadContentFullFileReportsNotTruncated(t *testing.T) {
+	isolateConfigDir(t)
+
+	if _, err := Append("complete", "small file content"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	content, err := ReadContent("complete", 1024)
+	if err != nil {
+		t.Fatalf("read content: %v", err)
+	}
+	if content.Truncated {
+		t.Fatalf("expected Truncated=false for cap above file size: %+v", content)
+	}
+	if content.Text != "small file content" {
+		t.Fatalf("unexpected text: %q", content.Text)
+	}
+	if content.Size != int64(len("small file content")) {
+		t.Fatalf("size mismatch: %d", content.Size)
+	}
+}
+
+func TestReadContentMissingFileReturnsEmpty(t *testing.T) {
+	isolateConfigDir(t)
+
+	content, err := ReadContent("never-existed", 1024)
+	if err != nil {
+		t.Fatalf("missing file should not error: %v", err)
+	}
+	if content.Text != "" || content.Size != 0 || content.Truncated {
+		t.Fatalf("expected zero content for missing file: %+v", content)
+	}
+}
+
 func TestWriteMetadataIsAtomic(t *testing.T) {
 	isolateConfigDir(t)
 

@@ -46,6 +46,17 @@ type Entry struct {
 	Metadata Metadata  `json:"metadata"`
 }
 
+// Content is the authoritative result of a read. Frontends must NOT infer
+// truncation from string-length math (UTF-8 byte-count and JS char-length
+// differ) — they consult Truncated and ReadBytes here.
+type Content struct {
+	ResumeID  string `json:"resumeId"`
+	Text      string `json:"text"`
+	Size      int64  `json:"size"`      // total file size in bytes
+	ReadBytes int64  `json:"readBytes"` // bytes actually included in Text
+	Truncated bool   `json:"truncated"` // true iff ReadBytes < Size
+}
+
 var resumeIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
 func transcriptsDir() (string, error) {
@@ -207,8 +218,43 @@ func ReadTail(resumeID string, maxBytes int) (string, error) {
 // maxBytes is positive and the file exceeds it, the head is truncated and the
 // last maxBytes bytes are returned — callers that need the full file regardless
 // of size should pass 0.
+//
+// Deprecated for the Wails layer: prefer ReadContent for clients that need
+// to distinguish "fits in the cap" from "was truncated". ReadFull stays for
+// backwards-compat with internal callers (tests, restore-overlay excerpt).
 func ReadFull(resumeID string, maxBytes int) (string, error) {
 	return ReadTail(resumeID, maxBytes)
+}
+
+// ReadContent is the authoritative read API. It returns the file content,
+// the on-disk size, the number of bytes actually included, and a Truncated
+// flag — frontends rely on Truncated rather than guessing from string length.
+// maxBytes <= 0 means "no cap" (in practice limited by the caller's hard cap).
+func ReadContent(resumeID string, maxBytes int) (Content, error) {
+	path, err := PathForResumeID(resumeID)
+	if err != nil {
+		return Content{ResumeID: resumeID}, err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Content{ResumeID: resumeID}, nil
+		}
+		return Content{ResumeID: resumeID}, fmt.Errorf("failed to stat transcript: %w", err)
+	}
+
+	text, err := ReadTail(resumeID, maxBytes)
+	if err != nil {
+		return Content{ResumeID: resumeID, Size: info.Size()}, err
+	}
+	read := int64(len(text))
+	return Content{
+		ResumeID:  resumeID,
+		Text:      text,
+		Size:      info.Size(),
+		ReadBytes: read,
+		Truncated: read < info.Size(),
+	}, nil
 }
 
 // List enumerates every stored transcript along with size and last-write time.

@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { t } from '../i18n.js';
   import { cleanTranscript } from '../transcript/cleanTranscript.js';
-  import { getFullTranscript, listTranscripts } from '../transcript/transcriptApi.js';
+  import { getTranscriptContent, listTranscripts } from '../transcript/transcriptApi.js';
 
   export let initialResumeId = '';
   export let initialLabel = '';
@@ -15,6 +15,8 @@
   let entries = [];
   let selectedResumeId = initialResumeId || '';
   let transcriptText = '';
+  let transcriptSize = 0;
+  let transcriptReadBytes = 0;
   let loadingList = true;
   let loadingTranscript = false;
   let truncated = false;
@@ -92,23 +94,28 @@
   async function loadTranscript(resumeId) {
     if (!resumeId) {
       transcriptText = '';
+      transcriptSize = 0;
+      transcriptReadBytes = 0;
       truncated = false;
       return;
     }
     const token = ++loadToken;
     loadingTranscript = true;
     try {
-      const text = await getFullTranscript(resumeId, 0);
+      const content = await getTranscriptContent(resumeId, 0);
       if (token !== loadToken) return; // a newer request superseded us
-      transcriptText = text;
-      const entry = entries.find((e) => e.resumeId === resumeId);
-      truncated = Boolean(entry && entry.size > transcriptText.length);
+      transcriptText = content.text;
+      transcriptSize = content.size;
+      transcriptReadBytes = content.readBytes;
+      truncated = content.truncated;
       await tick();
       if (viewerEl) viewerEl.scrollTop = viewerEl.scrollHeight;
     } catch (error) {
       if (token !== loadToken) return;
       onError(`Failed to load transcript: ${error?.message || error}`);
       transcriptText = '';
+      transcriptSize = 0;
+      transcriptReadBytes = 0;
       truncated = false;
     } finally {
       if (token === loadToken) loadingTranscript = false;
@@ -231,7 +238,12 @@
           <div class="transcript-viewer-empty">{$t('transcriptViewer.emptyTranscript')}</div>
         {:else}
           {#if truncated}
-            <div class="transcript-viewer-truncated">{$t('transcriptViewer.truncated')}</div>
+            <div class="transcript-viewer-truncated">
+              {$t('transcriptViewer.truncatedDetail', {
+                read: formatBytes(transcriptReadBytes),
+                total: formatBytes(transcriptSize),
+              })}
+            </div>
           {/if}
           <pre bind:this={viewerEl} class="transcript-viewer-content">{displayText}</pre>
         {/if}

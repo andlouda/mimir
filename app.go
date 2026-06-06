@@ -354,12 +354,27 @@ func (a *App) SaveTranscriptMetadata(resumeID, name, terminalType, sshProfileID 
 	})
 }
 
-// GetTerminalTranscriptFull returns the entire transcript file. When maxBytes
-// is positive and the file exceeds it the head is truncated; pass 0 to read
-// without a cap. The hard ceiling of 10 MiB keeps the IPC payload bounded for
-// pathological cases without surprising callers that asked for "everything".
+// transcriptHardCap caps the bytes returned over IPC so a pathological 1 GiB
+// transcript doesn't block the renderer. Negative or zero from the frontend
+// means "as much as the cap allows".
+const transcriptHardCap = 10 * 1024 * 1024
+
+// GetTerminalTranscriptContent is the authoritative read endpoint. The result
+// carries the file Size, the actually-read ReadBytes, and a Truncated flag —
+// the frontend uses Truncated rather than guessing from string length, which
+// is wrong for multi-byte UTF-8 content.
+func (a *App) GetTerminalTranscriptContent(resumeID string, maxBytes int) (transcript.Content, error) {
+	if maxBytes <= 0 || maxBytes > transcriptHardCap {
+		maxBytes = transcriptHardCap
+	}
+	return transcript.ReadContent(resumeID, maxBytes)
+}
+
+// GetTerminalTranscriptFull returns just the text. Kept for the existing
+// restore-transcript overlay path; new callers should prefer
+// GetTerminalTranscriptContent so they can render truncation correctly.
 func (a *App) GetTerminalTranscriptFull(resumeID string, maxBytes int) (string, error) {
-	const hardCap = 10 * 1024 * 1024
+	const hardCap = transcriptHardCap
 	if maxBytes <= 0 || maxBytes > hardCap {
 		maxBytes = hardCap
 	}

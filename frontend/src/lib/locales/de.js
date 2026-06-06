@@ -654,6 +654,7 @@ export default {
     emptyTranscript: 'Dieses Transkript ist leer.',
     pickOne: 'Wähle links ein Transkript aus.',
     truncated: 'Dieses Transkript ist groß und wurde auf die letzten 10 MiB gekürzt.',
+    truncatedDetail: 'Zeige die letzten {read} von {total}. Älterer Inhalt liegt in der Datei, aber nicht im Viewer.',
     showRaw: 'Rohe ANSI-Sequenzen zeigen',
     browse: 'Liste ({n})',
     browseLabel: 'Liste anderer Transkripte ein-/ausblenden',

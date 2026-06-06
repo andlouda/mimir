@@ -284,6 +284,13 @@ export async function installMimirMocks(page) {
           GetTerminalTmuxStatus: async () => ({ active: false, sessionName: '', mode: '', status: '' }),
           GetTerminalTranscriptExcerpt: async () => '',
           GetTerminalTranscriptFull: async () => 'mocked transcript body — first line\nsecond line\nthird line\n',
+          GetTerminalTranscriptContent: async (resumeId) => ({
+            resumeId,
+            text: 'mocked transcript body — first line\nsecond line\nthird line\n',
+            size: 64,
+            readBytes: 64,
+            truncated: false,
+          }),
           ListTranscripts: async () => ([
             { resumeId: 'sample-resume-1', name: 'API host', type: 'ssh', sshProfileId: 'prod-api', size: 1024, modTime: new Date().toISOString() },
             { resumeId: 'sample-resume-2', name: 'Local shell', type: 'bash', size: 256, modTime: new Date(Date.now() - 3600000).toISOString() },
