@@ -151,6 +151,17 @@
           {/if}
         </div>
         <div class="header-controls">
+          <button class="header-btn transcript-btn"
+            on:click|stopPropagation={() => dispatch('opentranscript', node.terminalId)}
+            title={$t('splitPane.openTranscriptTitle')}
+            aria-label={$t('splitPane.openTranscript')}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <rect x="2" y="1.5" width="8" height="9" rx="1" stroke="currentColor" stroke-width="1" fill="none"/>
+              <line x1="4" y1="4" x2="8" y2="4" stroke="currentColor" stroke-width="1"/>
+              <line x1="4" y1="6" x2="8" y2="6" stroke="currentColor" stroke-width="1"/>
+              <line x1="4" y1="8" x2="6.5" y2="8" stroke="currentColor" stroke-width="1"/>
+            </svg>
+          </button>
           <button class="header-btn record-btn" class:recording={term.recording}
             on:click|stopPropagation={() => dispatch('togglerecording', node.terminalId)}
             title={term.recording ? $t('splitPane.stopRecording') : $t('splitPane.startRecording')}>&#x23FA;</button>
@@ -250,6 +261,7 @@
         on:searchclose
         on:dismissrestore
         on:togglerecording
+        on:opentranscript
       />
     </div>
 
@@ -289,6 +301,7 @@
         on:searchclose
         on:dismissrestore
         on:togglerecording
+        on:opentranscript
       />
     </div>
   </div>

@@ -81,6 +81,22 @@ test('shows pending approval and stops cleanly after denial', async ({ page }) =
   await expect(page.getByText('approval denied by user')).toBeVisible();
 });
 
+test('opens the transcript viewer from the terminal header', async ({ page }) => {
+  await openApp(page);
+
+  await page.locator('.terminal-header .transcript-btn').first().click();
+
+  await expect(page.getByRole('heading', { name: 'Terminal Transcripts' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'API host' })).toBeVisible();
+  await expect(page.getByText('mocked transcript body — first line')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Local shell' }).click();
+  await expect(page.getByText('mocked transcript body — first line')).toBeVisible();
+
+  await page.locator('.transcript-viewer').getByRole('button', { name: 'Close' }).first().click();
+  await expect(page.getByRole('heading', { name: 'Terminal Transcripts' })).not.toBeVisible();
+});
+
 test('settings page exposes release and history smoke surfaces', async ({ page }) => {
   await openApp(page);
 

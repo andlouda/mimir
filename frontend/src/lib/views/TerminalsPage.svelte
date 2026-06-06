@@ -41,6 +41,7 @@
   export let closeTerminalSearch = () => {};
   export let dismissRestoreSummary = () => {};
   export let toggleRecording = () => {};
+  export let openTranscriptViewer = () => {};
   export let startNotesDrag = () => {};
   export let closeNotesPanel = () => {};
 </script>
@@ -118,6 +119,7 @@
         on:searchclose={(e) => closeTerminalSearch(e.detail)}
         on:dismissrestore={(e) => dismissRestoreSummary(e.detail)}
         on:togglerecording={(e) => toggleRecording(e.detail)}
+        on:opentranscript={(e) => openTranscriptViewer(e.detail)}
       />
     {:else}
       <div class="empty-state">

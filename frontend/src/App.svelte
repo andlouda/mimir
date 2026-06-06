@@ -279,6 +279,7 @@
   let showWorkflowPicker = false;
   let workflowPickerPlaybooks = [];
   let workflowPickerLoading = false;
+  let transcriptViewerState = null; // { resumeId, label } when modal is open
   let sshSecretBackend = '';
   let sshConnecting = false;
   let hostKeyVerifyState = null; // { status, host, fingerprint, keyType, message, profileID, profile }
@@ -1276,6 +1277,18 @@
     });
   }
 
+  function openTranscriptViewer(id) {
+    const term = terminals.find((t) => t.id === id);
+    transcriptViewerState = {
+      resumeId: term?.resumeId || '',
+      label: term?.name || '',
+    };
+  }
+
+  function closeTranscriptViewer() {
+    transcriptViewerState = null;
+  }
+
   function handleGlobalKeydown(event) {
     // Ctrl+Shift+N → toggle notes panel
     if (event.ctrlKey && event.shiftKey && event.key === 'N') {
@@ -2016,6 +2029,7 @@
     {closeTerminalSearch}
     {dismissRestoreSummary}
     {toggleRecording}
+    {openTranscriptViewer}
     {startNotesDrag}
     {openPage}
     {insertFileIntoActiveTerminal}
@@ -2091,5 +2105,7 @@
     {downloadingAgg}
     cancelAggDownload={() => { aggDownloadInfo = null; }}
     {runAggDownload}
+    bind:transcriptViewerState
+    {closeTranscriptViewer}
   />
 </main>

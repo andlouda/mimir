@@ -265,6 +265,78 @@ func (a *App) GetTerminalTranscriptExcerpt(resumeID string, maxBytes int) (strin
 	return transcript.ReadTail(resumeID, maxBytes)
 }
 
+// TranscriptListEntry is what the frontend sees per stored transcript.
+// Name / Type / SSHProfileID are best-effort and only populated when the
+// resumeID is still present in the most recent session snapshot — fresh-after-
+// reboot lookups still get the resumeID + size + modTime even when context is
+// lost.
+type TranscriptListEntry struct {
+	ResumeID     string    `json:"resumeId"`
+	Name         string    `json:"name,omitempty"`
+	Type         string    `json:"type,omitempty"`
+	SSHProfileID string    `json:"sshProfileId,omitempty"`
+	Size         int64     `json:"size"`
+	ModTime      time.Time `json:"modTime"`
+}
+
+// ListTranscripts enumerates stored transcripts and joins each one with the
+// last-known terminal label from the active session and saved snapshot.
+func (a *App) ListTranscripts() ([]TranscriptListEntry, error) {
+	entries, err := transcript.List()
+	if err != nil {
+		return nil, err
+	}
+
+	labels := map[string]session.TerminalState{}
+	a.stateMu.Lock()
+	for _, state := range a.activeTerminalStates {
+		if state.ResumeID != "" {
+			labels[state.ResumeID] = state
+		}
+	}
+	a.stateMu.Unlock()
+
+	if saved, err := session.LoadSession(); err == nil {
+		for _, state := range saved.Terminals {
+			if state.ResumeID == "" {
+				continue
+			}
+			// Active state wins — it's the freshest source of truth.
+			if _, ok := labels[state.ResumeID]; !ok {
+				labels[state.ResumeID] = state
+			}
+		}
+	}
+
+	out := make([]TranscriptListEntry, 0, len(entries))
+	for _, entry := range entries {
+		listEntry := TranscriptListEntry{
+			ResumeID: entry.ResumeID,
+			Size:     entry.Size,
+			ModTime:  entry.ModTime,
+		}
+		if label, ok := labels[entry.ResumeID]; ok {
+			listEntry.Name = label.Name
+			listEntry.Type = label.Type
+			listEntry.SSHProfileID = label.SSHProfileID
+		}
+		out = append(out, listEntry)
+	}
+	return out, nil
+}
+
+// GetTerminalTranscriptFull returns the entire transcript file. When maxBytes
+// is positive and the file exceeds it the head is truncated; pass 0 to read
+// without a cap. The hard ceiling of 10 MiB keeps the IPC payload bounded for
+// pathological cases without surprising callers that asked for "everything".
+func (a *App) GetTerminalTranscriptFull(resumeID string, maxBytes int) (string, error) {
+	const hardCap = 10 * 1024 * 1024
+	if maxBytes <= 0 || maxBytes > hardCap {
+		maxBytes = hardCap
+	}
+	return transcript.ReadFull(resumeID, maxBytes)
+}
+
 // KillTmuxSession kills a tmux session by name. Used when a terminal is explicitly closed.
 func (a *App) KillTmuxSession(sessionName string) error {
 	if sessionName == "" {

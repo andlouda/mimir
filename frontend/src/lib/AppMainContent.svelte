@@ -67,6 +67,7 @@
   export let closeTerminalSearch = () => {};
   export let dismissRestoreSummary = () => {};
   export let toggleRecording = () => {};
+  export let openTranscriptViewer = () => {};
   export let startNotesDrag = () => {};
   export let openPage = () => {};
   export let insertFileIntoActiveTerminal = () => {};
@@ -126,6 +127,7 @@
       {closeTerminalSearch}
       {dismissRestoreSummary}
       {toggleRecording}
+      {openTranscriptViewer}
       {startNotesDrag}
       closeNotesPanel={() => { notesPanelOpen = false; setTimeout(handleResize, 50); }}
     />

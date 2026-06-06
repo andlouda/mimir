@@ -5,7 +5,17 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strings"
+	"time"
 )
+
+// Entry describes a stored transcript discoverable via List.
+type Entry struct {
+	ResumeID string    `json:"resumeId"`
+	Size     int64     `json:"size"`
+	ModTime  time.Time `json:"modTime"`
+}
 
 var resumeIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
@@ -70,4 +80,58 @@ func ReadTail(resumeID string, maxBytes int) (string, error) {
 		data = data[len(data)-maxBytes:]
 	}
 	return string(data), nil
+}
+
+// ReadFull returns the entire transcript for the given resume ID. When
+// maxBytes is positive and the file exceeds it, the head is truncated and the
+// last maxBytes bytes are returned — callers that need the full file regardless
+// of size should pass 0.
+func ReadFull(resumeID string, maxBytes int) (string, error) {
+	return ReadTail(resumeID, maxBytes)
+}
+
+// List enumerates every stored transcript along with size and last-write time.
+// Returned entries are sorted by ModTime descending so the freshest sessions
+// appear first.
+func List() ([]Entry, error) {
+	dir, err := transcriptsDir()
+	if err != nil {
+		return nil, err
+	}
+	dirEntries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read transcript directory: %w", err)
+	}
+
+	out := make([]Entry, 0, len(dirEntries))
+	for _, de := range dirEntries {
+		if de.IsDir() {
+			continue
+		}
+		name := de.Name()
+		if !strings.HasSuffix(name, ".log") {
+			continue
+		}
+		resumeID := strings.TrimSuffix(name, ".log")
+		if !resumeIDPattern.MatchString(resumeID) {
+			continue
+		}
+		info, err := de.Info()
+		if err != nil {
+			continue
+		}
+		out = append(out, Entry{
+			ResumeID: resumeID,
+			Size:     info.Size(),
+			ModTime:  info.ModTime(),
+		})
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].ModTime.After(out[j].ModTime)
+	})
+	return out, nil
 }

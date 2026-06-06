@@ -8,6 +8,7 @@
   import SSHProfileModal from './modals/SSHProfileModal.svelte';
   import HostKeyModal from './modals/HostKeyModal.svelte';
   import AggDownloadModal from './modals/AggDownloadModal.svelte';
+  import TranscriptViewerModal from './modals/TranscriptViewerModal.svelte';
 
   export let showTemplatePicker = false;
   export let templates = [];
@@ -54,6 +55,8 @@
   export let downloadingAgg = false;
   export let cancelAggDownload = () => {};
   export let runAggDownload = () => {};
+  export let transcriptViewerState = null;
+  export let closeTranscriptViewer = () => {};
 </script>
 
 {#if showTemplatePicker}
@@ -137,5 +140,14 @@
     downloading={downloadingAgg}
     onCancel={cancelAggDownload}
     onDownload={runAggDownload}
+  />
+{/if}
+
+{#if transcriptViewerState}
+  <TranscriptViewerModal
+    initialResumeId={transcriptViewerState.resumeId}
+    initialLabel={transcriptViewerState.label}
+    onClose={closeTranscriptViewer}
+    onError={onError}
   />
 {/if}
