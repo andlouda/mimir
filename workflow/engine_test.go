@@ -238,6 +238,121 @@ func TestEngineResumeApprovedStep(t *testing.T) {
 	}
 }
 
+func TestEngineResumeApprovedStepContinuesToCompletion(t *testing.T) {
+	registry := tools.NewRegistry()
+	highRiskTool := &stubTool{
+		id:     "template:restart-service",
+		name:   "Restart Service",
+		risk:   tools.RiskHigh,
+		output: "approved high-risk output",
+	}
+	readonlyTool := &stubTool{
+		id:     "template:status",
+		name:   "Status",
+		risk:   tools.RiskLow,
+		output: "readonly output",
+	}
+	if err := registry.Register(highRiskTool); err != nil {
+		t.Fatalf("register high-risk tool: %v", err)
+	}
+	if err := registry.Register(readonlyTool); err != nil {
+		t.Fatalf("register readonly tool: %v", err)
+	}
+
+	engine := NewEngine(NewRunToolExecutor(registry, nil))
+	definition := Definition{
+		ID:   "workflow:resume-complete",
+		Name: "Resume Complete Workflow",
+		Mode: ModeAssist,
+		Steps: []Step{
+			{ID: "approve-me", Type: StepRunTool, Tool: "template:restart-service"},
+			{ID: "read-after", Type: StepRunTool, Tool: "template:status"},
+		},
+	}
+
+	state, err := engine.Run(RunContext{}, definition)
+	if err != nil {
+		t.Fatalf("initial run returned unexpected error: %v", err)
+	}
+	if state.PendingApproval == nil || state.PendingApproval.StepID != "approve-me" {
+		t.Fatalf("expected approval for first step, got %+v", state.PendingApproval)
+	}
+
+	resumed, err := engine.ResumeApproved(RunContext{}, definition, state)
+	if err != nil {
+		t.Fatalf("resume approved returned error: %v", err)
+	}
+	if resumed.PendingApproval != nil {
+		t.Fatalf("expected workflow to complete without another approval, got %+v", resumed.PendingApproval)
+	}
+	if resumed.StepIndex != len(definition.Steps) {
+		t.Fatalf("expected final step index %d, got %d", len(definition.Steps), resumed.StepIndex)
+	}
+	if got := resumed.Outputs["approve-me"]; got != "approved high-risk output" {
+		t.Fatalf("unexpected approved step output: %q", got)
+	}
+	if got := resumed.Outputs["read-after"]; got != "readonly output" {
+		t.Fatalf("unexpected follow-up output: %q", got)
+	}
+	assertEventTypes(t, resumed.Events, []string{
+		"step_pending_approval",
+		"workflow_paused",
+		"approval_granted",
+		"step_started",
+		"step_completed",
+		"step_started",
+		"step_completed",
+		"workflow_completed",
+	})
+}
+
+func TestEngineDenyPendingApprovalStopsCleanly(t *testing.T) {
+	registry := tools.NewRegistry()
+	tool := &stubTool{
+		id:     "template:dangerous",
+		name:   "Dangerous Tool",
+		risk:   tools.RiskHigh,
+		output: "should not run",
+	}
+	if err := registry.Register(tool); err != nil {
+		t.Fatalf("register tool: %v", err)
+	}
+
+	engine := NewEngine(NewRunToolExecutor(registry, nil))
+	definition := Definition{
+		ID:   "workflow:deny-clean",
+		Name: "Deny Clean Workflow",
+		Mode: ModeAssist,
+		Steps: []Step{
+			{ID: "danger", Type: StepRunTool, Tool: "template:dangerous"},
+		},
+	}
+
+	state, err := engine.Run(RunContext{}, definition)
+	if err != nil {
+		t.Fatalf("initial run returned unexpected error: %v", err)
+	}
+	if state.PendingApproval == nil {
+		t.Fatal("expected pending approval")
+	}
+	if err := RejectPendingApproval(state, "not during incident"); err != nil {
+		t.Fatalf("reject pending approval: %v", err)
+	}
+	if state.PendingApproval != nil {
+		t.Fatal("expected pending approval to be cleared")
+	}
+	if tool.lastInput != nil {
+		t.Fatalf("denied tool should not run, got input %+v", tool.lastInput)
+	}
+	if _, err := engine.ResumeApproved(RunContext{}, definition, state); err == nil {
+		t.Fatal("expected resume after denial to fail because workflow is no longer pending approval")
+	}
+	assertEventTypes(t, state.Events, []string{"step_pending_approval", "workflow_paused", "approval_denied"})
+	if state.Events[len(state.Events)-1].Message != "not during incident" {
+		t.Fatalf("expected denial reason to be retained, got %+v", state.Events[len(state.Events)-1])
+	}
+}
+
 func TestEngineRunDiscoveryWorkflow(t *testing.T) {
 	resolver := &stubDiscoveryResolver{
 		values: []string{"default", "kube-system"},
@@ -268,6 +383,49 @@ func TestEngineRunDiscoveryWorkflow(t *testing.T) {
 	}
 	if len(state.Discovery["step-1"]) != 2 {
 		t.Fatalf("expected discovery values to be stored, got %+v", state.Discovery)
+	}
+}
+
+func TestEngineDiscoveryFailureIsNonFatalAndAuditable(t *testing.T) {
+	resolver := &stubDiscoveryResolver{err: fmt.Errorf("kubectl unavailable")}
+	aiRunner := &stubAIRunner{result: "Continue with limited context."}
+	engine := NewEngine(NewRunDiscoveryExecutor(), NewAskAIExecutor())
+
+	state, err := engine.Run(RunContext{
+		DiscoveryResolver: resolver,
+		AIRunner:          aiRunner,
+	}, Definition{
+		ID:   "workflow:discovery-warning",
+		Name: "Discovery Warning Workflow",
+		Mode: ModeAssist,
+		Steps: []Step{
+			{
+				ID:            "discover",
+				Type:          StepRunDiscovery,
+				DiscoveryTool: "discovery:list_k8s_namespaces",
+			},
+			{
+				ID:     "summarize",
+				Type:   StepAskAI,
+				Prompt: "Summarize with missing discovery.",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("discovery failures should not abort workflow: %v", err)
+	}
+	if got := state.Outputs["discover"]; got != "discovery failed: kubectl unavailable" {
+		t.Fatalf("unexpected discovery failure output: %q", got)
+	}
+	if len(state.Discovery["discover"]) != 0 {
+		t.Fatalf("expected empty discovery values after failure, got %+v", state.Discovery["discover"])
+	}
+	if got := state.Outputs["summarize"]; got != "Continue with limited context." {
+		t.Fatalf("expected later AI step to run, got %q", got)
+	}
+	assertEventTypes(t, state.Events, []string{"step_started", "step_warning", "step_started", "step_completed", "workflow_completed"})
+	if state.Events[1].Metadata["error"] != "kubectl unavailable" {
+		t.Fatalf("expected warning event to include error metadata, got %+v", state.Events[1].Metadata)
 	}
 }
 
@@ -318,5 +476,18 @@ func TestRejectPendingApproval(t *testing.T) {
 	}
 	if len(state.Events) == 0 || state.Events[len(state.Events)-1].Type != "approval_denied" {
 		t.Fatalf("expected approval_denied event, got %+v", state.Events)
+	}
+}
+
+func assertEventTypes(t *testing.T, events []Event, expected []string) {
+	t.Helper()
+
+	if len(events) != len(expected) {
+		t.Fatalf("expected event types %v, got %+v", expected, events)
+	}
+	for index, expectedType := range expected {
+		if events[index].Type != expectedType {
+			t.Fatalf("expected event %d to be %q, got %q in %+v", index, expectedType, events[index].Type, events)
+		}
 	}
 }

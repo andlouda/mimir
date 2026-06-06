@@ -16,7 +16,15 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Test ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
 
     steps:
       - name: Checkout
@@ -42,6 +50,20 @@ jobs:
       - name: Frontend build
         working-directory: frontend
         run: npm run build
+
+      - name: Install Playwright browsers
+        if: runner.os != 'Linux'
+        working-directory: frontend
+        run: npx playwright install chromium
+
+      - name: Install Playwright browsers and Linux dependencies
+        if: runner.os == 'Linux'
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Frontend smoke tests
+        working-directory: frontend
+        run: npm run test:e2e
 
       - name: Go tests
         run: go test ./...

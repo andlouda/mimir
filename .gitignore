@@ -16,6 +16,10 @@ mimir
 node_modules
 frontend/node_modules
 
+# Test artifacts
+frontend/test-results
+frontend/playwright-report
+
 # Sensitive runtime data (defense-in-depth — these live in ~/.config/mimir/)
 *.db
 *.sqlite

@@ -18,6 +18,18 @@ cd frontend
 npm run build
 ```
 
+Frontend smoke tests:
+
+```bash
+cd frontend
+npm run test:e2e
+```
+
+The Playwright suite runs the Vite production build/preview server and mocks the
+Wails backend in-browser. It is intended as a fast regression gate for the app
+shell, workflow/playbook UI, and release/settings surfaces without requiring a
+running desktop backend.
+
 ## Package Coverage
 
 The project uses Go's standard `testing` package. There is no separate assertion library.
@@ -46,12 +58,13 @@ Packages without dedicated tests yet:
 
 ## Frontend Tests
 
-There is currently no Vitest/Playwright test setup.
+Playwright smoke tests live in `frontend/tests/e2e/`.
 
 The current frontend gate is:
 
 ```bash
 npm run build
+npm run test:e2e
 ```
 
 Known build warnings:
@@ -60,6 +73,16 @@ Known build warnings:
 - Vite/Rolldown chunk-size warning
 
 These warnings do not currently fail the build.
+
+## CI
+
+`.github/workflows/ci.yml` runs the main test gates on
+`ubuntu-latest`, `windows-latest`, and `macos-latest`:
+
+- `npm ci`
+- `npm run build`
+- `npm run test:e2e`
+- `go test ./...`
 
 ## Recommended MVP Gates
 
