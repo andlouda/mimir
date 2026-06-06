@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // isolateConfigDir points os.UserConfigDir at a fresh temp directory on every
@@ -316,6 +317,60 @@ func TestReadContentMissingFileReturnsEmpty(t *testing.T) {
 	}
 	if content.Text != "" || content.Size != 0 || content.Truncated {
 		t.Fatalf("expected zero content for missing file: %+v", content)
+	}
+}
+
+func TestReadTailDoesNotSplitUTF8(t *testing.T) {
+	isolateConfigDir(t)
+
+	// "ä" is two bytes in UTF-8 (0xC3 0xA4). A byte-naive tail-read whose
+	// cut falls between those two bytes would return invalid UTF-8.
+	// Construct content so the chosen cap lands inside such a sequence.
+	prefix := strings.Repeat("x", 10)
+	mid := "ää" // 4 bytes, two runes
+	suffix := strings.Repeat("y", 10)
+	if _, err := Append("utf8", prefix+mid+suffix); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// Total bytes = 10 + 4 + 10 = 24. Ask for last 13 bytes — that cut lands
+	// inside the second "ä" (24-13=11 = 10 prefix + 1 byte into mid).
+	got, err := ReadTail("utf8", 13)
+	if err != nil {
+		t.Fatalf("read tail: %v", err)
+	}
+	if !utf8.ValidString(got) {
+		t.Fatalf("ReadTail returned invalid UTF-8: %q", got)
+	}
+	// And the returned content must not exceed the cap.
+	if len(got) > 13 {
+		t.Fatalf("ReadTail returned %d bytes, cap was 13", len(got))
+	}
+}
+
+func TestReadTailReadsOnlyTheTailNotTheWholeFile(t *testing.T) {
+	isolateConfigDir(t)
+
+	// Write a 200 KiB transcript and ask for only the last 1 KiB.
+	const total = 200 * 1024
+	const want = 1024
+	big := make([]byte, total)
+	for i := range big {
+		big[i] = 'a' + byte(i%26)
+	}
+	if _, err := Append("big", string(big)); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	got, err := ReadTail("big", want)
+	if err != nil {
+		t.Fatalf("read tail: %v", err)
+	}
+	if len(got) != want {
+		t.Fatalf("expected exactly %d bytes back, got %d", want, len(got))
+	}
+	// And it really must be the *tail*, not the head.
+	if got != string(big[total-want:]) {
+		t.Fatalf("tail mismatch — expected last %d bytes, got something else", want)
 	}
 }
 

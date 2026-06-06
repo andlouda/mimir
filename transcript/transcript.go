@@ -3,6 +3,7 @@ package transcript
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -201,17 +202,60 @@ func ReadTail(resumeID string, maxBytes int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
 		}
+		return "", fmt.Errorf("failed to open transcript: %w", err)
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return "", fmt.Errorf("failed to stat transcript: %w", err)
+	}
+	size := info.Size()
+
+	// maxBytes <= 0 means "no cap": read everything. Otherwise tail-seek so
+	// we don't drag 50 MB through memory just to keep the last 16 KB. The
+	// previous implementation read the whole file and then sliced — fine for
+	// correctness, expensive on the hot restore path.
+	start := int64(0)
+	if maxBytes > 0 && size > int64(maxBytes) {
+		start = size - int64(maxBytes)
+	}
+	if start > 0 {
+		if _, err := f.Seek(start, io.SeekStart); err != nil {
+			return "", fmt.Errorf("failed to seek transcript: %w", err)
+		}
+	}
+	data, err := io.ReadAll(f)
+	if err != nil {
 		return "", fmt.Errorf("failed to read transcript: %w", err)
 	}
-	if maxBytes > 0 && len(data) > maxBytes {
-		data = data[len(data)-maxBytes:]
+
+	// UTF-8 boundary: if we sliced the file inside a multi-byte rune, the
+	// first 1-3 bytes are continuation bytes (0b10xxxxxx). Skipping them
+	// keeps the returned string valid UTF-8 and only shaves at most 3 bytes
+	// off the requested window.
+	if start > 0 {
+		data = trimLeadingUTF8Continuations(data)
 	}
 	return string(data), nil
+}
+
+// trimLeadingUTF8Continuations drops bytes at the front of b that are UTF-8
+// continuation bytes (high bits 10). After at most 3 byte-drops the first
+// remaining byte is either ASCII or the start of a valid multi-byte rune.
+func trimLeadingUTF8Continuations(b []byte) []byte {
+	for i := 0; i < len(b) && i < 3; i++ {
+		if b[0]&0xC0 != 0x80 {
+			break
+		}
+		b = b[1:]
+	}
+	return b
 }
 
 // ReadFull returns the entire transcript for the given resume ID. When
