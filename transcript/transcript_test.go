@@ -3,6 +3,7 @@ package transcript
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -255,6 +256,39 @@ func TestWriteMetadataIsNoopWhenContentUnchanged(t *testing.T) {
 	}
 	if !info3.ModTime().After(info1.ModTime()) {
 		t.Fatalf("expected rewrite when name changed: %v -> %v", info1.ModTime(), info3.ModTime())
+	}
+}
+
+func TestWriteMetadataIsAtomic(t *testing.T) {
+	isolateConfigDir(t)
+
+	if err := WriteMetadata("atomic", Metadata{Name: "first", Type: "ssh"}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := ReadMetadata("atomic")
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if got.Name != "first" {
+		t.Fatalf("roundtrip lost name: %+v", got)
+	}
+
+	// Atomic-write contract: no leftover temp files in the target directory
+	// after a successful write. safeio.AtomicWriteFile creates ".tmp-*" files
+	// during the write and renames them into place; if any are left over the
+	// next list/scan picks them up as junk.
+	dir, err := transcriptsDir()
+	if err != nil {
+		t.Fatalf("dir: %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("readdir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".tmp-") {
+			t.Fatalf("unexpected leftover temp file %s — atomic write did not clean up", e.Name())
+		}
 	}
 }
 

@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"mimir/safeio"
 )
 
 // Metadata is the side-car descriptor written next to a transcript so the
@@ -110,7 +112,11 @@ func WriteMetadata(resumeID string, meta Metadata) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal transcript metadata: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	// Atomic write via safeio: write to a sibling temp file, fsync, rename
+	// into place. A crash mid-write leaves either the previous side-car
+	// untouched or no file at all — never a half-written JSON that
+	// ReadMetadata would mark as corrupt.
+	if err := safeio.AtomicWriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write transcript metadata: %w", err)
 	}
 	return nil
