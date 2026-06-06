@@ -280,7 +280,10 @@ type TranscriptListEntry struct {
 }
 
 // ListTranscripts enumerates stored transcripts and joins each one with the
-// last-known terminal label from the active session and saved snapshot.
+// last-known terminal label. Label priority: active in-memory state > saved
+// session snapshot > side-car metadata persisted at terminal create/rename.
+// The side-car is the only source that survives closing a terminal, so
+// closed-but-once-named sessions still show their label after a reboot.
 func (a *App) ListTranscripts() ([]TranscriptListEntry, error) {
 	entries, err := transcript.List()
 	if err != nil {
@@ -320,9 +323,35 @@ func (a *App) ListTranscripts() ([]TranscriptListEntry, error) {
 			listEntry.Type = label.Type
 			listEntry.SSHProfileID = label.SSHProfileID
 		}
+		// Side-car metadata fills in anything still unknown — that is the
+		// path that catches old, closed terminals.
+		if listEntry.Name == "" && entry.Metadata.Name != "" {
+			listEntry.Name = entry.Metadata.Name
+		}
+		if listEntry.Type == "" && entry.Metadata.Type != "" {
+			listEntry.Type = entry.Metadata.Type
+		}
+		if listEntry.SSHProfileID == "" && entry.Metadata.SSHProfileID != "" {
+			listEntry.SSHProfileID = entry.Metadata.SSHProfileID
+		}
 		out = append(out, listEntry)
 	}
 	return out, nil
+}
+
+// SaveTranscriptMetadata writes a small JSON side-car next to the transcript
+// so the terminal's label survives the session closing. Called by the
+// frontend whenever a terminal is created or renamed. Empty resumeID is a
+// no-op (template terminals without persistence shouldn't error here).
+func (a *App) SaveTranscriptMetadata(resumeID, name, terminalType, sshProfileID string) error {
+	if resumeID == "" {
+		return nil
+	}
+	return transcript.WriteMetadata(resumeID, transcript.Metadata{
+		Name:         name,
+		Type:         terminalType,
+		SSHProfileID: sshProfileID,
+	})
 }
 
 // GetTerminalTranscriptFull returns the entire transcript file. When maxBytes

@@ -1,6 +1,7 @@
 package transcript
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,11 +11,23 @@ import (
 	"time"
 )
 
+// Metadata is the side-car descriptor written next to a transcript so the
+// terminal's label survives the in-memory session and the saved snapshot.
+// Without this, every closed terminal becomes anonymous on next launch.
+type Metadata struct {
+	Name         string    `json:"name,omitempty"`
+	Type         string    `json:"type,omitempty"`
+	SSHProfileID string    `json:"sshProfileId,omitempty"`
+	StartedAt    time.Time `json:"startedAt,omitempty"`
+	UpdatedAt    time.Time `json:"updatedAt,omitempty"`
+}
+
 // Entry describes a stored transcript discoverable via List.
 type Entry struct {
 	ResumeID string    `json:"resumeId"`
 	Size     int64     `json:"size"`
 	ModTime  time.Time `json:"modTime"`
+	Metadata Metadata  `json:"metadata"`
 }
 
 var resumeIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
@@ -43,6 +56,72 @@ func PathForResumeID(resumeID string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, resumeID+".log"), nil
+}
+
+func metadataPath(resumeID string) (string, error) {
+	if resumeID == "" {
+		return "", fmt.Errorf("resume id is required")
+	}
+	if !resumeIDPattern.MatchString(resumeID) {
+		return "", fmt.Errorf("invalid resume id")
+	}
+	dir, err := transcriptsDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, resumeID+".json"), nil
+}
+
+// WriteMetadata persists the descriptor next to the transcript. If a previous
+// descriptor exists the StartedAt is preserved and only UpdatedAt is bumped —
+// callers don't need to track which is the first write themselves.
+func WriteMetadata(resumeID string, meta Metadata) error {
+	path, err := metadataPath(resumeID)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	if existing, err := os.ReadFile(path); err == nil {
+		var prev Metadata
+		if err := json.Unmarshal(existing, &prev); err == nil && !prev.StartedAt.IsZero() {
+			meta.StartedAt = prev.StartedAt
+		}
+	}
+	if meta.StartedAt.IsZero() {
+		meta.StartedAt = now
+	}
+	meta.UpdatedAt = now
+
+	data, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal transcript metadata: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("failed to write transcript metadata: %w", err)
+	}
+	return nil
+}
+
+// ReadMetadata loads the descriptor written by WriteMetadata. Missing files
+// return a zero Metadata without error so callers can treat absence as the
+// pre-existing default.
+func ReadMetadata(resumeID string) (Metadata, error) {
+	path, err := metadataPath(resumeID)
+	if err != nil {
+		return Metadata{}, err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Metadata{}, nil
+		}
+		return Metadata{}, fmt.Errorf("failed to read transcript metadata: %w", err)
+	}
+	var meta Metadata
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return Metadata{}, fmt.Errorf("failed to parse transcript metadata: %w", err)
+	}
+	return meta, nil
 }
 
 func Append(resumeID string, data string) (string, error) {
@@ -123,10 +202,12 @@ func List() ([]Entry, error) {
 		if err != nil {
 			continue
 		}
+		meta, _ := ReadMetadata(resumeID) // best-effort, missing file is fine
 		out = append(out, Entry{
 			ResumeID: resumeID,
 			Size:     info.Size(),
 			ModTime:  info.ModTime(),
+			Metadata: meta,
 		})
 	}
 

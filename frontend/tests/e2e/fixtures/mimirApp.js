@@ -288,6 +288,7 @@ export async function installMimirMocks(page) {
             { resumeId: 'sample-resume-1', name: 'API host', type: 'ssh', sshProfileId: 'prod-api', size: 1024, modTime: new Date().toISOString() },
             { resumeId: 'sample-resume-2', name: 'Local shell', type: 'bash', size: 256, modTime: new Date(Date.now() - 3600000).toISOString() },
           ]),
+          SaveTranscriptMetadata: asyncNoop,
           InitializeTerminal: asyncNoop,
           IsAggInstalled: async () => false,
           IsHistoryTrackingEnabled: async () => false,

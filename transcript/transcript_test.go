@@ -139,3 +139,92 @@ func TestListReturnsNothingForEmptyDir(t *testing.T) {
 		t.Fatalf("expected empty list, got %d entries", len(entries))
 	}
 }
+
+func TestMetadataPersistsAndIsListed(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	if _, err := Append("api-prod-1", "boot"); err != nil {
+		t.Fatalf("seed transcript: %v", err)
+	}
+	meta := Metadata{
+		Name:         "API production",
+		Type:         "ssh",
+		SSHProfileID: "prod-api",
+	}
+	if err := WriteMetadata("api-prod-1", meta); err != nil {
+		t.Fatalf("write metadata: %v", err)
+	}
+
+	got, err := ReadMetadata("api-prod-1")
+	if err != nil {
+		t.Fatalf("read metadata: %v", err)
+	}
+	if got.Name != "API production" || got.Type != "ssh" || got.SSHProfileID != "prod-api" {
+		t.Fatalf("metadata round-trip lost fields: %+v", got)
+	}
+	if got.StartedAt.IsZero() || got.UpdatedAt.IsZero() {
+		t.Fatalf("expected startedAt/updatedAt to be set, got %+v", got)
+	}
+
+	entries, err := List()
+	if err != nil {
+		t.Fatalf("list failed: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected single entry, got %+v", entries)
+	}
+	if entries[0].Metadata.Name != "API production" {
+		t.Fatalf("expected metadata name on list entry, got %+v", entries[0].Metadata)
+	}
+}
+
+func TestWriteMetadataPreservesStartedAt(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	if err := WriteMetadata("first", Metadata{Name: "first label"}); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	first, err := ReadMetadata("first")
+	if err != nil {
+		t.Fatalf("read first: %v", err)
+	}
+
+	// Ensure a measurable interval elapses so the UpdatedAt advances even
+	// on filesystems with coarse timestamp resolution.
+	time.Sleep(10 * time.Millisecond)
+
+	if err := WriteMetadata("first", Metadata{Name: "renamed"}); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	second, err := ReadMetadata("first")
+	if err != nil {
+		t.Fatalf("read second: %v", err)
+	}
+	if !second.StartedAt.Equal(first.StartedAt) {
+		t.Fatalf("startedAt should be preserved across renames: first=%v second=%v", first.StartedAt, second.StartedAt)
+	}
+	if !second.UpdatedAt.After(first.UpdatedAt) {
+		t.Fatalf("updatedAt should advance on rename: first=%v second=%v", first.UpdatedAt, second.UpdatedAt)
+	}
+	if second.Name != "renamed" {
+		t.Fatalf("expected new name to win, got %q", second.Name)
+	}
+}
+
+func TestReadMetadataMissingReturnsZero(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	meta, err := ReadMetadata("never-written")
+	if err != nil {
+		t.Fatalf("read missing metadata should not error: %v", err)
+	}
+	if meta.Name != "" || !meta.StartedAt.IsZero() {
+		t.Fatalf("expected zero metadata, got %+v", meta)
+	}
+}

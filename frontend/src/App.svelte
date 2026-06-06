@@ -907,6 +907,14 @@
 	    };
     terminals = [...terminals, newTerminal];
 
+    // Side-car so the transcript stays identifiable after this terminal closes.
+    window['go']?.['main']?.['App']?.['SaveTranscriptMetadata']?.(
+      newTerminal.resumeId,
+      newTerminal.name || '',
+      newTerminal.type || '',
+      newTerminal.sshProfileId || ''
+    ).catch(() => {});
+
     await tick();
 
     // DOM setup — only when terminal is visible (not minimized)
@@ -1407,6 +1415,12 @@
         const newName = event.target.value;
         const next = { ...t, name: newName, editingName: false };
         persistTerminalState(next);
+        window['go']?.['main']?.['App']?.['SaveTranscriptMetadata']?.(
+          next.resumeId || '',
+          newName || '',
+          next.type || '',
+          next.sshProfileId || ''
+        ).catch(() => {});
         return next;
       }
       return t;
