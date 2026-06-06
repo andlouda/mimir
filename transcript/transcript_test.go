@@ -7,10 +7,21 @@ import (
 	"time"
 )
 
-func TestAppendAndReadTail(t *testing.T) {
+// isolateConfigDir points os.UserConfigDir at a fresh temp directory on every
+// supported OS. HOME / XDG_CONFIG_HOME cover Linux and macOS; APPDATA is
+// what os.UserConfigDir reads on Windows. Without the APPDATA override every
+// test ends up writing into the real %AppData%\mimir\transcripts\ and seeing
+// each other's leftovers.
+func isolateConfigDir(t *testing.T) {
+	t.Helper()
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
 	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("APPDATA", tmp)
+}
+
+func TestAppendAndReadTail(t *testing.T) {
+	isolateConfigDir(t)
 
 	path, err := Append("resume-test", "hello")
 	if err != nil {
@@ -34,9 +45,7 @@ func TestAppendAndReadTail(t *testing.T) {
 }
 
 func TestReadTailMissingFileReturnsEmpty(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	isolateConfigDir(t)
 
 	got, err := ReadTail("missing", 128)
 	if err != nil {
@@ -48,9 +57,7 @@ func TestReadTailMissingFileReturnsEmpty(t *testing.T) {
 }
 
 func TestRejectsUnsafeResumeID(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	isolateConfigDir(t)
 
 	if _, err := Append("../outside", "data"); err == nil {
 		t.Fatalf("expected invalid resume id to be rejected")
@@ -58,9 +65,7 @@ func TestRejectsUnsafeResumeID(t *testing.T) {
 }
 
 func TestReadFullReturnsCompleteTranscript(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	isolateConfigDir(t)
 
 	want := "line one\nline two\nline three\n"
 	if _, err := Append("resume-full", want); err != nil {
@@ -77,9 +82,7 @@ func TestReadFullReturnsCompleteTranscript(t *testing.T) {
 }
 
 func TestListReturnsEntriesNewestFirst(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	isolateConfigDir(t)
 
 	if _, err := Append("alpha", "first"); err != nil {
 		t.Fatalf("seed alpha: %v", err)
@@ -127,9 +130,7 @@ func TestListReturnsEntriesNewestFirst(t *testing.T) {
 }
 
 func TestListReturnsNothingForEmptyDir(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	isolateConfigDir(t)
 
 	entries, err := List()
 	if err != nil {
@@ -141,9 +142,7 @@ func TestListReturnsNothingForEmptyDir(t *testing.T) {
 }
 
 func TestMetadataPersistsAndIsListed(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	isolateConfigDir(t)
 
 	if _, err := Append("api-prod-1", "boot"); err != nil {
 		t.Fatalf("seed transcript: %v", err)
@@ -181,9 +180,7 @@ func TestMetadataPersistsAndIsListed(t *testing.T) {
 }
 
 func TestWriteMetadataPreservesStartedAt(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	isolateConfigDir(t)
 
 	if err := WriteMetadata("first", Metadata{Name: "first label"}); err != nil {
 		t.Fatalf("first write: %v", err)
@@ -216,9 +213,7 @@ func TestWriteMetadataPreservesStartedAt(t *testing.T) {
 }
 
 func TestReadMetadataMissingReturnsZero(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("HOME", tmp)
-	t.Setenv("XDG_CONFIG_HOME", tmp)
+	isolateConfigDir(t)
 
 	meta, err := ReadMetadata("never-written")
 	if err != nil {
