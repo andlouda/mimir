@@ -320,6 +320,158 @@ func TestReadContentMissingFileReturnsEmpty(t *testing.T) {
 	}
 }
 
+func TestDeleteRemovesLogAndSideCar(t *testing.T) {
+	isolateConfigDir(t)
+
+	if _, err := Append("doomed", "x"); err != nil {
+		t.Fatalf("seed log: %v", err)
+	}
+	if err := WriteMetadata("doomed", Metadata{Name: "Doomed"}); err != nil {
+		t.Fatalf("seed meta: %v", err)
+	}
+
+	if err := Delete("doomed"); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+
+	if _, err := os.Stat(mustPath(t, "doomed", ".log")); !os.IsNotExist(err) {
+		t.Fatalf("expected .log gone, got %v", err)
+	}
+	if _, err := os.Stat(mustPath(t, "doomed", ".json")); !os.IsNotExist(err) {
+		t.Fatalf("expected .json gone, got %v", err)
+	}
+}
+
+func mustPath(t *testing.T, resumeID, ext string) string {
+	t.Helper()
+	dir, err := transcriptsDir()
+	if err != nil {
+		t.Fatalf("dir: %v", err)
+	}
+	return filepath.Join(dir, resumeID+ext)
+}
+
+func TestDeleteRejectsUnsafeResumeID(t *testing.T) {
+	isolateConfigDir(t)
+
+	if err := Delete("../escape"); err == nil {
+		t.Fatalf("expected delete to reject path-traversal id")
+	}
+	if err := Delete(""); err == nil {
+		t.Fatalf("expected delete to reject empty id")
+	}
+}
+
+func TestDeleteMissingFileIsNoError(t *testing.T) {
+	isolateConfigDir(t)
+
+	if err := Delete("never-existed"); err != nil {
+		t.Fatalf("delete of missing file should not error: %v", err)
+	}
+}
+
+func TestDeleteManyHonorsIsActiveCallback(t *testing.T) {
+	isolateConfigDir(t)
+
+	for _, id := range []string{"alpha", "beta", "gamma"} {
+		if _, err := Append(id, "data"); err != nil {
+			t.Fatalf("seed %s: %v", id, err)
+		}
+	}
+
+	// Beta is "active" — must not be deleted.
+	isActive := func(id string) bool { return id == "beta" }
+
+	results := DeleteMany([]string{"alpha", "beta", "gamma", "missing"}, isActive)
+	if len(results) != 4 {
+		t.Fatalf("expected 4 results, got %d", len(results))
+	}
+
+	byID := map[string]DeleteResult{}
+	for _, r := range results {
+		byID[r.ResumeID] = r
+	}
+	if !byID["alpha"].OK {
+		t.Fatalf("alpha should delete: %+v", byID["alpha"])
+	}
+	if byID["beta"].OK || byID["beta"].Reason != "active" {
+		t.Fatalf("beta must be protected as active, got %+v", byID["beta"])
+	}
+	if !byID["gamma"].OK {
+		t.Fatalf("gamma should delete: %+v", byID["gamma"])
+	}
+	if byID["missing"].OK || byID["missing"].Reason != "not_found" {
+		t.Fatalf("missing should report not_found, got %+v", byID["missing"])
+	}
+
+	// Beta's file still on disk.
+	if _, err := os.Stat(mustPath(t, "beta", ".log")); err != nil {
+		t.Fatalf("active beta should still exist: %v", err)
+	}
+}
+
+func TestDeleteOlderThanSkipsActiveAndYoung(t *testing.T) {
+	isolateConfigDir(t)
+
+	for _, id := range []string{"ancient", "fresh", "ancient-active"} {
+		if _, err := Append(id, "x"); err != nil {
+			t.Fatalf("seed %s: %v", id, err)
+		}
+	}
+	// Age ancient and ancient-active by backdating their mtime.
+	old := time.Now().Add(-48 * time.Hour)
+	for _, id := range []string{"ancient", "ancient-active"} {
+		if err := os.Chtimes(mustPath(t, id, ".log"), old, old); err != nil {
+			t.Fatalf("chtimes %s: %v", id, err)
+		}
+	}
+
+	isActive := func(id string) bool { return id == "ancient-active" }
+
+	deleted, err := DeleteOlderThan(24*time.Hour, isActive)
+	if err != nil {
+		t.Fatalf("delete older than: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("expected 1 deletion (ancient), got %d", deleted)
+	}
+	if _, err := os.Stat(mustPath(t, "ancient", ".log")); !os.IsNotExist(err) {
+		t.Fatalf("ancient should be gone")
+	}
+	if _, err := os.Stat(mustPath(t, "ancient-active", ".log")); err != nil {
+		t.Fatalf("ancient-active should be protected: %v", err)
+	}
+	if _, err := os.Stat(mustPath(t, "fresh", ".log")); err != nil {
+		t.Fatalf("fresh should be untouched: %v", err)
+	}
+}
+
+func TestDiskUsageCountsLogsOnly(t *testing.T) {
+	isolateConfigDir(t)
+
+	if _, err := Append("one", strings.Repeat("a", 100)); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if _, err := Append("two", strings.Repeat("b", 50)); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// Side-car: not counted in totalBytes.
+	if err := WriteMetadata("one", Metadata{Name: "One"}); err != nil {
+		t.Fatalf("seed meta: %v", err)
+	}
+
+	usage, err := DiskUsage()
+	if err != nil {
+		t.Fatalf("disk usage: %v", err)
+	}
+	if usage.Count != 2 {
+		t.Fatalf("expected 2 transcripts, got %d", usage.Count)
+	}
+	if usage.TotalBytes != 150 {
+		t.Fatalf("expected total 150 bytes, got %d", usage.TotalBytes)
+	}
+}
+
 func TestAppendStopsAtSizeLimit(t *testing.T) {
 	isolateConfigDir(t)
 

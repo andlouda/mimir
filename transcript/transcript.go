@@ -360,6 +360,159 @@ func ReadContent(resumeID string, maxBytes int) (Content, error) {
 	}, nil
 }
 
+// DeleteResult reports per-resumeID outcome for batch deletions. Bulk callers
+// receive one entry per requested ID so they can render mixed success / skip
+// outcomes without losing track of which deletion failed and why.
+type DeleteResult struct {
+	ResumeID string `json:"resumeId"`
+	OK       bool   `json:"ok"`
+	// Reason is "active" (skipped because the terminal is still open),
+	// "not_found" (no .log on disk), "invalid_id", "io_error" (underlying
+	// filesystem error). Empty when OK==true.
+	Reason string `json:"reason,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+// DiskUsageInfo is the aggregate over all stored transcripts (log files only;
+// side-car JSON is excluded so the number tracks user-visible content size).
+type DiskUsageInfo struct {
+	Count      int   `json:"count"`
+	TotalBytes int64 `json:"totalBytes"`
+}
+
+// IsActiveFunc is the lookup the delete paths use to honor the
+// "never delete a live terminal" invariant. Apps pass a callback closed over
+// their active-state map. Pass nil to skip the check (only safe for tests).
+type IsActiveFunc func(resumeID string) bool
+
+// Delete removes the transcript log and its side-car. Missing files are not
+// an error — Delete is idempotent. Path-safety is enforced via the same
+// resumeID validation as Append/Read.
+func Delete(resumeID string) error {
+	logPath, err := PathForResumeID(resumeID)
+	if err != nil {
+		return err
+	}
+	metaPath, err := metadataPath(resumeID)
+	if err != nil {
+		return err
+	}
+	// Containment check: PathForResumeID already enforces this via the
+	// regex, but verify the resolved path lives inside the transcripts dir.
+	// Defense in depth against future path-resolution changes.
+	if err := ensureInsideTranscriptsDir(logPath); err != nil {
+		return err
+	}
+
+	// Hold the per-resumeID append lock so we don't race with a concurrent
+	// Append.
+	lock := appendLockFor(resumeID)
+	lock.Lock()
+	defer lock.Unlock()
+
+	if err := os.Remove(logPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete transcript: %w", err)
+	}
+	if err := os.Remove(metaPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete transcript metadata: %w", err)
+	}
+	// Forget the lock entry so the map doesn't grow unbounded.
+	appendLocks.Delete(resumeID)
+	appendDropLog.Delete(resumeID)
+	return nil
+}
+
+// DeleteMany applies Delete to each resumeID and returns a per-entry result.
+// Active transcripts are skipped (per the isActive callback) with reason
+// "active". Best-effort semantics — one failed delete doesn't abort the rest.
+func DeleteMany(resumeIDs []string, isActive IsActiveFunc) []DeleteResult {
+	out := make([]DeleteResult, 0, len(resumeIDs))
+	for _, id := range resumeIDs {
+		out = append(out, deleteOne(id, isActive))
+	}
+	return out
+}
+
+func deleteOne(resumeID string, isActive IsActiveFunc) DeleteResult {
+	if resumeID == "" || !resumeIDPattern.MatchString(resumeID) {
+		return DeleteResult{ResumeID: resumeID, Reason: "invalid_id"}
+	}
+	if isActive != nil && isActive(resumeID) {
+		return DeleteResult{ResumeID: resumeID, Reason: "active"}
+	}
+	logPath, err := PathForResumeID(resumeID)
+	if err != nil {
+		return DeleteResult{ResumeID: resumeID, Reason: "invalid_id", Error: err.Error()}
+	}
+	if _, err := os.Stat(logPath); os.IsNotExist(err) {
+		return DeleteResult{ResumeID: resumeID, Reason: "not_found"}
+	}
+	if err := Delete(resumeID); err != nil {
+		return DeleteResult{ResumeID: resumeID, Reason: "io_error", Error: err.Error()}
+	}
+	return DeleteResult{ResumeID: resumeID, OK: true}
+}
+
+// DeleteOlderThan removes every transcript whose .log mtime is older than the
+// cutoff. Active transcripts are always skipped. Returns the number of
+// transcripts deleted.
+func DeleteOlderThan(maxAge time.Duration, isActive IsActiveFunc) (int, error) {
+	entries, err := List()
+	if err != nil {
+		return 0, err
+	}
+	cutoff := time.Now().Add(-maxAge)
+	deleted := 0
+	for _, entry := range entries {
+		if entry.ModTime.After(cutoff) {
+			continue
+		}
+		if isActive != nil && isActive(entry.ResumeID) {
+			continue
+		}
+		if err := Delete(entry.ResumeID); err != nil {
+			log.Printf("transcript: failed to delete %s during age-sweep: %v", entry.ResumeID, err)
+			continue
+		}
+		deleted++
+	}
+	return deleted, nil
+}
+
+// DiskUsage returns the count and total byte size of every .log in the
+// transcripts directory. Side-car JSON is not counted — the user is
+// interested in the actual content footprint.
+func DiskUsage() (DiskUsageInfo, error) {
+	entries, err := List()
+	if err != nil {
+		return DiskUsageInfo{}, err
+	}
+	var total int64
+	for _, e := range entries {
+		total += e.Size
+	}
+	return DiskUsageInfo{Count: len(entries), TotalBytes: total}, nil
+}
+
+// ensureInsideTranscriptsDir verifies that the resolved target lives inside
+// the transcripts directory. PathForResumeID already enforces this via the
+// resumeID regex, but a defense-in-depth check at the delete boundary keeps
+// us safe if validation ever loosens.
+func ensureInsideTranscriptsDir(target string) error {
+	dir, err := transcriptsDir()
+	if err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(dir, target)
+	if err != nil {
+		return fmt.Errorf("path outside transcripts dir: %w", err)
+	}
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("path escapes transcripts dir: %s", target)
+	}
+	return nil
+}
+
 // List enumerates every stored transcript along with size and last-write time.
 // Returned entries are sorted by ModTime descending so the freshest sessions
 // appear first.

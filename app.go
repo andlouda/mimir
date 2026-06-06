@@ -339,6 +339,49 @@ func (a *App) ListTranscripts() ([]TranscriptListEntry, error) {
 	return out, nil
 }
 
+// isActiveTranscript returns whether a resumeID is currently bound to a live
+// terminal. The transcript delete paths consult this so we never wipe a
+// transcript that's still being appended to.
+func (a *App) isActiveTranscript(resumeID string) bool {
+	if resumeID == "" {
+		return false
+	}
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+	for _, state := range a.activeTerminalStates {
+		if state.ResumeID == resumeID {
+			return true
+		}
+	}
+	return false
+}
+
+// DeleteTranscript removes a single stored transcript. Active terminals are
+// protected — attempting to delete one returns a DeleteResult with reason
+// "active" rather than an error so the UI can show "this terminal is still
+// open, close it first".
+func (a *App) DeleteTranscript(resumeID string) transcript.DeleteResult {
+	if a.isActiveTranscript(resumeID) {
+		return transcript.DeleteResult{ResumeID: resumeID, Reason: "active"}
+	}
+	if err := transcript.Delete(resumeID); err != nil {
+		return transcript.DeleteResult{ResumeID: resumeID, Reason: "io_error", Error: err.Error()}
+	}
+	return transcript.DeleteResult{ResumeID: resumeID, OK: true}
+}
+
+// DeleteTranscripts applies DeleteTranscript to a batch. Best-effort: one
+// failure or active-skip never blocks the others.
+func (a *App) DeleteTranscripts(resumeIDs []string) []transcript.DeleteResult {
+	return transcript.DeleteMany(resumeIDs, a.isActiveTranscript)
+}
+
+// GetTranscriptDiskUsage returns count + total bytes for all stored
+// transcripts. Side-car JSON not counted.
+func (a *App) GetTranscriptDiskUsage() (transcript.DiskUsageInfo, error) {
+	return transcript.DiskUsage()
+}
+
 // SaveTranscriptMetadata writes a small JSON side-car next to the transcript
 // so the terminal's label survives the session closing. Called by the
 // frontend whenever a terminal is created or renamed. Empty resumeID is a
