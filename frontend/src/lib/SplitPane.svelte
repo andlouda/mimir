@@ -85,6 +85,32 @@
     event.stopPropagation();
     xterm.scrollLines(lines);
   }
+
+  function hasVisibleRestoreSummary(term) {
+    return Boolean(term?.restoredTranscript && term.restoreClass === 'transcript-restored' && !term.restoreDismissed);
+  }
+
+  function handleWrapperKeydown(event, term) {
+    if (event.key === 'Escape' && hasVisibleRestoreSummary(term)) {
+      event.preventDefault();
+      dispatch('dismissrestore', term.id);
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      dispatch('activate', term.id);
+    }
+  }
+
+  function handleTerminalPointerDown(event, term) {
+    if (!hasVisibleRestoreSummary(term)) {
+      return;
+    }
+    const path = event.composedPath?.() || [];
+    if (path.some((node) => node?.classList?.contains?.('restore-summary'))) {
+      return;
+    }
+    dispatch('dismissrestore', term.id);
+  }
 </script>
 
 {#if node.type === 'leaf'}
@@ -93,7 +119,7 @@
     <div
       class="terminal-wrapper {node.terminalId === activeTerminalId ? 'active-terminal' : ''}"
       on:click={() => dispatch('activate', node.terminalId)}
-      on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') dispatch('activate', node.terminalId); }}
+      on:keydown={(e) => handleWrapperKeydown(e, term)}
       tabindex="0"
       role="button"
     >
@@ -176,7 +202,12 @@
           <button class="header-btn close-btn" on:click|stopPropagation={() => dispatch('close', node.terminalId)} title={$t('splitPane.close')}>&#x2715;</button>
         </div>
       </div>
-      <div class="terminal-container" on:wheel|capture|nonpassive={(e) => handleTerminalWheel(e, term)}>
+      <!-- svelte-ignore a11y_no_static_element_interactions: capture pointerdown before xterm consumes it so restored transcript previews can be dismissed by clicking the terminal. -->
+      <div
+        class="terminal-container"
+        on:pointerdown|capture={(e) => handleTerminalPointerDown(e, term)}
+        on:wheel|capture|nonpassive={(e) => handleTerminalWheel(e, term)}
+      >
         <div id="terminal-{term.id}" class="terminal"></div>
         {#if term.restoredTranscript && term.restoreClass === 'transcript-restored' && !term.restoreDismissed}
           <div
