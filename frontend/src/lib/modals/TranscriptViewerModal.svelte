@@ -52,27 +52,47 @@
       .replace(CTRL_RE, '');
   }
 
+  // Squash truly noisy repetition without obscuring real content:
+  //   - runs of blank lines collapse to a single blank, no marker
+  //   - runs of identical non-blank lines emit a marker only when there
+  //     are at least 4 in a row (otherwise we'd just add a one-liner
+  //     "1× repeated" that's louder than the line itself)
+  const REPEAT_MARKER_MIN = 4;
+
+  function isBlankLine(s) {
+    return s.length === 0 || /^\s*$/.test(s);
+  }
+
   function collapseRepeats(text) {
-    // Shells often redraw the same prompt many times in a row (every
-    // resize, every cursor blink). Squash runs of identical adjacent
-    // lines so the user sees what actually happened.
     const lines = text.split('\n');
     const out = [];
     let prev = null;
     let runCount = 0;
+
+    const flush = () => {
+      if (prev === null) return;
+      if (isBlankLine(prev)) {
+        out.push(prev);
+        return;
+      }
+      if (runCount >= REPEAT_MARKER_MIN) {
+        out.push(prev);
+        out.push(`  ⟨${runCount - 1}× more identical⟩`);
+        return;
+      }
+      for (let i = 0; i < runCount; i++) out.push(prev);
+    };
+
     for (const line of lines) {
       if (line === prev) {
         runCount += 1;
         continue;
       }
-      if (runCount > 1) {
-        out.push(`  ⟨${runCount - 1}× repeated⟩`);
-      }
-      out.push(line);
+      flush();
       prev = line;
       runCount = 1;
     }
-    if (runCount > 1) out.push(`  ⟨${runCount - 1}× repeated⟩`);
+    flush();
     return out.join('\n');
   }
 
