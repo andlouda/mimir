@@ -16,12 +16,47 @@ import (
 	"mimir/safeio"
 )
 
+// DefaultMaxFileSize caps any single transcript file at 100 MiB. Long-running
+// log-tail sessions can produce hundreds of MB of output per day; without a
+// cap they fill the user config volume. The cap is enforced in the Append
+// path, not retroactively — existing files larger than the cap are still
+// readable, they just stop growing.
+const DefaultMaxFileSize int64 = 100 * 1024 * 1024
+
+var (
+	maxFileSizeMu sync.RWMutex
+	maxFileSize   = DefaultMaxFileSize
+)
+
+// SetMaxFileSize overrides the per-file cap. Pass DefaultMaxFileSize to
+// restore the default. Passing 0 disables the cap (unbounded growth — only
+// useful for tests).
+func SetMaxFileSize(n int64) {
+	maxFileSizeMu.Lock()
+	maxFileSize = n
+	maxFileSizeMu.Unlock()
+}
+
+func currentMaxFileSize() int64 {
+	maxFileSizeMu.RLock()
+	defer maxFileSizeMu.RUnlock()
+	return maxFileSize
+}
+
 // appendLocks holds one mutex per resumeID. POSIX guarantees O_APPEND writes
 // are atomic up to PIPE_BUF (≈4 KB) — anything larger, or running on Windows
 // where the guarantee doesn't apply at all, can interleave. Holding a mutex
 // per resumeID for the duration of open/write/close removes the question
 // entirely without serializing writes across different transcripts.
 var appendLocks sync.Map
+
+// appendDropLog rate-limits the "file at cap, dropping writes" log message
+// to one per resumeID per limitDropLogInterval, so a runaway producer doesn't
+// flood the app log.
+var (
+	appendDropLog            sync.Map // resumeID -> *time.Time
+	limitDropLogInterval     = 1 * time.Minute
+)
 
 func appendLockFor(resumeID string) *sync.Mutex {
 	m, _ := appendLocks.LoadOrStore(resumeID, &sync.Mutex{})
@@ -186,6 +221,18 @@ func Append(resumeID string, data string) (string, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
+	// Enforce the per-file cap. We stat under the lock so a racing append
+	// can't both pass the check. Over-cap writes are silently dropped
+	// (fire-and-forget callers can't react anyway) with a rate-limited log.
+	if cap := currentMaxFileSize(); cap > 0 {
+		if info, err := os.Stat(path); err == nil {
+			if info.Size() >= cap {
+				logDroppedAppend(resumeID, info.Size(), cap)
+				return path, nil
+			}
+		}
+	}
+
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return "", fmt.Errorf("failed to open transcript file: %w", err)
@@ -195,6 +242,18 @@ func Append(resumeID string, data string) (string, error) {
 		return "", fmt.Errorf("failed to append transcript: %w", err)
 	}
 	return path, nil
+}
+
+func logDroppedAppend(resumeID string, currentSize, cap int64) {
+	now := time.Now()
+	if last, ok := appendDropLog.Load(resumeID); ok {
+		if t, ok := last.(time.Time); ok && now.Sub(t) < limitDropLogInterval {
+			return
+		}
+	}
+	appendDropLog.Store(resumeID, now)
+	// Log resume ID (opaque UUID), not transcript content.
+	log.Printf("transcript: %s reached size cap (%d/%d bytes), dropping new writes", resumeID, currentSize, cap)
 }
 
 func ReadTail(resumeID string, maxBytes int) (string, error) {

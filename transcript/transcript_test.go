@@ -320,6 +320,49 @@ func TestReadContentMissingFileReturnsEmpty(t *testing.T) {
 	}
 }
 
+func TestAppendStopsAtSizeLimit(t *testing.T) {
+	isolateConfigDir(t)
+
+	SetMaxFileSize(1024) // 1 KiB cap for the test
+	t.Cleanup(func() { SetMaxFileSize(DefaultMaxFileSize) })
+
+	// Fill to 1024 bytes exactly.
+	if _, err := Append("capped", strings.Repeat("a", 1024)); err != nil {
+		t.Fatalf("append below limit: %v", err)
+	}
+	// Next append should be silently dropped — caller gets no error so
+	// fire-and-forget paths in the frontend don't churn.
+	if _, err := Append("capped", "overflow data"); err != nil {
+		t.Fatalf("over-limit append should not error: %v", err)
+	}
+
+	got, err := ReadFull("capped", 0)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if len(got) != 1024 {
+		t.Fatalf("file grew past cap: expected 1024 bytes, got %d", len(got))
+	}
+}
+
+func TestAppendBelowLimitStillWrites(t *testing.T) {
+	isolateConfigDir(t)
+
+	SetMaxFileSize(1024)
+	t.Cleanup(func() { SetMaxFileSize(DefaultMaxFileSize) })
+
+	if _, err := Append("below", "hello"); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	if _, err := Append("below", " world"); err != nil {
+		t.Fatalf("append 2: %v", err)
+	}
+	got, _ := ReadFull("below", 0)
+	if got != "hello world" {
+		t.Fatalf("expected 'hello world', got %q", got)
+	}
+}
+
 func TestReadTailDoesNotSplitUTF8(t *testing.T) {
 	isolateConfigDir(t)
 
