@@ -52,6 +52,26 @@
       .replace(CTRL_RE, '');
   }
 
+  // Resolve carriage returns the way a real terminal would: \r rewinds the
+  // cursor to column 0, and any subsequent writes overwrite from there. In a
+  // transcript that means: within a single line, only the content after the
+  // last \r is what the user actually saw. Without this pass, shells that
+  // redraw the prompt on every keystroke (PowerShell/PSReadLine) produce
+  // glued-together fragments like "ppwpwd" from "p\rpw\rpwd".
+  function applyCarriageReturns(text) {
+    if (!text || !text.includes('\r')) return text;
+    return text
+      .split('\n')
+      .map((line) => {
+        if (!line.includes('\r')) return line;
+        const segments = line.split('\r');
+        // Drop empty trailing segment (line ended with \r before \n).
+        const last = segments[segments.length - 1];
+        return last;
+      })
+      .join('\n');
+  }
+
   // Squash truly noisy repetition without obscuring real content:
   //   - runs of blank lines collapse to a single blank, no marker
   //   - runs of identical non-blank lines emit a marker only when there
@@ -96,7 +116,9 @@
     return out.join('\n');
   }
 
-  $: displayText = showRaw ? transcriptText : collapseRepeats(stripAnsi(transcriptText));
+  $: displayText = showRaw
+    ? transcriptText
+    : collapseRepeats(applyCarriageReturns(stripAnsi(transcriptText)));
 
   function formatBytes(n) {
     if (!Number.isFinite(n)) return '';
