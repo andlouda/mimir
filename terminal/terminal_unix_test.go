@@ -86,10 +86,15 @@ func TestTerminalRuntimeMetaZeroValue(t *testing.T) {
 }
 
 func TestLocalShellLaunchBashIncludesHistoryHookWhenEnabled(t *testing.T) {
-	configDir := t.TempDir()
+	homeDir := t.TempDir()
 	cacheDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", configDir)
+	t.Setenv("HOME", homeDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(homeDir, ".config"))
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatalf("UserConfigDir: %v", err)
+	}
 	enabledPath := filepath.Join(configDir, "mimir", "history_enabled")
 	if err := os.MkdirAll(filepath.Dir(enabledPath), 0o700); err != nil {
 		t.Fatalf("create history config dir: %v", err)
@@ -116,10 +121,15 @@ func TestLocalShellLaunchBashIncludesHistoryHookWhenEnabled(t *testing.T) {
 }
 
 func TestLocalShellLaunchZshIncludesHistoryHookWhenEnabled(t *testing.T) {
-	configDir := t.TempDir()
+	homeDir := t.TempDir()
 	cacheDir := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", configDir)
+	t.Setenv("HOME", homeDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(homeDir, ".config"))
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatalf("UserConfigDir: %v", err)
+	}
 	enabledPath := filepath.Join(configDir, "mimir", "history_enabled")
 	if err := os.MkdirAll(filepath.Dir(enabledPath), 0o700); err != nil {
 		t.Fatalf("create history config dir: %v", err)
