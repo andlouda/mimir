@@ -3,6 +3,7 @@ package terminal
 import (
 	"fmt"
 	"io"
+	"net"
 	"sync"
 	"time"
 
@@ -47,6 +48,15 @@ type SSHSession struct {
 	keepaliveDone chan struct{}
 }
 
+// enableTCPKeepalive sets OS-level TCP keepalive on the connection so the
+// kernel detects dead peers faster than the application-level keepalive alone.
+func enableTCPKeepalive(conn net.Conn) {
+	if tc, ok := conn.(*net.TCPConn); ok {
+		_ = tc.SetKeepAlive(true)
+		_ = tc.SetKeepAlivePeriod(5 * time.Second)
+	}
+}
+
 // NewSSHSession dials the remote host, authenticates, requests a PTY and starts a shell.
 func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
@@ -69,6 +79,7 @@ func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
 		if err != nil {
 			return nil, fmt.Errorf("ssh proxy dial failed: %w", err)
 		}
+		enableTCPKeepalive(conn)
 		clientConn, chans, reqs, err := ssh.NewClientConn(conn, addr, clientCfg)
 		if err != nil {
 			conn.Close()
@@ -76,11 +87,21 @@ func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
 		}
 		client = ssh.NewClient(clientConn, chans, reqs)
 	} else {
-		var err error
-		client, err = ssh.Dial("tcp", addr, clientCfg)
+		timeout := cfg.ConnectTimeout
+		if timeout == 0 {
+			timeout = 10 * time.Second
+		}
+		conn, err := net.DialTimeout("tcp", addr, timeout)
 		if err != nil {
 			return nil, fmt.Errorf("ssh dial failed: %w", err)
 		}
+		enableTCPKeepalive(conn)
+		clientConn, chans, reqs, err := ssh.NewClientConn(conn, addr, clientCfg)
+		if err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("ssh handshake failed: %w", err)
+		}
+		client = ssh.NewClient(clientConn, chans, reqs)
 	}
 
 	session, err := client.NewSession()
@@ -146,16 +167,28 @@ func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
 
 // keepalive sends periodic requests to detect dead connections quickly.
 func (s *SSHSession) keepalive() {
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-s.keepaliveDone:
 			return
 		case <-ticker.C:
-			_, _, err := s.client.SendRequest("keepalive@openssh.com", true, nil)
-			if err != nil {
+			done := make(chan error, 1)
+			go func() {
+				_, _, err := s.client.SendRequest("keepalive@openssh.com", true, nil)
+				done <- err
+			}()
+			select {
+			case err := <-done:
+				if err != nil {
+					s.Close()
+					return
+				}
+			case <-time.After(10 * time.Second):
 				s.Close()
+				return
+			case <-s.keepaliveDone:
 				return
 			}
 		}
@@ -170,16 +203,52 @@ func (s *SSHSession) Read(p []byte) (int, error) {
 }
 
 func (s *SSHSession) Write(p []byte) (int, error) {
-	return s.stdin.Write(p)
+	type writeResult struct {
+		n   int
+		err error
+	}
+	done := make(chan writeResult, 1)
+	go func() {
+		n, err := s.stdin.Write(p)
+		done <- writeResult{n, err}
+	}()
+	select {
+	case r := <-done:
+		if r.err != nil {
+			go s.Close()
+		}
+		return r.n, r.err
+	case <-time.After(10 * time.Second):
+		go s.Close()
+		return 0, fmt.Errorf("ssh write timed out")
+	}
 }
 
 func (s *SSHSession) Resize(rows, cols uint16) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.closed {
+		s.mu.Unlock()
 		return nil
 	}
-	return s.session.WindowChange(int(rows), int(cols))
+	s.mu.Unlock()
+
+	done := make(chan error, 1)
+	go func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.closed {
+			done <- nil
+			return
+		}
+		done <- s.session.WindowChange(int(rows), int(cols))
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(5 * time.Second):
+		go s.Close()
+		return fmt.Errorf("ssh resize timed out")
+	}
 }
 
 func (s *SSHSession) Close() error {

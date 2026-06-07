@@ -815,7 +815,7 @@ func (a *App) callOllama(settings AISettings, input string) (string, error) {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}
 
-	client := &http.Client{Timeout: 90 * time.Second}
+	client := &http.Client{Timeout: 300 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Ollama request failed: %w", err)
