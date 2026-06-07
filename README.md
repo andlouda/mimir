@@ -84,8 +84,11 @@ sudo apt-get install libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config build-essenti
 
 ## Development
 
+The entire buildable application lives in `app/`. Run all build and test
+commands from there.
+
 ```bash
-cd mimir
+cd mimir/app
 go mod tidy
 cd frontend
 npm install
@@ -96,6 +99,7 @@ wails dev
 Run tests:
 
 ```bash
+cd app
 go test ./...
 cd frontend
 npm run build
@@ -106,22 +110,22 @@ npm run build
 Local Windows + Linux release from PowerShell:
 
 ```powershell
-.\scripts\release-all.ps1 -Version 0.1.0 -UpdateRepository OWNER/REPO
+.\app\scripts\release-all.ps1 -Version 0.1.0 -UpdateRepository OWNER/REPO
 ```
 
 Linux:
 
 ```bash
-./scripts/release-linux.sh 0.1.0 --update-repo=OWNER/REPO
+./app/scripts/release-linux.sh 0.1.0 --update-repo=OWNER/REPO
 ```
 
 macOS:
 
 ```bash
-./scripts/release-macos.sh 0.1.0 --update-repo=OWNER/REPO
+./app/scripts/release-macos.sh 0.1.0 --update-repo=OWNER/REPO
 ```
 
-Artifacts and `checksums.txt` are written to `build/release/`.
+Artifacts and `checksums.txt` are written to `app/build/release/`.
 
 See [docs/releasing.md](docs/releasing.md).
 
@@ -144,21 +148,33 @@ git push origin v0.1.0
 
 ```text
 .
-├── app*.go                 # Wails backend bindings
-├── terminal/               # Local and SSH terminal management
-├── ssh/                    # SSH profiles, keys, known hosts, secrets
-├── template/               # Command templates
-├── workflow/               # Workflow engine, playbooks, approval
-├── update/                 # Update checker, downloader, staging
-├── aiflow/                 # AI tool-flow policy and context handling
-├── history/                # Optional command history
-├── recording/              # Asciicast recording and GIF export
-├── notes/                  # Markdown notes storage
-├── folder/                 # Terminal folder grouping
-├── frontend/               # Svelte frontend
+├── app/                    # The buildable application (Go + Svelte + Wails)
+│   ├── *.go                # Wails backend (package main: App struct + bindings)
+│   ├── terminal/           # Local and SSH terminal management
+│   ├── ssh/                # SSH profiles, keys, known hosts, secrets
+│   ├── template/           # Command templates
+│   ├── workflow/           # Workflow engine, playbooks, approval
+│   ├── update/             # Update checker, downloader, staging
+│   ├── aiflow/             # AI tool-flow policy and context handling
+│   ├── history/            # Optional command history
+│   ├── recording/          # Asciicast recording and GIF export
+│   ├── notes/              # Markdown notes storage
+│   ├── folder/             # Terminal folder grouping
+│   ├── safeio/             # Atomic file writes
+│   ├── frontend/           # Svelte frontend
+│   ├── templates/          # Built-in command templates (Wails assetdir)
+│   ├── build/              # Wails build assets (icon, platform manifests)
+│   ├── scripts/            # Local release scripts
+│   ├── go.mod  wails.json  # Go module + Wails config
 ├── docs/                   # Architecture, security, testing, release docs
-└── scripts/                # Local release scripts
+├── .github/                # CI and release workflows
+└── README.md  LICENSE  SECURITY.md  CONTRIBUTING.md
 ```
+
+> **Why is `package main` at `app/` root and not split into subpackages?**
+> Wails v2 generates its JS bindings from the `App` struct in `package main`
+> and expects it alongside `wails.json`. The backend files (`app_*.go`, `ai*.go`,
+> …) are all methods on `*App`, so Go requires them in one directory.
 
 ## License
 
