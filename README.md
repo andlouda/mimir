@@ -1,5 +1,8 @@
 # Mimir
 
+> [!CAUTION]
+> This project is almost entirely vibe-coded. Use at your own risk.
+
 Mimir is an open source desktop terminal manager built with Go, Wails, Svelte, and xterm.js.
 
 It focuses on local-first terminal workflows: local shells, SSH sessions, tmux-backed reconnects, command templates, notes, recordings, audit logs, and AI-assisted command workflows.
