@@ -12,6 +12,7 @@ export default {
     logs: 'Logs',
     history: 'History',
     recordings: 'Recordings',
+    transcripts: 'Transcripts',
     noProfiles: 'No profiles',
     autoGroup: 'Auto group',
     minimized: 'min',

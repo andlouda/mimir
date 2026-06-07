@@ -474,7 +474,7 @@
 
     <div class="transcript-viewer-body" class:list-hidden={!listOpen}>
       {#if listOpen}
-      <aside class="transcript-viewer-list" aria-label={$t('transcriptViewer.listLabel')} on:keydown={handleListKeydown}>
+      <aside class="transcript-viewer-list" aria-label={$t('transcriptViewer.listLabel')}>
         {#if loadingList}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.loadingList')}</div>
         {:else if listError}
@@ -487,7 +487,7 @@
         {:else if entries.length === 0}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.empty')}</div>
         {:else}
-          <ul role="listbox" aria-activedescendant={selectedResumeId ? `transcript-${selectedResumeId}` : undefined}>
+          <ul role="listbox" tabindex="0" on:keydown={handleListKeydown} aria-activedescendant={selectedResumeId ? `transcript-${selectedResumeId}` : undefined}>
             {#each entries as entry (entry.resumeId)}
               <li>
                 <button
@@ -508,12 +508,14 @@
                   <span class="transcript-entry-meta">
                     {formatRelative(entry.modTime)} · {formatBytes(entry.size)}
                     {#if !entry.active}
-                      <button
-                        type="button"
+                      <span
+                        role="button"
+                        tabindex="-1"
                         class="transcript-delete-btn"
                         on:click|stopPropagation={() => confirmDelete(entry.resumeId)}
+                        on:keydown|stopPropagation={(e) => { if (e.key === 'Enter' || e.key === ' ') confirmDelete(entry.resumeId); }}
                         title={$t('transcriptViewer.deleteTitle')}
-                      >&#x2715;</button>
+                      >&#x2715;</span>
                     {/if}
                   </span>
                 </button>

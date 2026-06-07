@@ -1294,6 +1294,10 @@
     };
   }
 
+  function openTranscriptBrowser() {
+    transcriptViewerState = { resumeId: '', label: '' };
+  }
+
   function closeTranscriptViewer() {
     transcriptViewerState = null;
   }
@@ -1989,6 +1993,7 @@
     selectTerminal={selectSidebarTerminal}
     connectSSHProfile={connectSSHProfile}
     onResize={handleResize}
+    openTranscripts={openTranscriptBrowser}
   />
 
   <AppMainContent

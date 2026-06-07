@@ -21,6 +21,7 @@
   export let selectTerminal = () => {};
   export let connectSSHProfile = () => {};
   export let onResize = () => {};
+  export let openTranscripts = () => {};
 
   // Sidebar-local UI state (not shared with the rest of the app).
   let collapsed = false;
@@ -236,6 +237,7 @@
           <li><button class:active-subnav={currentPage === 'activityLogs'} on:click={() => openPage("activityLogs")}>{$t('sidebar.logs')}</button></li>
           <li><button class:active-subnav={currentPage === 'historyDashboard'} on:click={() => openPage("historyDashboard")}>{$t('sidebar.history')}</button></li>
           <li><button class:active-subnav={currentPage === 'recordings'} on:click={() => openPage("recordings")}>{$t('sidebar.recordings')}</button></li>
+          <li><button on:click={openTranscripts}>{$t('sidebar.transcripts')}</button></li>
         </ul>
       {/if}
     </div>
