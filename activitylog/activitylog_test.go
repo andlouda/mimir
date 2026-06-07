@@ -13,6 +13,8 @@ func setupTestDir(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, ".config"))
+	// Windows uses APPDATA for os.UserConfigDir()
+	t.Setenv("APPDATA", filepath.Join(dir, "AppData"))
 }
 
 func TestAppendAndRead(t *testing.T) {

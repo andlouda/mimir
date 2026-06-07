@@ -3,6 +3,7 @@ package safeio
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -55,6 +56,9 @@ func TestAtomicWriteFileCreatesParentDirs(t *testing.T) {
 }
 
 func TestAtomicWriteFilePreservesPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix file permissions not supported on Windows")
+	}
 	dir := t.TempDir()
 	path := filepath.Join(dir, "perm.txt")
 
