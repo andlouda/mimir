@@ -16,7 +16,6 @@ import (
 
 	"mimir/activitylog"
 	"mimir/aiflow"
-	"mimir/desktop"
 	"mimir/folder"
 	"mimir/history"
 	"mimir/notes"
@@ -167,10 +166,6 @@ func (a *App) startup(ctx context.Context) {
 	}
 	if updateStarted {
 		return
-	}
-
-	if err := desktop.Install(a.appIconPNG); err != nil {
-		log.Printf("Desktop integration: %v", err)
 	}
 
 	// Remove orphaned atomic-write temp files left by a previous crash/force-quit.

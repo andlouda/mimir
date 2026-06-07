@@ -5,6 +5,8 @@ import (
 	"embed"
 	"log"
 
+	"mimir/desktop"
+
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -23,6 +25,16 @@ var appIconPNG []byte
 func main() {
 	// Create an instance of the app structure
 	app := NewApp(templates, appIconPNG)
+
+	// Install the Linux desktop entry + icon BEFORE the window is created.
+	// On Wayland, GNOME resolves a window's icon by matching its app_id to a
+	// .desktop file at map time and caches that association; if the .desktop
+	// doesn't exist yet when the window first appears, no icon is shown and it
+	// won't update until relaunch. Running this before wails.Run() guarantees
+	// the entry exists in time. No-op on non-Linux.
+	if err := desktop.Install(appIconPNG); err != nil {
+		log.Printf("Desktop integration: %v", err)
+	}
 
 	// Create application with options
 	err := wails.Run(&options.App{
