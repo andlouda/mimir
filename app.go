@@ -21,6 +21,7 @@ import (
 	"mimir/history"
 	"mimir/notes"
 	"mimir/recording"
+	"mimir/safeio"
 	"mimir/session"
 	"mimir/ssh"
 	"mimir/template"
@@ -170,6 +171,15 @@ func (a *App) startup(ctx context.Context) {
 
 	if err := desktop.Install(a.appIconPNG); err != nil {
 		log.Printf("Desktop integration: %v", err)
+	}
+
+	// Remove orphaned atomic-write temp files left by a previous crash/force-quit.
+	if configDir, cfgErr := os.UserConfigDir(); cfgErr == nil {
+		if removed, sweepErr := safeio.SweepStaleTempFiles(filepath.Join(configDir, "mimir"), time.Hour); sweepErr != nil {
+			log.Printf("Failed to sweep stale temp files: %v", sweepErr)
+		} else if removed > 0 {
+			log.Printf("Removed %d orphaned temp file(s)", removed)
+		}
 	}
 }
 

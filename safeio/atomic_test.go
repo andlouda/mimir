@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 )
 
 func TestAtomicWriteFileCreatesFile(t *testing.T) {
@@ -102,5 +103,58 @@ func TestAtomicWriteFileEmptyData(t *testing.T) {
 	data, _ := os.ReadFile(path)
 	if len(data) != 0 {
 		t.Fatalf("expected empty file, got %d bytes", len(data))
+	}
+}
+
+func TestSweepStaleTempFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	// Stale temp file (old) — should be removed.
+	stale := filepath.Join(dir, ".tmp-stale")
+	if err := os.WriteFile(stale, []byte("x"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	// Recent temp file (in-flight write) — must be preserved.
+	recent := filepath.Join(dir, ".tmp-recent")
+	if err := os.WriteFile(recent, []byte("x"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Regular config file — must never be touched.
+	regular := filepath.Join(dir, "config.json")
+	if err := os.WriteFile(regular, []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	removed, err := SweepStaleTempFiles(dir, time.Hour)
+	if err != nil {
+		t.Fatalf("SweepStaleTempFiles: %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1", removed)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatal("stale temp file should have been removed")
+	}
+	if _, err := os.Stat(recent); err != nil {
+		t.Fatal("recent temp file should have been preserved")
+	}
+	if _, err := os.Stat(regular); err != nil {
+		t.Fatal("regular file should have been preserved")
+	}
+}
+
+func TestSweepStaleTempFilesMissingDir(t *testing.T) {
+	removed, err := SweepStaleTempFiles(filepath.Join(t.TempDir(), "does-not-exist"), time.Hour)
+	if err != nil {
+		t.Fatalf("expected nil error for missing dir, got %v", err)
+	}
+	if removed != 0 {
+		t.Fatalf("removed = %d, want 0", removed)
 	}
 }
