@@ -89,6 +89,21 @@ func Install(iconPNG []byte) error {
 		}
 	}
 
+	// KDE/Plasma keeps its own service + icon cache (KSycoca). Since the icon
+	// and .desktop are written at runtime, a running Plasma session resolves
+	// Icon=mimir against a stale cache and the taskbar shows no icon until the
+	// cache is rebuilt. Nudge it best-effort (kbuildsycoca6 for Plasma 6, else
+	// kbuildsycoca5) so the icon resolves on the next launch without a manual
+	// plasmashell restart. No-op on non-KDE systems where the tool is absent.
+	if iconChanged || pixmapChanged || desktopChanged {
+		for _, tool := range []string{"kbuildsycoca6", "kbuildsycoca5"} {
+			if path, _ := exec.LookPath(tool); path != "" {
+				_ = exec.Command(path, "--noincremental").Run()
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
