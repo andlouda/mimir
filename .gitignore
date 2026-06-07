@@ -1,8 +1,9 @@
 # Build artifacts
-build/bin
-build/release
-frontend/dist
-frontend/.svelte-kit
+app/build/bin
+app/build/release
+app/frontend/dist
+app/frontend/.svelte-kit
+app/frontend/.vite
 
 # Binaries
 mimir
@@ -14,11 +15,11 @@ mimir
 
 # Dependencies
 node_modules
-frontend/node_modules
+app/frontend/node_modules
 
 # Test artifacts
-frontend/test-results
-frontend/playwright-report
+app/frontend/test-results
+app/frontend/playwright-report
 
 # Sensitive runtime data (defense-in-depth — these live in ~/.config/mimir/)
 *.db

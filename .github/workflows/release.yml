@@ -31,11 +31,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact_pattern: build/release/mimir-windows-amd64-*.zip
+            artifact_pattern: app/build/release/mimir-windows-amd64-*.zip
           - os: ubuntu-22.04
-            artifact_pattern: build/release/mimir-linux-amd64-*.tar.gz
+            artifact_pattern: app/build/release/mimir-linux-amd64-*.tar.gz
           - os: macos-latest
-            artifact_pattern: build/release/mimir-darwin-universal-*.zip
+            artifact_pattern: app/build/release/mimir-darwin-universal-*.zip
             experimental: true
 
     steps:
@@ -56,15 +56,16 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: app/go.mod
           cache: true
+          cache-dependency-path: app/go.sum
 
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: app/frontend/package-lock.json
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -78,15 +79,15 @@ jobs:
       - name: Build Windows artifact
         if: runner.os == 'Windows'
         shell: powershell
-        run: .\scripts\release-local.ps1 -Version "${{ steps.version.outputs.version }}" -UpdateRepository "${{ github.repository }}" -SkipChecks
+        run: .\app\scripts\release-local.ps1 -Version "${{ steps.version.outputs.version }}" -UpdateRepository "${{ github.repository }}" -SkipChecks
 
       - name: Build Linux artifact
         if: runner.os == 'Linux'
-        run: ./scripts/release-linux.sh "${{ steps.version.outputs.version }}" --update-repo="${{ github.repository }}" --skip-audit
+        run: ./app/scripts/release-linux.sh "${{ steps.version.outputs.version }}" --update-repo="${{ github.repository }}" --skip-audit
 
       - name: Build macOS artifact
         if: runner.os == 'macOS'
-        run: ./scripts/release-macos.sh "${{ steps.version.outputs.version }}" --update-repo="${{ github.repository }}" --skip-audit
+        run: ./app/scripts/release-macos.sh "${{ steps.version.outputs.version }}" --update-repo="${{ github.repository }}" --skip-audit
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -94,7 +95,7 @@ jobs:
           name: mimir-${{ runner.os }}
           path: |
             ${{ matrix.artifact_pattern }}
-            build/release/checksums.txt
+            app/build/release/checksums.txt
           if-no-files-found: error
 
   publish:
