@@ -40,6 +40,30 @@ __mimir_precmd() {
 PROMPT_COMMAND="__mimir_precmd;${PROMPT_COMMAND}"
 `
 
+const conptyPowerShellHistoryHook = `$global:__mimir_last_cmd = ''
+function global:prompt {
+  $success = $?
+  $nativeExit = $global:LASTEXITCODE
+  $historyItem = Get-History -Count 1 -ErrorAction SilentlyContinue
+  if ($historyItem -and $historyItem.CommandLine) {
+    $cmd = [string]$historyItem.CommandLine
+    if ($cmd -and $cmd -ne $global:__mimir_last_cmd) {
+      $global:__mimir_last_cmd = $cmd
+      $exitCode = if ($null -ne $nativeExit) { [string]$nativeExit } elseif ($success) { '0' } else { '1' }
+      $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cmd))
+      $cwd = (Get-Location).Path
+      $hostName = $env:COMPUTERNAME
+      if (-not $hostName) { $hostName = 'unknown' }
+      $userName = $env:USERNAME
+      if (-not $userName) { $userName = 'unknown' }
+      $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+      [Console]::Write("$([char]27)]7337;cmd=$b64;exit=$exitCode;cwd=$cwd;host=$hostName;user=$userName;shell=powershell;ts=$ts$([char]7)")
+    }
+  }
+  return "PS $((Get-Location).Path)> "
+}
+`
+
 func isHistoryEnabled() bool {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
@@ -67,6 +91,38 @@ func conptyBashRcBase64() string {
 		rcContent += conptyBashHistoryHook
 	}
 	return base64.StdEncoding.EncodeToString([]byte(rcContent))
+}
+
+func mimirShellStateDir() string {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil || cacheDir == "" {
+		cacheDir = os.TempDir()
+	}
+	return filepath.Join(cacheDir, "mimir", "shell")
+}
+
+func writeMimirShellFile(name string, content string) (string, error) {
+	dir := mimirShellStateDir()
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func conptyPowerShellCommand() string {
+	if !isHistoryEnabled() {
+		return "powershell.exe"
+	}
+	profilePath, err := writeMimirShellFile("mimir-profile.ps1", conptyPowerShellHistoryHook)
+	if err != nil {
+		log.Printf("history: failed to write PowerShell hook profile: %v", err)
+		return "powershell.exe"
+	}
+	return fmt.Sprintf("powershell.exe -NoLogo -NoExit -ExecutionPolicy Bypass -File %s", strconv.Quote(profilePath))
 }
 
 // conptySession wraps a Windows ConPTY and implements TerminalSession.
@@ -192,7 +248,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 		}
 	case "powershell":
 		if runtime.GOOS == "windows" {
-			cmdString = "powershell.exe"
+			cmdString = conptyPowerShellCommand()
 		} else {
 			return 0, fmt.Errorf("powershell.exe is only available on Windows")
 		}

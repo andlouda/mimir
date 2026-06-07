@@ -15,11 +15,12 @@ const desktopTemplate = `[Desktop Entry]
 Name=Mimir
 Comment=Terminal and SSH session manager
 Exec=%s
-Icon=%s
+Icon=mimir
 Terminal=false
 Type=Application
 Categories=System;TerminalEmulator;Utility;
 StartupWMClass=mimir
+StartupNotify=true
 `
 
 func Install(iconPNG []byte) error {
@@ -42,27 +43,31 @@ func Install(iconPNG []byte) error {
 	// 512x512 covers high-DPI launchers; smaller DEs interpolate down.
 	hicolorRoot := filepath.Join(home, ".local", "share", "icons", "hicolor")
 	iconDir := filepath.Join(hicolorRoot, "512x512", "apps")
+	pixmapsDir := filepath.Join(home, ".local", "share", "pixmaps")
 	appsDir := filepath.Join(home, ".local", "share", "applications")
 
 	if err := os.MkdirAll(iconDir, 0o755); err != nil {
 		return fmt.Errorf("create icon dir: %w", err)
+	}
+	if err := os.MkdirAll(pixmapsDir, 0o755); err != nil {
+		return fmt.Errorf("create pixmaps dir: %w", err)
 	}
 	if err := os.MkdirAll(appsDir, 0o755); err != nil {
 		return fmt.Errorf("create apps dir: %w", err)
 	}
 
 	iconPath := filepath.Join(iconDir, iconName+".png")
+	pixmapPath := filepath.Join(pixmapsDir, iconName+".png")
 	desktopPath := filepath.Join(appsDir, "mimir.desktop")
-	// Reference the icon by absolute path. The hicolor install above lets
-	// theme-aware DEs pick it up, but the absolute path keeps the entry
-	// working even when the icon-theme cache has not been rebuilt yet
-	// (~/.local/share/icons/hicolor often has no icon-theme.cache on first
-	// install), and on minimal DEs that don't index user-local hicolor.
-	desktopContent := fmt.Sprintf(desktopTemplate, exePath, iconPath)
+	desktopContent := fmt.Sprintf(desktopTemplate, exePath)
 
 	iconChanged, err := writeIfChanged(iconPath, iconPNG, 0o644)
 	if err != nil {
 		return fmt.Errorf("write icon: %w", err)
+	}
+	pixmapChanged, err := writeIfChanged(pixmapPath, iconPNG, 0o644)
+	if err != nil {
+		return fmt.Errorf("write pixmap icon: %w", err)
 	}
 	desktopChanged, err := writeIfChanged(desktopPath, []byte(desktopContent), 0o644)
 	if err != nil {
@@ -73,7 +78,7 @@ func Install(iconPNG []byte) error {
 	// Harmless if missing.
 	_ = os.Remove(filepath.Join(home, ".local", "share", "icons", iconName+".png"))
 
-	if iconChanged {
+	if iconChanged || pixmapChanged {
 		if path, _ := exec.LookPath("gtk-update-icon-cache"); path != "" {
 			_ = exec.Command(path, "-q", "-t", "-f", hicolorRoot).Run()
 		}
@@ -102,4 +107,3 @@ func writeIfChanged(path string, data []byte, mode os.FileMode) (bool, error) {
 	}
 	return true, nil
 }
-

@@ -100,6 +100,38 @@ export async function appendTerminalTranscript(resumeId, data, onError) {
 }
 
 /**
+ * Delete a single transcript by resume ID.
+ * @param {string} resumeId
+ * @returns {Promise<{resumeId: string, deleted: boolean, error?: string}>}
+ */
+export async function deleteTranscript(resumeId) {
+  const api = backend();
+  if (!api?.DeleteTranscript || !resumeId) return { resumeId, deleted: false, error: 'no backend' };
+  return await api.DeleteTranscript(resumeId);
+}
+
+/**
+ * Delete multiple transcripts. Best-effort: returns per-id results.
+ * @param {string[]} resumeIds
+ * @returns {Promise<Array<{resumeId: string, deleted: boolean, error?: string}>>}
+ */
+export async function deleteTranscripts(resumeIds) {
+  const api = backend();
+  if (!api?.DeleteTranscripts || !resumeIds?.length) return [];
+  return await api.DeleteTranscripts(resumeIds);
+}
+
+/**
+ * Get disk usage stats for stored transcripts.
+ * @returns {Promise<{count: number, totalBytes: number}>}
+ */
+export async function getTranscriptDiskUsage() {
+  const api = backend();
+  if (!api?.GetTranscriptDiskUsage) return { count: 0, totalBytes: 0 };
+  return await api.GetTranscriptDiskUsage();
+}
+
+/**
  * Tail excerpt read used by the restored-transcript overlay on restore.
  * @param {string} resumeId
  * @param {number} maxBytes

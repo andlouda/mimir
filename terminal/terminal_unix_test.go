@@ -6,6 +6,8 @@ package terminal
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -80,5 +82,66 @@ func TestTerminalRuntimeMetaZeroValue(t *testing.T) {
 	}
 	if meta.TmuxSessionName != "" || meta.TmuxStatus != "" || meta.TmuxError != "" {
 		t.Fatalf("unexpected metadata for unknown terminal: %#v", meta)
+	}
+}
+
+func TestLocalShellLaunchBashIncludesHistoryHookWhenEnabled(t *testing.T) {
+	configDir := t.TempDir()
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configDir)
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+	enabledPath := filepath.Join(configDir, "mimir", "history_enabled")
+	if err := os.MkdirAll(filepath.Dir(enabledPath), 0o700); err != nil {
+		t.Fatalf("create history config dir: %v", err)
+	}
+	if err := os.WriteFile(enabledPath, []byte("enabled\n"), 0o600); err != nil {
+		t.Fatalf("write history consent: %v", err)
+	}
+
+	launch := localShellLaunch("bash", "/bin/bash")
+	if len(launch.args) != 3 || launch.args[0] != "--rcfile" || launch.args[2] != "-i" {
+		t.Fatalf("unexpected bash launch args: %#v", launch.args)
+	}
+
+	rcContent, err := os.ReadFile(launch.args[1])
+	if err != nil {
+		t.Fatalf("read generated bash rcfile: %v", err)
+	}
+	if !strings.Contains(string(rcContent), "__mimir_precmd") || !strings.Contains(string(rcContent), "7337") {
+		t.Fatalf("generated bash rcfile does not contain history hook:\n%s", rcContent)
+	}
+	if !strings.Contains(launch.tmuxCommand, "--rcfile") {
+		t.Fatalf("tmux command should use generated bash rcfile, got %q", launch.tmuxCommand)
+	}
+}
+
+func TestLocalShellLaunchZshIncludesHistoryHookWhenEnabled(t *testing.T) {
+	configDir := t.TempDir()
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configDir)
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+	enabledPath := filepath.Join(configDir, "mimir", "history_enabled")
+	if err := os.MkdirAll(filepath.Dir(enabledPath), 0o700); err != nil {
+		t.Fatalf("create history config dir: %v", err)
+	}
+	if err := os.WriteFile(enabledPath, []byte("enabled\n"), 0o600); err != nil {
+		t.Fatalf("write history consent: %v", err)
+	}
+
+	launch := localShellLaunch("zsh", "/bin/zsh")
+	if len(launch.env) != 1 || !strings.HasPrefix(launch.env[0], "ZDOTDIR=") {
+		t.Fatalf("expected zsh launch to set ZDOTDIR, got %#v", launch.env)
+	}
+
+	zdotdir := strings.TrimPrefix(launch.env[0], "ZDOTDIR=")
+	rcContent, err := os.ReadFile(filepath.Join(zdotdir, ".zshrc"))
+	if err != nil {
+		t.Fatalf("read generated zshrc: %v", err)
+	}
+	if !strings.Contains(string(rcContent), "__mimir_precmd") || !strings.Contains(string(rcContent), "7337") {
+		t.Fatalf("generated zshrc does not contain history hook:\n%s", rcContent)
+	}
+	if !strings.Contains(launch.tmuxCommand, "ZDOTDIR=") {
+		t.Fatalf("tmux command should use generated zsh dotdir, got %q", launch.tmuxCommand)
 	}
 }

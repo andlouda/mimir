@@ -85,6 +85,8 @@
 | `docs/releasing.md` | Release/update workflow. |
 | `docs/local-release.md` | Local artifact build commands. |
 | `docs/ssh-user-guide.md` | SSH profile usage. |
+| `docs/reboot-workspace-restore.md` | Feature concept for restoring admin workspaces after app restarts and machine reboots. |
+| `docs/transcript-module.md` | Architecture and data flow of the per-terminal transcript store + viewer. |
 | `docs/adr/` | Architecture Decision Records. |
 
 ## GitHub

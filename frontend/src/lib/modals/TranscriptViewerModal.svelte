@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { t } from '../i18n.js';
   import { cleanTranscript } from '../transcript/cleanTranscript.js';
-  import { getTranscriptContent, listTranscripts } from '../transcript/transcriptApi.js';
+  import { getTranscriptContent, listTranscripts, deleteTranscript, getTranscriptDiskUsage } from '../transcript/transcriptApi.js';
 
   export let initialResumeId = '';
   export let initialLabel = '';
@@ -11,6 +11,9 @@
 
   let modalEl;
   let viewerEl;
+  // Element that owned focus before the modal opened; we return focus to it
+  // on close so keyboard users don't get dropped at the top of the page.
+  let triggerEl = null;
 
   let entries = [];
   let selectedResumeId = initialResumeId || '';
@@ -33,6 +36,95 @@
   // switching transcripts faster than the IPC round-trip lets an older
   // response clobber a newer one.
   let loadToken = 0;
+
+  // Delete confirmation
+  let pendingDeleteId = '';
+  let deleting = false;
+
+  // Disk usage
+  let diskUsage = { count: 0, totalBytes: 0 };
+
+  // Search
+  let searchOpen = false;
+  let searchQuery = '';
+  let searchMatchIndex = 0;
+  let searchInputEl;
+
+  $: searchMatches = (() => {
+    if (!searchQuery || !displayText) return [];
+    const q = searchQuery.toLowerCase();
+    const text = displayText.toLowerCase();
+    const indices = [];
+    let pos = 0;
+    while (pos < text.length) {
+      const idx = text.indexOf(q, pos);
+      if (idx === -1) break;
+      indices.push(idx);
+      pos = idx + 1;
+    }
+    return indices;
+  })();
+
+  $: if (searchQuery) searchMatchIndex = searchMatches.length > 0 ? 0 : -1;
+
+  function scrollToMatch(index) {
+    if (!viewerEl || !searchMatches.length) return;
+    const text = displayText;
+    const matchStart = searchMatches[index];
+    if (matchStart == null) return;
+    // Use Selection API to highlight the match
+    const textNode = viewerEl.firstChild;
+    if (!textNode) return;
+    try {
+      const range = document.createRange();
+      range.setStart(textNode, matchStart);
+      range.setEnd(textNode, matchStart + searchQuery.length);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      // scrollIntoView for the range
+      const rect = range.getBoundingClientRect();
+      const containerRect = viewerEl.getBoundingClientRect();
+      if (rect.top < containerRect.top || rect.bottom > containerRect.bottom) {
+        const scrollTarget = viewerEl.scrollTop + rect.top - containerRect.top - containerRect.height / 3;
+        viewerEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+      }
+    } catch (_) { /* text node length mismatch edge case */ }
+  }
+
+  function searchNext() {
+    if (!searchMatches.length) return;
+    searchMatchIndex = (searchMatchIndex + 1) % searchMatches.length;
+    scrollToMatch(searchMatchIndex);
+  }
+
+  function searchPrev() {
+    if (!searchMatches.length) return;
+    searchMatchIndex = (searchMatchIndex - 1 + searchMatches.length) % searchMatches.length;
+    scrollToMatch(searchMatchIndex);
+  }
+
+  function toggleSearch() {
+    searchOpen = !searchOpen;
+    if (searchOpen) {
+      tick().then(() => searchInputEl?.focus());
+    } else {
+      searchQuery = '';
+      window.getSelection()?.removeAllRanges();
+    }
+  }
+
+  function handleSearchKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) searchPrev();
+      else searchNext();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      toggleSearch();
+    }
+  }
 
   // Memoize the clean-mode result. Svelte's reactivity recomputes whenever
   // ANY dependency of a $: statement changes; without the cache we'd re-run
@@ -158,6 +250,94 @@
     selectedResumeId = resumeId;
   }
 
+  function confirmDelete(resumeId) {
+    pendingDeleteId = resumeId;
+  }
+
+  function cancelDelete() {
+    pendingDeleteId = '';
+  }
+
+  async function executeDelete() {
+    if (!pendingDeleteId) return;
+    deleting = true;
+    try {
+      const result = await deleteTranscript(pendingDeleteId);
+      if (result.deleted) {
+        entries = entries.filter(e => e.resumeId !== pendingDeleteId);
+        if (selectedResumeId === pendingDeleteId) {
+          selectedResumeId = entries.length > 0 ? entries[0].resumeId : '';
+          if (!selectedResumeId) {
+            transcriptText = '';
+            transcriptSize = 0;
+            truncated = false;
+          }
+        }
+        await refreshDiskUsage();
+      } else if (result.error) {
+        onError(result.error);
+      }
+    } catch (error) {
+      onError(`Delete failed: ${error?.message || error}`);
+    } finally {
+      pendingDeleteId = '';
+      deleting = false;
+    }
+  }
+
+  async function refreshDiskUsage() {
+    try {
+      diskUsage = await getTranscriptDiskUsage();
+    } catch (_) { /* non-critical */ }
+  }
+
+  // Keyboard navigation for the transcript list (P1-5)
+  function handleListKeydown(e) {
+    if (!entries.length) return;
+    const currentIdx = entries.findIndex(en => en.resumeId === selectedResumeId);
+    let nextIdx = currentIdx;
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        nextIdx = Math.min(currentIdx + 1, entries.length - 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        nextIdx = Math.max(currentIdx - 1, 0);
+        break;
+      case 'Home':
+        e.preventDefault();
+        nextIdx = 0;
+        break;
+      case 'End':
+        e.preventDefault();
+        nextIdx = entries.length - 1;
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (currentIdx >= 0) select(entries[currentIdx].resumeId);
+        return;
+      case 'Delete':
+      case 'Backspace':
+        e.preventDefault();
+        if (currentIdx >= 0 && !entries[currentIdx].active) {
+          confirmDelete(entries[currentIdx].resumeId);
+        }
+        return;
+      default:
+        return;
+    }
+    if (nextIdx !== currentIdx && nextIdx >= 0) {
+      selectedResumeId = entries[nextIdx].resumeId;
+      // Scroll the entry into view
+      tick().then(() => {
+        const listEl = modalEl?.querySelector('.transcript-viewer-list ul');
+        const activeEl = listEl?.querySelector('.transcript-viewer-entry.active');
+        activeEl?.scrollIntoView({ block: 'nearest' });
+      });
+    }
+  }
+
   async function copyAll() {
     if (!transcriptText) return;
     try {
@@ -169,8 +349,55 @@
     }
   }
 
+  // Focus-trap: every Tab/Shift+Tab loops at the first/last focusable child
+  // of the modal. Keeps keyboard users from escaping the dialog while it's
+  // open. Cheap, no external library.
+  const FOCUSABLE_SELECTOR = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(',');
+
+  function focusableElements() {
+    if (!modalEl) return [];
+    return Array.from(modalEl.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
+      (el) => !el.hasAttribute('disabled') && el.offsetParent !== null
+    );
+  }
+
   function handleKeydown(e) {
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (searchOpen) { toggleSearch(); return; }
+      if (pendingDeleteId) { cancelDelete(); return; }
+      onClose();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      e.preventDefault();
+      toggleSearch();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusables = focusableElements();
+    if (focusables.length === 0) {
+      e.preventDefault();
+      modalEl?.focus();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey && active === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }
 
   // Close on any pointer interaction outside the modal. We listen at the
@@ -185,20 +412,30 @@
   }
 
   onMount(async () => {
+    triggerEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.addEventListener('mousedown', handleDocumentPointer, true);
     document.addEventListener('touchstart', handleDocumentPointer, true);
+    await tick();
+    // Move focus *into* the modal so screen readers announce it and Tab
+    // navigation starts inside. Prefer the dialog itself so the
+    // Tab-trap-first-element logic doesn't immediately jump to the close X.
+    modalEl?.focus();
     // The reactive `$: if (selectedResumeId) loadTranscript(...)` below is
     // the single source of truth for the load — calling it explicitly here
-    // (and racing with reactivity-after-loadList) used to fire two
-    // round-trips on every open. loadList alone is enough; selectedResumeId
-    // either was set by the caller (then the reactive fires once already)
-    // or gets set inside loadList (then the reactive fires once after).
+    // would race with reactivity-after-loadList and fire two IPC calls.
     await loadList();
+    refreshDiskUsage();
   });
 
   onDestroy(() => {
     document.removeEventListener('mousedown', handleDocumentPointer, true);
     document.removeEventListener('touchstart', handleDocumentPointer, true);
+    // Restore focus to whoever opened the modal. Defensive: the element may
+    // have been removed from the DOM by other reactivity while the modal
+    // was open; the check guards against that.
+    if (triggerEl && typeof triggerEl.focus === 'function' && document.contains(triggerEl)) {
+      triggerEl.focus();
+    }
   });
 
   $: if (selectedResumeId) loadTranscript(selectedResumeId);
@@ -237,7 +474,7 @@
 
     <div class="transcript-viewer-body" class:list-hidden={!listOpen}>
       {#if listOpen}
-      <aside class="transcript-viewer-list" aria-label={$t('transcriptViewer.listLabel')}>
+      <aside class="transcript-viewer-list" aria-label={$t('transcriptViewer.listLabel')} on:keydown={handleListKeydown}>
         {#if loadingList}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.loadingList')}</div>
         {:else if listError}
@@ -250,18 +487,34 @@
         {:else if entries.length === 0}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.empty')}</div>
         {:else}
-          <ul>
+          <ul role="listbox" aria-activedescendant={selectedResumeId ? `transcript-${selectedResumeId}` : undefined}>
             {#each entries as entry (entry.resumeId)}
               <li>
                 <button
                   type="button"
+                  id="transcript-{entry.resumeId}"
+                  role="option"
+                  aria-selected={entry.resumeId === selectedResumeId}
                   class="transcript-viewer-entry"
                   class:active={entry.resumeId === selectedResumeId}
                   on:click={() => select(entry.resumeId)}
                 >
-                  <span class="transcript-entry-label">{entryLabel(entry)}</span>
+                  <span class="transcript-entry-label">
+                    {entryLabel(entry)}
+                    {#if entry.active}
+                      <span class="transcript-entry-badge">{$t('transcriptViewer.activeBadge')}</span>
+                    {/if}
+                  </span>
                   <span class="transcript-entry-meta">
                     {formatRelative(entry.modTime)} · {formatBytes(entry.size)}
+                    {#if !entry.active}
+                      <button
+                        type="button"
+                        class="transcript-delete-btn"
+                        on:click|stopPropagation={() => confirmDelete(entry.resumeId)}
+                        title={$t('transcriptViewer.deleteTitle')}
+                      >&#x2715;</button>
+                    {/if}
                   </span>
                 </button>
               </li>
@@ -272,6 +525,26 @@
       {/if}
 
       <section class="transcript-viewer-pane">
+        {#if searchOpen && transcriptText}
+          <div class="transcript-search-bar">
+            <input
+              bind:this={searchInputEl}
+              type="text"
+              bind:value={searchQuery}
+              on:keydown={handleSearchKeydown}
+              placeholder={$t('transcriptViewer.searchPlaceholder')}
+              class="transcript-search-input"
+            />
+            <span class="transcript-search-count">
+              {#if searchQuery}
+                {searchMatches.length > 0 ? `${searchMatchIndex + 1}/${searchMatches.length}` : $t('transcriptViewer.noMatches')}
+              {/if}
+            </span>
+            <button type="button" class="transcript-search-nav" on:click={searchPrev} disabled={!searchMatches.length} title={$t('transcriptViewer.searchPrev')}>&#x25B2;</button>
+            <button type="button" class="transcript-search-nav" on:click={searchNext} disabled={!searchMatches.length} title={$t('transcriptViewer.searchNext')}>&#x25BC;</button>
+            <button type="button" class="transcript-search-nav" on:click={toggleSearch} title={$t('transcriptViewer.close')}>&#x2715;</button>
+          </div>
+        {/if}
         {#if loadingTranscript}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.loadingTranscript')}</div>
         {:else if transcriptError}
@@ -297,14 +570,46 @@
           <pre bind:this={viewerEl} class="transcript-viewer-content">{displayText}</pre>
         {/if}
       </section>
+
+      {#if pendingDeleteId}
+        <div class="transcript-delete-overlay">
+          <div class="transcript-delete-confirm">
+            <p>{$t('transcriptViewer.deleteConfirm')}</p>
+            <div class="transcript-delete-actions">
+              <button type="button" class="modal-secondary-button" on:click={cancelDelete} disabled={deleting}>
+                {$t('transcriptViewer.cancel')}
+              </button>
+              <button type="button" class="transcript-delete-confirm-btn" on:click={executeDelete} disabled={deleting}>
+                {deleting ? $t('transcriptViewer.deleting') : $t('transcriptViewer.deleteAction')}
+              </button>
+            </div>
+          </div>
+        </div>
+      {/if}
     </div>
 
     <footer class="transcript-viewer-footer">
-      <label class="transcript-viewer-toggle">
-        <input type="checkbox" bind:checked={showRaw} />
-        <span>{$t('transcriptViewer.showRaw')}</span>
-      </label>
+      <div class="transcript-viewer-footer-left">
+        <label class="transcript-viewer-toggle">
+          <input type="checkbox" bind:checked={showRaw} />
+          <span>{$t('transcriptViewer.showRaw')}</span>
+        </label>
+        {#if diskUsage.count > 0}
+          <span class="transcript-disk-usage">
+            {$t('transcriptViewer.diskUsage', { count: diskUsage.count, size: formatBytes(diskUsage.totalBytes) })}
+          </span>
+        {/if}
+      </div>
       <div class="transcript-viewer-actions">
+        <button
+          type="button"
+          class="modal-secondary-button"
+          on:click={toggleSearch}
+          disabled={!transcriptText}
+          title="Ctrl+F"
+        >
+          {$t('transcriptViewer.search')}
+        </button>
         <button
           type="button"
           class="modal-secondary-button"
@@ -323,6 +628,7 @@
 
 <style>
   .transcript-viewer {
+    position: relative;
     display: flex;
     flex-direction: column;
     width: min(960px, 92vw);
@@ -494,5 +800,134 @@
   .transcript-viewer-actions {
     display: flex;
     gap: 8px;
+  }
+  .transcript-viewer-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .transcript-disk-usage {
+    font-size: 11px;
+    color: #6f7787;
+  }
+  .transcript-entry-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #1a3a2a;
+    color: #68d391;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-weight: 500;
+  }
+  .transcript-delete-btn {
+    background: transparent;
+    border: none;
+    color: #6f7787;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0 2px;
+    margin-left: 4px;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .transcript-viewer-entry:hover .transcript-delete-btn {
+    opacity: 1;
+  }
+  .transcript-delete-btn:hover {
+    color: #f56565;
+  }
+  .transcript-delete-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 10px;
+  }
+  .transcript-delete-confirm {
+    background: #1a1d27;
+    border: 1px solid #2b3140;
+    border-radius: 8px;
+    padding: 20px 24px;
+    text-align: center;
+    max-width: 340px;
+  }
+  .transcript-delete-confirm p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: #d6dae3;
+  }
+  .transcript-delete-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .transcript-delete-confirm-btn {
+    background: #c53030;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 12px;
+    cursor: pointer;
+    font: inherit;
+  }
+  .transcript-delete-confirm-btn:hover {
+    background: #e53e3e;
+  }
+  .transcript-delete-confirm-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .transcript-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #1a1d27;
+    border-bottom: 1px solid #2b3140;
+  }
+  .transcript-search-input {
+    flex: 1;
+    background: #0c0e14;
+    border: 1px solid #2b3140;
+    border-radius: 4px;
+    color: #d6dae3;
+    padding: 4px 8px;
+    font: inherit;
+    font-size: 12px;
+    outline: none;
+  }
+  .transcript-search-input:focus {
+    border-color: #63b3ed;
+  }
+  .transcript-search-count {
+    font-size: 11px;
+    color: #6f7787;
+    min-width: 50px;
+    text-align: center;
+  }
+  .transcript-search-nav {
+    background: transparent;
+    border: 1px solid #2b3140;
+    border-radius: 4px;
+    color: #c8cdd8;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 10px;
+    font: inherit;
+    line-height: 1.2;
+  }
+  .transcript-search-nav:hover {
+    background: #1c2230;
+  }
+  .transcript-search-nav:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
 </style>
