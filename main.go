@@ -49,8 +49,9 @@ func main() {
 			if err != nil {
 				log.Printf("Failed to save session: %v", err)
 			}
-			return false // Do not prevent application from closing
+			return false
 		},
+		OnShutdown: app.shutdown,
 		Bind: []interface{}{
 			app,
 		},

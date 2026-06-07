@@ -202,6 +202,10 @@ func (s *SSHSession) Read(p []byte) (int, error) {
 	return s.stdout.Read(p)
 }
 
+// Write sends data to the remote shell with a 10s timeout. If the timeout
+// fires, Close() is called which closes the underlying net.Conn — this
+// unblocks the stuck stdin.Write goroutine. The goroutine is not leaked
+// indefinitely; it exits once the connection teardown completes.
 func (s *SSHSession) Write(p []byte) (int, error) {
 	type writeResult struct {
 		n   int
@@ -224,6 +228,8 @@ func (s *SSHSession) Write(p []byte) (int, error) {
 	}
 }
 
+// Resize changes the remote PTY size with a 5s timeout. Same goroutine
+// lifecycle as Write — Close() unblocks the stuck WindowChange call.
 func (s *SSHSession) Resize(rows, cols uint16) error {
 	s.mu.Lock()
 	if s.closed {

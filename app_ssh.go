@@ -336,6 +336,11 @@ func (a *App) GetSSHTerminalTmuxStatus(terminalID int) map[string]any {
 // StartSSHTerminal loads a profile, resolves credentials, establishes an SSH session
 // and registers it with the terminal manager. Returns the terminal ID.
 func (a *App) StartSSHTerminal(profileID string) (int, error) {
+	if a.apiLimiter != nil {
+		if err := a.apiLimiter.allow("start_ssh"); err != nil {
+			return 0, err
+		}
+	}
 	if a.sshProfileStore == nil {
 		return 0, fmt.Errorf("SSH profile store not initialized")
 	}

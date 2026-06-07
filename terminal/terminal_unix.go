@@ -763,6 +763,30 @@ func (m *Manager) ReconnectSSH(id int) error {
 	return nil
 }
 
+// CloseAll closes every terminal session and stops all active recorders.
+// Called during app shutdown to ensure resources are released cleanly.
+func (m *Manager) CloseAll() {
+	m.ptyMutex.Lock()
+	ids := make([]int, 0, len(m.sessions))
+	for id := range m.sessions {
+		ids = append(ids, id)
+	}
+	m.ptyMutex.Unlock()
+
+	for _, id := range ids {
+		m.ptyMutex.Lock()
+		if rec, ok := m.recorders[id]; ok {
+			rec.Close()
+			delete(m.recorders, id)
+		}
+		session, ok := m.sessions[id]
+		m.ptyMutex.Unlock()
+		if ok {
+			_ = session.Close()
+		}
+	}
+}
+
 // CloseSSHTerminal fully removes a disconnected SSH terminal from the manager.
 func (m *Manager) CloseSSHTerminal(id int) {
 	m.ptyMutex.Lock()

@@ -57,6 +57,7 @@ type App struct {
 	newSSHSession         func(terminal.SSHConnectConfig) (terminal.TerminalSession, error)
 	sftpClientForTerminal func(int) (remoteFileClient, error)
 	aiProviderCaller      func(AISettings, string) (string, error)
+	apiLimiter            *rateLimiter
 }
 
 // NewApp creates a new App application struct
@@ -67,6 +68,7 @@ func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 		activeTerminalStates: make(map[int]session.TerminalState),
 		pendingHostKeys:      make(map[string]pendingSSHHostKey),
 		appIconPNG:           iconPNG,
+		apiLimiter:           newRateLimiter(10*time.Second, 5),
 	}
 
 	// Load templates during app initialization
@@ -168,6 +170,15 @@ func (a *App) startup(ctx context.Context) {
 
 	if err := desktop.Install(a.appIconPNG); err != nil {
 		log.Printf("Desktop integration: %v", err)
+	}
+}
+
+func (a *App) shutdown(ctx context.Context) {
+	a.TerminalManager.CloseAll()
+	if a.historyStore != nil {
+		if err := a.historyStore.Close(); err != nil {
+			log.Printf("Failed to close history store: %v", err)
+		}
 	}
 }
 
@@ -524,6 +535,9 @@ func (a *App) StartTerminal(terminalType string) (int, error) {
 }
 
 func (a *App) StartTerminalWithOptions(terminalType string, tmuxSessionName string) (int, error) {
+	if err := a.apiLimiter.allow("start_terminal"); err != nil {
+		return 0, err
+	}
 	id, err := a.TerminalManager.StartTerminalWithOptions(terminalType, tmuxSessionName)
 	if err == nil {
 		a.TerminalManager.SetSessionMeta(id, terminalType, "")

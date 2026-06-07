@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher, tick } from 'svelte';
   import { t } from './i18n.js';
+  import { calculateSplitRatio } from './terminals/splitPaneResize.js';
 
   export let node;
   export let terminalMap;
@@ -21,11 +22,7 @@
       if (!isDragging || !containerEl) return;
       const rect = containerEl.getBoundingClientRect();
 
-      if (node.direction === 'horizontal') {
-        localRatio = Math.max(0.1, Math.min(0.9, (ev.clientX - rect.left) / rect.width));
-      } else {
-        localRatio = Math.max(0.1, Math.min(0.9, (ev.clientY - rect.top) / rect.height));
-      }
+      localRatio = calculateSplitRatio(node.direction, rect, ev);
 
       node.ratio = localRatio;
       dispatch('ratiochange');

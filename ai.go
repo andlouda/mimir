@@ -193,7 +193,7 @@ func LoadAISettings(store *mimirssh.SecretStore) (AISettings, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			settings := normalizeAISettings(AISettings{})
-			if settings.Provider == aiProviderOpenAI && strings.TrimSpace(settings.APIKey) == "" {
+			if strings.TrimSpace(settings.APIKey) == "" {
 				if apiKey, keyErr := loadStoredAIAPIKey(store); keyErr == nil {
 					settings.APIKey = apiKey
 				}
@@ -209,12 +209,12 @@ func LoadAISettings(store *mimirssh.SecretStore) (AISettings, error) {
 	}
 
 	settings = normalizeAISettings(settings)
-	if settings.Provider == aiProviderOpenAI && strings.TrimSpace(settings.APIKey) == "" {
+	if strings.TrimSpace(settings.APIKey) == "" {
 		if apiKey, err := loadStoredAIAPIKey(store); err == nil {
 			settings.APIKey = apiKey
 		}
 	}
-	if settings.Provider == aiProviderOpenAI && strings.TrimSpace(settings.APIKey) != "" {
+	if strings.TrimSpace(settings.APIKey) != "" {
 		_ = storeAIAPIKey(store, settings.APIKey)
 		withoutSecret := settings
 		withoutSecret.APIKey = ""
@@ -233,7 +233,7 @@ func SaveAISettings(store *mimirssh.SecretStore, settings AISettings) (AISetting
 	}
 
 	settings = normalizeAISettings(settings)
-	if settings.Provider == aiProviderOpenAI && strings.TrimSpace(settings.APIKey) != "" {
+	if strings.TrimSpace(settings.APIKey) != "" {
 		if err := storeAIAPIKey(store, settings.APIKey); err != nil {
 			return AISettings{}, err
 		}
@@ -879,6 +879,11 @@ type aiAskResult struct {
 // AskAI sends terminal context to the configured AI provider and returns the
 // model output as a JSON-encoded aiAskResult (text + optional warning).
 func (a *App) AskAI(mode string, goal string, terminalType string, terminalName string, terminalOutput string) (string, error) {
+	if a.apiLimiter != nil {
+		if err := a.apiLimiter.allow("ask_ai"); err != nil {
+			return "", err
+		}
+	}
 	settings := a.currentAISettings()
 	sanitizedContext := sanitizeTerminalOutputForAI(settings.Provider, terminalOutput)
 	contextAudit := aiContextAudit(settings.Provider, true, sanitizedContext.Audit)
