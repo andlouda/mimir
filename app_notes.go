@@ -97,6 +97,9 @@ func (a *App) ImportNoteFromRemote(terminalID int, path string) (string, error) 
 	if !strings.HasSuffix(strings.ToLower(path), ".md") {
 		return "", fmt.Errorf("only .md files can be imported")
 	}
+	if strings.ContainsRune(path, 0) {
+		return "", fmt.Errorf("remote path must not contain null bytes")
+	}
 
 	client := a.TerminalManager.GetSSHClient(terminalID)
 	if client == nil {

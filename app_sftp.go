@@ -3,20 +3,84 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/pkg/sftp"
+	gossh "golang.org/x/crypto/ssh"
 )
 
-// RemoteListDirectory lists files in a remote directory via SFTP.
-func (a *App) RemoteListDirectory(terminalID int, path string) ([]FileInfo, error) {
+func validateRemotePath(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("remote path is required")
+	}
+	if strings.ContainsRune(path, 0) {
+		return fmt.Errorf("remote path must not contain null bytes")
+	}
+	return nil
+}
+
+var remoteSFTPClientTimeout = 10 * time.Second
+var remoteSFTPNewClient = func(client *gossh.Client) (remoteFileClient, error) {
+	return sftp.NewClient(client)
+}
+
+type remoteFileClient interface {
+	ReadDir(path string) ([]os.FileInfo, error)
+	Stat(path string) (os.FileInfo, error)
+	Open(path string) (*sftp.File, error)
+	Getwd() (string, error)
+	Close() error
+}
+
+func newRemoteSFTPClient(client *gossh.Client) (remoteFileClient, error) {
+	resultCh := make(chan struct {
+		client remoteFileClient
+		err    error
+	}, 1)
+
+	go func() {
+		sc, err := remoteSFTPNewClient(client)
+		resultCh <- struct {
+			client remoteFileClient
+			err    error
+		}{client: sc, err: err}
+	}()
+
+	select {
+	case result := <-resultCh:
+		return result.client, result.err
+	case <-time.After(remoteSFTPClientTimeout):
+		return nil, fmt.Errorf("SFTP client timed out after %s", remoteSFTPClientTimeout)
+	}
+}
+
+func (a *App) remoteFileClient(terminalID int) (remoteFileClient, error) {
+	if a.sftpClientForTerminal != nil {
+		return a.sftpClientForTerminal(terminalID)
+	}
+
 	client := a.TerminalManager.GetSSHClient(terminalID)
 	if client == nil {
 		return nil, fmt.Errorf("no SSH client for terminal %d", terminalID)
 	}
 
-	sc, err := sftp.NewClient(client)
+	sc, err := newRemoteSFTPClient(client)
 	if err != nil {
 		return nil, fmt.Errorf("SFTP client failed: %w", err)
+	}
+	return sc, nil
+}
+
+// RemoteListDirectory lists files in a remote directory via SFTP.
+func (a *App) RemoteListDirectory(terminalID int, path string) ([]FileInfo, error) {
+	if err := validateRemotePath(path); err != nil {
+		return nil, err
+	}
+	sc, err := a.remoteFileClient(terminalID)
+	if err != nil {
+		return nil, err
 	}
 	defer sc.Close()
 
@@ -39,14 +103,12 @@ func (a *App) RemoteListDirectory(terminalID int, path string) ([]FileInfo, erro
 
 // RemoteGetFileContent reads a remote file via SFTP (max 1 MB).
 func (a *App) RemoteGetFileContent(terminalID int, path string) (string, error) {
-	client := a.TerminalManager.GetSSHClient(terminalID)
-	if client == nil {
-		return "", fmt.Errorf("no SSH client for terminal %d", terminalID)
+	if err := validateRemotePath(path); err != nil {
+		return "", err
 	}
-
-	sc, err := sftp.NewClient(client)
+	sc, err := a.remoteFileClient(terminalID)
 	if err != nil {
-		return "", fmt.Errorf("SFTP client failed: %w", err)
+		return "", err
 	}
 	defer sc.Close()
 
@@ -78,14 +140,9 @@ func (a *App) RemoteGetFileContent(terminalID int, path string) (string, error) 
 
 // RemoteGetHomeDir returns the home directory on the remote host via SFTP.
 func (a *App) RemoteGetHomeDir(terminalID int) (string, error) {
-	client := a.TerminalManager.GetSSHClient(terminalID)
-	if client == nil {
-		return "", fmt.Errorf("no SSH client for terminal %d", terminalID)
-	}
-
-	sc, err := sftp.NewClient(client)
+	sc, err := a.remoteFileClient(terminalID)
 	if err != nil {
-		return "", fmt.Errorf("SFTP client failed: %w", err)
+		return "", err
 	}
 	defer sc.Close()
 

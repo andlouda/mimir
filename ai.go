@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -679,10 +680,33 @@ func (a *App) GetAISettingsJSON() (string, error) {
 	return string(payload), nil
 }
 
+func validateAIBaseURL(rawURL string) error {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return nil
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid AI base URL: %w", err)
+	}
+	switch parsed.Scheme {
+	case "http", "https":
+	default:
+		return fmt.Errorf("AI base URL must use http or https scheme")
+	}
+	if parsed.Host == "" {
+		return fmt.Errorf("AI base URL must include a host")
+	}
+	return nil
+}
+
 func (a *App) UpdateAISettingsJSON(settingsJSON string) (string, error) {
 	var settings AISettings
 	if err := json.Unmarshal([]byte(settingsJSON), &settings); err != nil {
 		return "", fmt.Errorf("failed to parse AI settings: %w", err)
+	}
+	if err := validateAIBaseURL(settings.BaseURL); err != nil {
+		return "", err
 	}
 
 	saved, err := SaveAISettings(a.sshSecretStore, settings)
@@ -824,6 +848,9 @@ func (a *App) callOllama(settings AISettings, input string) (string, error) {
 }
 
 func (a *App) callAIProvider(settings AISettings, input string) (string, error) {
+	if a.aiProviderCaller != nil {
+		return a.aiProviderCaller(settings, input)
+	}
 	switch providerDescriptor(settings.Provider).Protocol {
 	case protocolOllamaChat:
 		return a.callOllama(settings, input)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -106,6 +107,9 @@ func (s *ProfileStore) Create(p Profile) ([]Profile, error) {
 	defer s.mu.Unlock()
 
 	p.ID = uuid.New().String()
+	if err := validateProfile(&p); err != nil {
+		return nil, err
+	}
 	normalizeProfile(&p)
 	s.profiles = append(s.profiles, p)
 	if err := s.save(); err != nil {
@@ -124,6 +128,9 @@ func (s *ProfileStore) Update(p Profile) ([]Profile, error) {
 	found := false
 	for i, existing := range s.profiles {
 		if existing.ID == p.ID {
+			if err := validateProfile(&p); err != nil {
+				return nil, err
+			}
 			normalizeProfile(&p)
 			s.profiles[i] = p
 			found = true
@@ -139,6 +146,91 @@ func (s *ProfileStore) Update(p Profile) ([]Profile, error) {
 	out := make([]Profile, len(s.profiles))
 	copy(out, s.profiles)
 	return out, nil
+}
+
+const (
+	maxProfileNameLen     = 200
+	maxHostLen            = 253
+	maxUsernameLen        = 128
+	maxKeyPathLen         = 1024
+	maxRCSnippetPathLen   = 1024
+)
+
+func validateProfile(p *Profile) error {
+	p.Name = strings.TrimSpace(p.Name)
+	p.Host = strings.TrimSpace(p.Host)
+	p.Username = strings.TrimSpace(p.Username)
+	p.KeyPath = strings.TrimSpace(p.KeyPath)
+	p.JumpHost = strings.TrimSpace(p.JumpHost)
+	p.JumpUsername = strings.TrimSpace(p.JumpUsername)
+	p.JumpKeyPath = strings.TrimSpace(p.JumpKeyPath)
+	p.RCSnippet = strings.TrimSpace(p.RCSnippet)
+
+	if p.Host == "" {
+		return fmt.Errorf("host is required")
+	}
+	if p.Username == "" {
+		return fmt.Errorf("username is required")
+	}
+	if len(p.Name) > maxProfileNameLen {
+		return fmt.Errorf("profile name exceeds maximum length")
+	}
+	if len(p.Host) > maxHostLen {
+		return fmt.Errorf("host exceeds maximum length")
+	}
+	if len(p.Username) > maxUsernameLen {
+		return fmt.Errorf("username exceeds maximum length")
+	}
+	if p.Port < 1 || p.Port > 65535 {
+		if p.Port == 0 {
+			p.Port = 22
+		} else {
+			return fmt.Errorf("port must be between 1 and 65535")
+		}
+	}
+	if containsNullByte(p.Host) || containsNullByte(p.Username) || containsNullByte(p.Name) {
+		return fmt.Errorf("profile fields must not contain null bytes")
+	}
+	if p.AuthMethod == "key" {
+		if len(p.KeyPath) > maxKeyPathLen {
+			return fmt.Errorf("key path exceeds maximum length")
+		}
+		if containsNullByte(p.KeyPath) {
+			return fmt.Errorf("key path must not contain null bytes")
+		}
+	}
+	if p.JumpHostEnabled {
+		if strings.TrimSpace(p.JumpHost) == "" {
+			return fmt.Errorf("jump host is required when jump host is enabled")
+		}
+		if len(p.JumpHost) > maxHostLen {
+			return fmt.Errorf("jump host exceeds maximum length")
+		}
+		if p.JumpPort < 1 || p.JumpPort > 65535 {
+			if p.JumpPort == 0 {
+				p.JumpPort = 22
+			} else {
+				return fmt.Errorf("jump port must be between 1 and 65535")
+			}
+		}
+		if len(p.JumpUsername) > maxUsernameLen {
+			return fmt.Errorf("jump username exceeds maximum length")
+		}
+		if containsNullByte(p.JumpHost) || containsNullByte(p.JumpUsername) {
+			return fmt.Errorf("jump host fields must not contain null bytes")
+		}
+		if p.JumpAuthMethod == "key" && len(p.JumpKeyPath) > maxKeyPathLen {
+			return fmt.Errorf("jump key path exceeds maximum length")
+		}
+	}
+	if len(p.RCSnippet) > maxRCSnippetPathLen {
+		return fmt.Errorf("RC snippet path exceeds maximum length")
+	}
+	return nil
+}
+
+func containsNullByte(s string) bool {
+	return strings.ContainsRune(s, 0)
 }
 
 func normalizeProfile(p *Profile) {

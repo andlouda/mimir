@@ -245,7 +245,6 @@
   }
 
   function select(resumeId) {
-    listOpen = false;
     if (resumeId === selectedResumeId) return;
     selectedResumeId = resumeId;
   }

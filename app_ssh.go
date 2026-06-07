@@ -93,7 +93,11 @@ func sshShellCommand(profile ssh.Profile) (string, error) {
 		if path == "" {
 			path = "~/.bashrc"
 		}
-		data, err := os.ReadFile(expandLocalPath(path))
+		expanded := expandLocalPath(path)
+		if strings.Contains(expanded, "\x00") {
+			return "", fmt.Errorf("RC snippet path must not contain null bytes")
+		}
+		data, err := os.ReadFile(expanded)
 		if err != nil {
 			return "", fmt.Errorf("read local RC snippet %s: %w", path, err)
 		}
@@ -398,7 +402,13 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 		}
 	}
 
-	session, err := terminal.NewSSHSession(cfg)
+	newSSHSession := a.newSSHSession
+	if newSSHSession == nil {
+		newSSHSession = func(cfg terminal.SSHConnectConfig) (terminal.TerminalSession, error) {
+			return terminal.NewSSHSession(cfg)
+		}
+	}
+	session, err := newSSHSession(cfg)
 	if err != nil {
 		if proxyClient != nil {
 			_ = proxyClient.Close()
