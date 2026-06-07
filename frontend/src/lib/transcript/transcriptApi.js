@@ -72,6 +72,29 @@ export async function getTranscriptContent(resumeId, maxBytes = 0) {
 }
 
 /**
+ * Read transcript content with known secrets scrubbed (API keys, tokens,
+ * private keys replaced with [REDACTED]). Use for copy/export workflows.
+ *
+ * @param {string} resumeId
+ * @param {number} [maxBytes]
+ * @returns {Promise<{resumeId: string, text: string, size: number, readBytes: number, truncated: boolean}>}
+ */
+export async function getTranscriptContentScrubbed(resumeId, maxBytes = 0) {
+  const empty = { resumeId, text: '', size: 0, readBytes: 0, truncated: false };
+  const api = backend();
+  if (!api?.GetTerminalTranscriptContentScrubbed || !resumeId) return empty;
+  const raw = await api.GetTerminalTranscriptContentScrubbed(resumeId, maxBytes);
+  if (!raw || typeof raw !== 'object') return empty;
+  return {
+    resumeId: raw.resumeId || resumeId,
+    text: typeof raw.text === 'string' ? raw.text : '',
+    size: Number.isFinite(raw.size) ? raw.size : 0,
+    readBytes: Number.isFinite(raw.readBytes) ? raw.readBytes : 0,
+    truncated: Boolean(raw.truncated),
+  };
+}
+
+/**
  * Persist the terminal label side-car so it survives the session closing.
  * Fire-and-forget by design at the call sites — callers may pass an onError
  * if they want surfacing.

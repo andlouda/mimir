@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ func TestCallAIProviderUnknownProviderFallsBackToOpenAIResponses(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	app := &App{}
+	app := &App{ctx: context.Background()}
 	result, err := app.callAIProvider(AISettings{
 		Provider: "does-not-exist",
 		Model:    "fallback-model",

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -732,7 +733,7 @@ func (a *App) currentAISettings() AISettings {
 	return normalizeAISettings(a.aiSettings)
 }
 
-func (a *App) callOpenAI(settings AISettings, input string) (string, error) {
+func (a *App) callOpenAI(ctx context.Context, settings AISettings, input string) (string, error) {
 	if strings.TrimSpace(settings.APIKey) == "" {
 		return "", fmt.Errorf("API key is not configured")
 	}
@@ -747,15 +748,17 @@ func (a *App) callOpenAI(settings AISettings, input string) (string, error) {
 		return "", fmt.Errorf("failed to encode AI request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, settings.BaseURL, bytes.NewReader(payload))
+	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, settings.BaseURL, bytes.NewReader(payload))
 	if err != nil {
 		return "", fmt.Errorf("failed to create AI request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+settings.APIKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 45 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("AI request failed: %w", err)
 	}
@@ -786,7 +789,7 @@ func (a *App) callOpenAI(settings AISettings, input string) (string, error) {
 	return text, nil
 }
 
-func (a *App) callOllama(settings AISettings, input string) (string, error) {
+func (a *App) callOllama(ctx context.Context, settings AISettings, input string) (string, error) {
 	reqBody := ollamaChatRequest{
 		Model:  settings.Model,
 		Stream: false,
@@ -804,19 +807,19 @@ func (a *App) callOllama(settings AISettings, input string) (string, error) {
 		return "", fmt.Errorf("failed to encode Ollama request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, settings.BaseURL, bytes.NewReader(payload))
+	ctx, cancel := context.WithTimeout(ctx, 300*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, settings.BaseURL, bytes.NewReader(payload))
 	if err != nil {
 		return "", fmt.Errorf("failed to create Ollama request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	// Optional: a remote/proxied Ollama (or OpenAI-compatible local server) may
-	// sit behind auth, so forward the API key as a bearer token when set.
 	if key := strings.TrimSpace(settings.APIKey); key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}
 
-	client := &http.Client{Timeout: 300 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Ollama request failed: %w", err)
 	}
@@ -851,15 +854,16 @@ func (a *App) callAIProvider(settings AISettings, input string) (string, error) 
 	if a.aiProviderCaller != nil {
 		return a.aiProviderCaller(settings, input)
 	}
+	ctx := a.ctx
 	switch providerDescriptor(settings.Provider).Protocol {
 	case protocolOllamaChat:
-		return a.callOllama(settings, input)
+		return a.callOllama(ctx, settings, input)
 	case protocolAnthropicMsgs:
-		return a.callAnthropic(settings, input)
+		return a.callAnthropic(ctx, settings, input)
 	case protocolOpenAIChat:
-		return a.callOpenAIChatCompletions(settings, input)
+		return a.callOpenAIChatCompletions(ctx, settings, input)
 	default:
-		return a.callOpenAI(settings, input)
+		return a.callOpenAI(ctx, settings, input)
 	}
 }
 

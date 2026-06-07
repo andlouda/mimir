@@ -166,6 +166,17 @@ func SanitizeTerminalContext(raw string, policy ProviderPolicyConfig) SanitizedC
 	}
 }
 
+// ScrubSecrets replaces known secret patterns (API keys, bearer tokens,
+// private key blocks, env secrets, etc.) with [REDACTED]. Intended for
+// transcript export so sensitive data is removed before the user shares or
+// stores the output externally.
+func ScrubSecrets(text string) string {
+	for _, r := range secretRedactors {
+		text = r.pattern.ReplaceAllString(text, "[REDACTED]")
+	}
+	return text
+}
+
 func (a SanitizationAudit) withoutEmptyCounts() SanitizationAudit {
 	if len(a.RedactionCounts) == 0 {
 		a.RedactionCounts = nil

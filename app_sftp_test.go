@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strings"
@@ -38,7 +39,7 @@ func TestNewRemoteSFTPClientTimesOut(t *testing.T) {
 	}
 
 	start := time.Now()
-	client, err := newRemoteSFTPClient(nil)
+	client, err := newRemoteSFTPClient(context.Background(), nil)
 	if err == nil {
 		t.Fatal("newRemoteSFTPClient returned nil error")
 	}

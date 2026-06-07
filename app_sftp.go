@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -34,14 +35,15 @@ type remoteFileClient interface {
 	Close() error
 }
 
-func newRemoteSFTPClient(client *gossh.Client) (remoteFileClient, error) {
+func newRemoteSFTPClient(ctx context.Context, client *gossh.Client) (remoteFileClient, error) {
+	factory := remoteSFTPNewClient
 	resultCh := make(chan struct {
 		client remoteFileClient
 		err    error
 	}, 1)
 
 	go func() {
-		sc, err := remoteSFTPNewClient(client)
+		sc, err := factory(client)
 		resultCh <- struct {
 			client remoteFileClient
 			err    error
@@ -51,6 +53,8 @@ func newRemoteSFTPClient(client *gossh.Client) (remoteFileClient, error) {
 	select {
 	case result := <-resultCh:
 		return result.client, result.err
+	case <-ctx.Done():
+		return nil, fmt.Errorf("SFTP client cancelled: %w", ctx.Err())
 	case <-time.After(remoteSFTPClientTimeout):
 		return nil, fmt.Errorf("SFTP client timed out after %s", remoteSFTPClientTimeout)
 	}
@@ -66,7 +70,7 @@ func (a *App) remoteFileClient(terminalID int) (remoteFileClient, error) {
 		return nil, fmt.Errorf("no SSH client for terminal %d", terminalID)
 	}
 
-	sc, err := newRemoteSFTPClient(client)
+	sc, err := newRemoteSFTPClient(a.ctx, client)
 	if err != nil {
 		return nil, fmt.Errorf("SFTP client failed: %w", err)
 	}

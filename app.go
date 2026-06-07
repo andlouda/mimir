@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"mimir/activitylog"
+	"mimir/aiflow"
 	"mimir/desktop"
 	"mimir/folder"
 	"mimir/history"
@@ -434,10 +435,28 @@ func (a *App) GetTerminalTranscriptFull(resumeID string, maxBytes int) (string, 
 	return transcript.ReadFull(resumeID, maxBytes)
 }
 
+// GetTerminalTranscriptContentScrubbed returns transcript content with known
+// secret patterns (API keys, tokens, private keys, etc.) replaced by [REDACTED].
+// Intended for export/share workflows.
+func (a *App) GetTerminalTranscriptContentScrubbed(resumeID string, maxBytes int) (transcript.Content, error) {
+	if maxBytes <= 0 || maxBytes > transcriptHardCap {
+		maxBytes = transcriptHardCap
+	}
+	content, err := transcript.ReadContent(resumeID, maxBytes)
+	if err != nil {
+		return content, err
+	}
+	content.Text = aiflow.ScrubSecrets(content.Text)
+	return content, nil
+}
+
 // KillTmuxSession kills a tmux session by name. Used when a terminal is explicitly closed.
 func (a *App) KillTmuxSession(sessionName string) error {
 	if sessionName == "" {
 		return nil
+	}
+	if !isValidTmuxSessionName(sessionName) {
+		return fmt.Errorf("invalid tmux session name")
 	}
 	if runtime.GOOS == "windows" {
 		return exec.Command("wsl.exe", "tmux", "-L", "mimir", "kill-session", "-t", sessionName).Run()
@@ -671,6 +690,18 @@ func (a *App) GetAvailableTerminalTypes() []TerminalTypeOption {
 }
 
 // isValidPath validates if a path is safe to access.
+func isValidTmuxSessionName(name string) bool {
+	if len(name) == 0 || len(name) > 256 {
+		return false
+	}
+	for _, c := range name {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
 func isValidPath(path string) bool {
 	if path == "" {
 		return false

@@ -84,14 +84,18 @@ func buildDiscoveryCacheKey(discoveryTool string, terminalType string, variables
 	return builder.String()
 }
 
+func isValidDiscoveryArg(value string) bool {
+	return value != "" && !strings.HasPrefix(value, "-") && !strings.ContainsRune(value, 0)
+}
+
 func discoveryCommand(discoveryTool string, terminalType string, variables map[string]string) (string, []string, error) {
 	switch strings.TrimSpace(discoveryTool) {
 	case "discovery:list_k8s_namespaces":
 		return wrapDiscoveryCommand(terminalType, discoveryExecutable("kubectl"), "get", "namespaces", "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
 	case "discovery:list_k8s_pods":
 		namespace := strings.TrimSpace(variables["Namespace"])
-		if namespace == "" {
-			return "", nil, fmt.Errorf("Namespace is required for discovery:list_k8s_pods")
+		if !isValidDiscoveryArg(namespace) {
+			return "", nil, fmt.Errorf("Namespace is required and must not start with a dash")
 		}
 		return wrapDiscoveryCommand(terminalType, discoveryExecutable("kubectl"), "get", "pods", "-n", namespace, "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
 	case "discovery:list_docker_containers":
@@ -101,8 +105,8 @@ func discoveryCommand(discoveryTool string, terminalType string, variables map[s
 	case "discovery:list_k8s_resources":
 		namespace := strings.TrimSpace(variables["Namespace"])
 		resourceType := strings.TrimSpace(variables["ResourceType"])
-		if namespace == "" || resourceType == "" {
-			return "", nil, fmt.Errorf("Namespace and ResourceType are required for discovery:list_k8s_resources")
+		if !isValidDiscoveryArg(namespace) || !isValidDiscoveryArg(resourceType) {
+			return "", nil, fmt.Errorf("Namespace and ResourceType are required and must not start with a dash")
 		}
 		return wrapDiscoveryCommand(terminalType, discoveryExecutable("kubectl"), "get", resourceType, "-n", namespace, "-o", "jsonpath={range .items[*]}{.metadata.name}{\"\\n\"}{end}")
 	default:

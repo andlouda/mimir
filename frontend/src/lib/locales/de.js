@@ -649,6 +649,7 @@ export default {
     listLabel: 'Gespeicherte Transkripte',
     close: 'Schließen',
     copyAll: 'Alles kopieren',
+    copyScrubbed: 'Bereinigt kopieren',
     loadingList: 'Transkripte werden geladen…',
     loadingTranscript: 'Transkript wird geladen…',
     empty: 'Noch keine gespeicherten Transkripte.',

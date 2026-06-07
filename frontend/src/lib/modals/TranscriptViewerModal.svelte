@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { t } from '../i18n.js';
   import { cleanTranscript } from '../transcript/cleanTranscript.js';
-  import { getTranscriptContent, listTranscripts, deleteTranscript, getTranscriptDiskUsage } from '../transcript/transcriptApi.js';
+  import { getTranscriptContent, getTranscriptContentScrubbed, listTranscripts, deleteTranscript, getTranscriptDiskUsage } from '../transcript/transcriptApi.js';
 
   export let initialResumeId = '';
   export let initialLabel = '';
@@ -340,9 +340,18 @@
   async function copyAll() {
     if (!transcriptText) return;
     try {
-      // Copy whatever the user actually sees — clean by default, raw if
-      // they explicitly toggled it.
       await navigator.clipboard.writeText(displayText);
+    } catch (error) {
+      onError(`Copy failed: ${error?.message || error}`);
+    }
+  }
+
+  async function copyScrubbed() {
+    if (!selectedResumeId) return;
+    try {
+      const result = await getTranscriptContentScrubbed(selectedResumeId);
+      const text = showCleaned ? cleanTranscript(result.text) : result.text;
+      await navigator.clipboard.writeText(text);
     } catch (error) {
       onError(`Copy failed: ${error?.message || error}`);
     }
@@ -618,6 +627,15 @@
           disabled={!transcriptText}
         >
           {$t('transcriptViewer.copyAll')}
+        </button>
+        <button
+          type="button"
+          class="modal-secondary-button"
+          on:click={copyScrubbed}
+          disabled={!transcriptText}
+          title={$t('transcriptViewer.copyScrubbed')}
+        >
+          {$t('transcriptViewer.copyScrubbed')}
         </button>
         <button type="button" class="modal-primary-button" on:click={onClose}>
           {$t('transcriptViewer.close')}

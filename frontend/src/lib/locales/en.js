@@ -649,6 +649,7 @@ export default {
     listLabel: 'Saved transcripts',
     close: 'Close',
     copyAll: 'Copy all',
+    copyScrubbed: 'Copy scrubbed',
     loadingList: 'Loading transcripts…',
     loadingTranscript: 'Loading transcript…',
     empty: 'No saved transcripts yet.',

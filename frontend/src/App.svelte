@@ -27,6 +27,7 @@
   import { appendTerminalTranscript, getTranscriptExcerpt, saveTranscriptMetadata } from './lib/transcript/transcriptApi.js';
   import { generateTmuxSessionName } from './lib/terminals/tmuxLifecycle';
   import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal } from './lib/terminals/xtermLifecycle';
+  import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from './lib/terminals/reconnectLifecycle.js';
 
   const isWindowsPlatform = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
   const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
@@ -1200,26 +1201,14 @@
   }
 
   async function reconnectSSH(id) {
-    const term = terminals.find(t => t.id === id);
-    terminals = terminals.map(t => {
-      if (t.id !== id) return t;
-      return { ...t, reconnecting: true };
-    });
+    terminals = markReconnectStarted(terminals, id);
     try {
       await ReconnectSSHTerminal(id);
       await ConfirmFrontendReady(id);
       await InitializeTerminal(id);
-      terminals = terminals.map(t => {
-        if (t.id !== id) return t;
-        safelyWriteTerminal(t, '\r\n\x1b[32m--- Reconnected ---\x1b[0m\r\n');
-        return { ...t, disconnected: false, reconnecting: false };
-      });
+      terminals = markReconnectSucceeded(terminals, id, safelyWriteTerminal);
     } catch (e) {
-      terminals = terminals.map(t => {
-        if (t.id !== id) return t;
-        safelyWriteTerminal(t, `\r\n\x1b[31mReconnect failed: ${e.message || e}\x1b[0m\r\n`);
-        return { ...t, reconnecting: false };
-      });
+      terminals = markReconnectFailed(terminals, id, e, safelyWriteTerminal);
     }
   }
 
@@ -1907,8 +1896,19 @@
     }
   }
 
+	  function handleGlobalError(event) {
+	    const msg = event?.reason?.message || event?.message || 'Unknown error';
+	    console.error('[mimir] unhandled error:', msg);
+	    if (!errorMessage) {
+	      errorMessage = msg;
+	    }
+	    if (event?.preventDefault) event.preventDefault();
+	  }
+
 	  onMount(async () => {
 	    window.addEventListener('resize', handleResize);
+	    window.addEventListener('error', handleGlobalError);
+	    window.addEventListener('unhandledrejection', handleGlobalError);
       await loadSSHProfiles();
 	    try {
 	      await loadAvailableTerminalTypes();
@@ -1961,6 +1961,8 @@
 
 	  onDestroy(() => {
 	    window.removeEventListener('resize', handleResize);
+	    window.removeEventListener('error', handleGlobalError);
+	    window.removeEventListener('unhandledrejection', handleGlobalError);
       offUpdateProgress();
 	    terminals.forEach((term) => cleanupTerminalResources(term));
 	    if (sessionSaveTimer) {

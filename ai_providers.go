@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -165,7 +166,7 @@ type anthropicResponse struct {
 	} `json:"error"`
 }
 
-func (a *App) callAnthropic(settings AISettings, input string) (string, error) {
+func (a *App) callAnthropic(ctx context.Context, settings AISettings, input string) (string, error) {
 	if strings.TrimSpace(settings.APIKey) == "" {
 		return "", fmt.Errorf("API key is not configured")
 	}
@@ -180,7 +181,10 @@ func (a *App) callAnthropic(settings AISettings, input string) (string, error) {
 		return "", fmt.Errorf("failed to encode Anthropic request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, settings.BaseURL, bytes.NewReader(payload))
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, settings.BaseURL, bytes.NewReader(payload))
 	if err != nil {
 		return "", fmt.Errorf("failed to create Anthropic request: %w", err)
 	}
@@ -188,8 +192,7 @@ func (a *App) callAnthropic(settings AISettings, input string) (string, error) {
 	req.Header.Set("anthropic-version", anthropicVersionHeader)
 	req.Header.Set("content-type", "application/json")
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("Anthropic request failed: %w", err)
 	}
@@ -251,7 +254,7 @@ type chatCompletionsResponse struct {
 	} `json:"error"`
 }
 
-func (a *App) callOpenAIChatCompletions(settings AISettings, input string) (string, error) {
+func (a *App) callOpenAIChatCompletions(ctx context.Context, settings AISettings, input string) (string, error) {
 	reqBody := chatCompletionsRequest{
 		Model:    settings.Model,
 		Messages: []chatMessageBody{{Role: "user", Content: input}},
@@ -261,7 +264,10 @@ func (a *App) callOpenAIChatCompletions(settings AISettings, input string) (stri
 		return "", fmt.Errorf("failed to encode chat request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, settings.BaseURL, bytes.NewReader(payload))
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, settings.BaseURL, bytes.NewReader(payload))
 	if err != nil {
 		return "", fmt.Errorf("failed to create chat request: %w", err)
 	}
@@ -270,8 +276,7 @@ func (a *App) callOpenAIChatCompletions(settings AISettings, input string) (stri
 		req.Header.Set("Authorization", "Bearer "+key)
 	}
 
-	client := &http.Client{Timeout: 90 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("chat request failed: %w", err)
 	}
