@@ -31,28 +31,31 @@ import (
 
 // App struct
 type App struct {
-	ctx                  context.Context
-	TerminalManager      *terminal.Manager
-	TemplateManager      *template.Manager
-	loadedSessionData    session.SessionData
-	activeTerminalStates map[int]session.TerminalState
-	stateMu              sync.Mutex
-	aiSettings           AISettings
-	aiMu                 sync.Mutex
-	functionCatalog      []FunctionCatalogEntry
-	functionCatalogJSON  string
-	functionCatalogMu    sync.Mutex
-	PlaybookStore        *workflow.PlaybookStore
-	sshProfileStore      *ssh.ProfileStore
-	sshSecretStore       *ssh.SecretStore
-	knownHostStore       *ssh.KnownHostStore
-	pendingHostKeys      map[string]pendingSSHHostKey
-	pendingHostKeyMu     sync.Mutex
-	historyStore         *history.Store
-	noteStore            *notes.NoteStore
-	recordingStore       *recording.Store
-	folderStore          *folder.FolderStore
-	appIconPNG           []byte
+	ctx                   context.Context
+	TerminalManager       *terminal.Manager
+	TemplateManager       *template.Manager
+	loadedSessionData     session.SessionData
+	activeTerminalStates  map[int]session.TerminalState
+	stateMu               sync.Mutex
+	aiSettings            AISettings
+	aiMu                  sync.Mutex
+	functionCatalog       []FunctionCatalogEntry
+	functionCatalogJSON   string
+	functionCatalogMu     sync.Mutex
+	PlaybookStore         *workflow.PlaybookStore
+	sshProfileStore       *ssh.ProfileStore
+	sshSecretStore        *ssh.SecretStore
+	knownHostStore        *ssh.KnownHostStore
+	pendingHostKeys       map[string]pendingSSHHostKey
+	pendingHostKeyMu      sync.Mutex
+	historyStore          *history.Store
+	noteStore             *notes.NoteStore
+	recordingStore        *recording.Store
+	folderStore           *folder.FolderStore
+	appIconPNG            []byte
+	newSSHSession         func(terminal.SSHConnectConfig) (terminal.TerminalSession, error)
+	sftpClientForTerminal func(int) (remoteFileClient, error)
+	aiProviderCaller      func(AISettings, string) (string, error)
 }
 
 // NewApp creates a new App application struct

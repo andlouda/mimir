@@ -1,9 +1,17 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	mimirssh "mimir/ssh"
 	"mimir/terminal"
 )
 
@@ -96,5 +104,66 @@ func TestGetTerminalTmuxStatusForSSH(t *testing.T) {
 	}
 	if status["status"] != "active" {
 		t.Fatalf("status = %#v, want active", status["status"])
+	}
+}
+
+func TestStartSSHTerminalWrapsConnectFailure(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	keyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		t.Fatalf("marshal key: %v", err)
+	}
+	keyPath := filepath.Join(t.TempDir(), "id_ed25519")
+	if err := os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes}), 0600); err != nil {
+		t.Fatalf("write key: %v", err)
+	}
+
+	store, err := mimirssh.NewProfileStore()
+	if err != nil {
+		t.Fatalf("new profile store: %v", err)
+	}
+	useTmux := false
+	profiles, err := store.Create(mimirssh.Profile{
+		Name:       "bad-host",
+		Host:       "203.0.113.10",
+		Port:       22,
+		Username:   "mimir",
+		AuthMethod: "key",
+		KeyPath:    keyPath,
+		UseTmux:    &useTmux,
+	})
+	if err != nil {
+		t.Fatalf("create profile: %v", err)
+	}
+
+	connectErr := errors.New("dial tcp: connection refused")
+	app := &App{
+		TerminalManager: terminal.NewManager(),
+		sshProfileStore: store,
+		newSSHSession: func(cfg terminal.SSHConnectConfig) (terminal.TerminalSession, error) {
+			if cfg.Host != "203.0.113.10" {
+				t.Fatalf("host = %q, want profile host", cfg.Host)
+			}
+			return nil, connectErr
+		},
+	}
+
+	id, err := app.StartSSHTerminal(profiles[0].ID)
+	if err == nil {
+		t.Fatal("StartSSHTerminal returned nil error")
+	}
+	if id != 0 {
+		t.Fatalf("id = %d, want 0", id)
+	}
+	if !strings.Contains(err.Error(), "SSH connection failed") || !strings.Contains(err.Error(), connectErr.Error()) {
+		t.Fatalf("error = %q, want wrapped SSH connection failure", err)
+	}
+	if meta := app.TerminalManager.GetSSHMeta(1); meta != nil {
+		t.Fatalf("unexpected SSH metadata registered after failed connect: %#v", meta)
 	}
 }
