@@ -34,7 +34,7 @@
       {#each state.fields as field, index (field.name)}
         <label class="template-prompt-field">
           <span>{field.label}{#if field.loadingSuggestions} <span class="discovery-loading">…</span>{/if}</span>
-          {#if field.discoveryTool}
+          {#if field.discoveryTool && (field.loadingSuggestions || (field.suggestions || []).length > 0)}
             <select
               bind:value={state.fields[index].value}
               on:change={() => onFieldChange(state.fields[index])}
@@ -48,10 +48,9 @@
                 <option value={s}>{s}</option>
               {/each}
             </select>
-            {#if field.suggestionError}
-              <small class="discovery-error">{field.suggestionError}</small>
-            {/if}
           {:else}
+            <!-- Discovery empty or failed: degrade to manual input instead of
+                 blocking the template behind an empty dropdown. -->
             <input
               type="text"
               bind:value={state.fields[index].value}
@@ -59,6 +58,9 @@
               on:change={() => onFieldChange(state.fields[index])}
               on:keydown={(e) => { if (e.key === 'Enter') onSubmit(); }}
             />
+          {/if}
+          {#if field.suggestionError}
+            <small class="discovery-error">{field.suggestionError}</small>
           {/if}
         </label>
       {/each}

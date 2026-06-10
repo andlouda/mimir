@@ -34,6 +34,7 @@
   export let showFunctionCatalog = false;
   export let functionCatalog = [];
   export let discoveryTerminalType = '';
+  export let discoveryTerminalId = null;
   export let queueWorkflowFromCatalog = () => {};
   export let closeFunctionCatalog = () => {};
   export let showSSHProfileModal = false;
@@ -112,6 +113,7 @@
   <FunctionCatalogModal
     catalog={functionCatalog}
     {discoveryTerminalType}
+    {discoveryTerminalId}
     onClose={closeFunctionCatalog}
     onAddToWorkflow={queueWorkflowFromCatalog}
     onError={onError}

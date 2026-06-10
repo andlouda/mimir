@@ -5,6 +5,7 @@
   import WorkflowFunctionCatalogPane from './WorkflowFunctionCatalogPane.svelte';
   import WorkflowPlaybooksPane from './WorkflowPlaybooksPane.svelte';
   import WorkflowRunSummary from './WorkflowRunSummary.svelte';
+  import { runDiscovery } from '../templates/discoveryApi.js';
 
   export let queuedCatalogEntry = null;
   export let queuedCatalogEntries = [];
@@ -149,7 +150,8 @@
     inputSuggestionErrors = { ...inputSuggestionErrors, [key]: '' };
 
     try {
-      const payload = await window['go']['main']['App']['RunDiscoveryJSON'](
+      const payload = await runDiscovery(
+        activeTerminalId,
         parameter.discoveryTool,
         activeTerminalType || '',
         JSON.stringify(step.inputs || {})

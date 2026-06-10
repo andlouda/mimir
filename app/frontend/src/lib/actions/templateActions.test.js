@@ -112,6 +112,42 @@ describe('template actions', () => {
     expect(state.fields[0]).toMatchObject({ name: 'LogPath', discoveryTool: 'logs' });
   });
 
+  test('prefers terminal-aware discovery when the backend provides it', async () => {
+    activeTerminalId.set(4);
+    terminals.set([{ id: 4, type: 'bash', name: 'Bash' }]);
+    templates.set([{
+      name: 'Tail',
+      commands: { bash: 'tail -f {{ .LogPath }}' },
+      parameters: [{ name: 'LogPath', discoveryTool: 'logs' }],
+    }]);
+    window.go.main.App.RunDiscoveryForTerminalJSON = vi.fn().mockResolvedValue(JSON.stringify(['/var/log/app.log']));
+
+    await applyTemplate('Tail');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(window.go.main.App.RunDiscoveryForTerminalJSON).toHaveBeenCalledWith(4, 'logs', 'bash', '{}');
+    expect(window.go.main.App.RunDiscoveryJSON).not.toHaveBeenCalled();
+    expect(get(templatePromptState).fields[0].suggestions).toEqual(['/var/log/app.log']);
+  });
+
+  test('surfaces discovery errors on the prompt field', async () => {
+    activeTerminalId.set(4);
+    terminals.set([{ id: 4, type: 'bash', name: 'Bash' }]);
+    templates.set([{
+      name: 'Tail',
+      commands: { bash: 'tail -f {{ .LogPath }}' },
+      parameters: [{ name: 'LogPath', discoveryTool: 'logs' }],
+    }]);
+    window.go.main.App.RunDiscoveryJSON.mockRejectedValue(new Error('docker compose failed'));
+
+    await applyTemplate('Tail');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const state = get(templatePromptState);
+    expect(state.fields[0].suggestionError).toBe('docker compose failed');
+    expect(state.fields[0].loadingSuggestions).toBe(false);
+  });
+
   test('validates prompt values before submitting', async () => {
     templatePromptState.set({
       templateName: 'Tail',

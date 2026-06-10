@@ -11,6 +11,7 @@ import {
 } from '../stores/templateStore.js';
 import { errorMessage } from '../stores/uiStore.js';
 import { buildPromptLabel, extractTemplateVariables, normalizeTemplates } from '../templates/templateHelpers';
+import { runDiscovery } from '../templates/discoveryApi.js';
 
 function app() {
   return window['go']['main']['App'];
@@ -44,7 +45,8 @@ function loadPromptFieldSuggestions(field, state, terminalType) {
   if (!field.discoveryTool) return;
   field.loadingSuggestions = true;
   field.suggestionError = '';
-  app()['RunDiscoveryJSON'](
+  runDiscovery(
+    state.terminalId,
     field.discoveryTool,
     terminalType,
     JSON.stringify(workflowPromptVariables(state.fields))
@@ -80,6 +82,7 @@ export function openTemplatePrompt(template, terminalType, terminalId, variableN
       discoveryTool: paramMap[name]?.discoveryTool || '',
       suggestions: [],
       loadingSuggestions: false,
+      suggestionError: '',
     })),
   };
   templatePromptState.set(nextState);
@@ -87,15 +90,16 @@ export function openTemplatePrompt(template, terminalType, terminalId, variableN
   for (const field of nextState.fields) {
     if (!field.discoveryTool) continue;
     field.loadingSuggestions = true;
-    app()['RunDiscoveryJSON'](field.discoveryTool, terminalType, '{}')
+    runDiscovery(terminalId, field.discoveryTool, terminalType, '{}')
       .then((raw) => {
         const values = JSON.parse(raw);
         field.suggestions = Array.isArray(values) ? values : [];
         field.loadingSuggestions = false;
         templatePromptState.set(get(templatePromptState));
       })
-      .catch(() => {
+      .catch((error) => {
         field.loadingSuggestions = false;
+        field.suggestionError = error?.message || String(error);
         templatePromptState.set(get(templatePromptState));
       });
   }

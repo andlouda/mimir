@@ -1,11 +1,13 @@
 <script>
   // Function catalog browser. Owns its own UI state and calls the backend
-  // (ExplainFunction / RunDiscoveryJSON) directly; cross-cutting concerns are
+  // (ExplainFunction / discoveryApi) directly; cross-cutting concerns are
   // emitted to the parent. Styles come from the global stylesheets (styles/).
   import { t } from '../i18n.js';
+  import { runDiscovery } from '../templates/discoveryApi.js';
 
   export let catalog = [];                 // function catalog entries (loaded by parent)
   export let discoveryTerminalType = '';   // computed by parent for discovery runs
+  export let discoveryTerminalId = null;   // active terminal, when one exists
   export let onClose = () => {};
   export let onAddToWorkflow = () => {};   // (entries) => parent queues + navigates
   export let onError = () => {};           // (message) => parent surfaces error
@@ -104,7 +106,8 @@
     discoveryLoading = true;
     discoveryResults = [];
     try {
-      const payload = await window['go']['main']['App']['RunDiscoveryJSON'](
+      const payload = await runDiscovery(
+        discoveryTerminalId,
         selectedFunction.discoveryTool,
         discoveryTerminalType,
         JSON.stringify(discoveryInputValues || {})

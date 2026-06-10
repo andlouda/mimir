@@ -595,6 +595,7 @@
     bind:showFunctionCatalog={$showFunctionCatalog}
     functionCatalog={$functionCatalog}
     discoveryTerminalType={getDiscoveryTerminalType()}
+    discoveryTerminalId={$activeTerminalId}
     {queueWorkflowFromCatalog}
     closeFunctionCatalog={() => { $showFunctionCatalog = false; }}
     bind:showSSHProfileModal={$showSSHProfileModal}
