@@ -24,7 +24,12 @@ import {
 vi.mock('@xterm/xterm', () => ({ Terminal: vi.fn() }));
 vi.mock('@xterm/addon-fit', () => ({ FitAddon: vi.fn() }));
 vi.mock('@xterm/addon-search', () => ({ SearchAddon: vi.fn() }));
-vi.mock('../../../wailsjs/runtime', () => ({ EventsOn: vi.fn(() => vi.fn()) }));
+vi.mock('@xterm/addon-clipboard', () => ({ ClipboardAddon: vi.fn() }));
+vi.mock('../../../wailsjs/runtime', () => ({
+  EventsOn: vi.fn(() => vi.fn()),
+  ClipboardGetText: vi.fn(() => Promise.resolve('')),
+  ClipboardSetText: vi.fn(() => Promise.resolve(true)),
+}));
 
 vi.mock('../../../wailsjs/go/main/App', () => ({
   StartTerminal: vi.fn(),

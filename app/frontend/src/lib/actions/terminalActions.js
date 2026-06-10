@@ -6,6 +6,8 @@ import { sshProfiles } from '../stores/sshStore.js';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
+import { ClipboardAddon } from '@xterm/addon-clipboard';
+import { createWriteOnlyClipboardProvider } from '../terminals/osc52Clipboard.js';
 import { EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/layoutTree.js';
@@ -113,6 +115,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   terminal.loadAddon(fitAddon);
   const searchAddon = new SearchAddon();
   terminal.loadAddon(searchAddon);
+  terminal.loadAddon(new ClipboardAddon(undefined, createWriteOnlyClipboardProvider()));
 
   const newTerminal = {
     id,
@@ -177,7 +180,9 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     const handlePaste = (event) => {
       const pasteData = event.clipboardData.getData('text');
       if (pasteData) {
-        WriteToTerminal(id, pasteData);
+        // Route through xterm so bracketed paste applies; otherwise multiline
+        // clipboard content executes line by line the moment it is pasted.
+        terminal.paste(pasteData);
       }
       event.preventDefault();
     };

@@ -347,6 +347,9 @@ export default {
     connectionLost: 'Connection lost',
     noRcApplied: 'No Mimir RC is applied',
     rcModeTitle: 'RC mode: {mode}',
+    ctxCopy: 'Copy',
+    ctxPaste: 'Paste',
+    ctxSelectAll: 'Select all',
   },
   fileBrowser: {
     remote: 'Remote: {label}',

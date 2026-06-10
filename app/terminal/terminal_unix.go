@@ -397,6 +397,20 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 				";", "set", "history-limit", "100000",
 				";", "set", "prefix", "None",
 				";", "set", "prefix2", "None",
+				// Copy mouse selections to the system clipboard via OSC 52.
+				// "external" (not "on") so programs inside the session cannot
+				// write to the clipboard themselves; the Ms override is needed
+				// because most xterm-256color terminfo entries lack it.
+				";", "set", "-s", "set-clipboard", "external",
+				";", "set", "-ga", "terminal-overrides", `,xterm*:Ms=\E]52;%p1%s;%p2%s\007`,
+				// Mimir draws its own context menu; drop tmux's right-click menu.
+				";", "unbind-key", "-n", "MouseDown3Pane",
+				";", "unbind-key", "-n", "M-MouseDown3Pane",
+				// Finer wheel steps (default is 5 lines per wheel event).
+				";", "bind-key", "-T", "copy-mode", "WheelUpPane", "send-keys", "-N3", "-X", "scroll-up",
+				";", "bind-key", "-T", "copy-mode", "WheelDownPane", "send-keys", "-N3", "-X", "scroll-down",
+				";", "bind-key", "-T", "copy-mode-vi", "WheelUpPane", "send-keys", "-N3", "-X", "scroll-up",
+				";", "bind-key", "-T", "copy-mode-vi", "WheelDownPane", "send-keys", "-N3", "-X", "scroll-down",
 			}
 			meta.TmuxActive = true
 			meta.TmuxSessionName = tmuxSessionName

@@ -71,6 +71,12 @@ func TestSSHTmuxBootstrapCommand(t *testing.T) {
 		"set mouse on",
 		"set history-limit 100000",
 		"set prefix None",
+		"set -s set-clipboard external",
+		`set -ga terminal-overrides ",xterm*:Ms=\E]52;%p1%s;%p2%s\007"`,
+		"unbind-key -n MouseDown3Pane",
+		"unbind-key -n M-MouseDown3Pane",
+		"bind-key -T copy-mode WheelUpPane send-keys -N3 -X scroll-up",
+		"bind-key -T copy-mode-vi WheelDownPane send-keys -N3 -X scroll-down",
 		`exec "${SHELL:-sh}"`,
 	}
 	for _, part := range required {

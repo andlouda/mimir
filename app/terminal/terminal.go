@@ -260,8 +260,16 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 				// session — and anything running in it, e.g. claude — survives
 				// closing and reopening the app. Falls back to a plain shell
 				// when tmux is not installed in the WSL distro.
+				// set-clipboard external + Ms override: copy tmux mouse selections
+				// to the clipboard via OSC 52 (without letting programs inside the
+				// session write to it). The unbinds drop tmux's right-click menu
+				// (Mimir draws its own); the wheel bindings soften scroll steps.
 				inner += `if command -v tmux >/dev/null 2>&1; then exec tmux -L mimir new-session -A -s ` + name +
-					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i' \; set status off \; set escape-time 0 \; set mouse on \; set history-limit 100000 \; set prefix None \; set prefix2 None; ` +
+					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i' \; set status off \; set escape-time 0 \; set mouse on \; set history-limit 100000 \; set prefix None \; set prefix2 None` +
+					` \; set -s set-clipboard external \; set -ga terminal-overrides ',xterm*:Ms=\E]52;%p1%s;%p2%s\007'` +
+					` \; unbind-key -n MouseDown3Pane \; unbind-key -n M-MouseDown3Pane` +
+					` \; bind-key -T copy-mode WheelUpPane send-keys -N3 -X scroll-up \; bind-key -T copy-mode WheelDownPane send-keys -N3 -X scroll-down` +
+					` \; bind-key -T copy-mode-vi WheelUpPane send-keys -N3 -X scroll-up \; bind-key -T copy-mode-vi WheelDownPane send-keys -N3 -X scroll-down; ` +
 					`else exec bash --rcfile ~/.cache/mimir/shell/bashrc -i; fi`
 				usingTmux = true
 				tmuxName = name

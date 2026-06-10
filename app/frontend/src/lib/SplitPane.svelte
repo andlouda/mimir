@@ -2,6 +2,8 @@
   import { createEventDispatcher, tick } from 'svelte';
   import { t } from './i18n.js';
   import { calculateSplitRatio } from './terminals/splitPaneResize.js';
+  import { consumeWheelEvent } from './terminals/wheelScroll.js';
+  import { ClipboardGetText, ClipboardSetText } from '../../wailsjs/runtime';
 
   export let node;
   export let terminalMap;
@@ -72,15 +74,15 @@
       return;
     }
 
-    const unit = event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? xterm.rows : event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 1 : 1 / 40;
-    const lines = Math.trunc(event.deltaY * unit);
-    if (lines === 0) {
-      return;
-    }
+    // Approximation of the rendered cell height; close enough for scroll feel.
+    const lineHeightPx = (xterm.options?.fontSize || 13) * (xterm.options?.lineHeight || 1);
+    const lines = consumeWheelEvent(xterm, event, lineHeightPx, xterm.rows);
 
     event.preventDefault();
     event.stopPropagation();
-    xterm.scrollLines(lines);
+    if (lines !== 0) {
+      xterm.scrollLines(lines);
+    }
   }
 
   function hasVisibleRestoreSummary(term) {
@@ -98,6 +100,66 @@
     }
   }
 
+  let contextMenu = null; // { termId, x, y, hasSelection }
+
+  const CTX_MENU_WIDTH = 200;
+  const CTX_MENU_HEIGHT = 260;
+
+  function openContextMenu(event, term) {
+    event.preventDefault();
+    event.stopPropagation();
+    dispatch('activate', term.id);
+    contextMenu = {
+      termId: term.id,
+      x: Math.max(0, Math.min(event.clientX, window.innerWidth - CTX_MENU_WIDTH)),
+      y: Math.max(0, Math.min(event.clientY, window.innerHeight - CTX_MENU_HEIGHT)),
+      hasSelection: Boolean(term.terminal?.hasSelection?.())
+    };
+  }
+
+  function closeContextMenu() {
+    contextMenu = null;
+  }
+
+  function handleWindowKeydown(event) {
+    if (contextMenu && event.key === 'Escape') {
+      closeContextMenu();
+    }
+  }
+
+  async function ctxCopy(term) {
+    closeContextMenu();
+    try {
+      const text = term.terminal?.getSelection?.() || '';
+      if (text) await ClipboardSetText(text);
+    } catch (error) {
+      console.error('Context menu copy failed:', error);
+    }
+    term.terminal?.focus?.();
+  }
+
+  async function ctxPaste(term) {
+    closeContextMenu();
+    try {
+      const text = await ClipboardGetText();
+      // paste() applies bracketed paste so multiline content is not executed.
+      if (text) term.terminal?.paste?.(text);
+    } catch (error) {
+      console.error('Context menu paste failed:', error);
+    }
+    term.terminal?.focus?.();
+  }
+
+  function ctxSelectAll(term) {
+    closeContextMenu();
+    term.terminal?.selectAll?.();
+  }
+
+  function ctxDispatch(eventName, detail) {
+    closeContextMenu();
+    dispatch(eventName, detail);
+  }
+
   function handleTerminalPointerDown(event, term) {
     if (!hasVisibleRestoreSummary(term)) {
       return;
@@ -109,6 +171,8 @@
     dispatch('dismissrestore', term.id);
   }
 </script>
+
+<svelte:window on:keydown={handleWindowKeydown} />
 
 {#if node.type === 'leaf'}
   {@const term = terminalMap.get(node.terminalId)}
@@ -204,8 +268,42 @@
         class="terminal-container"
         on:pointerdown|capture={(e) => handleTerminalPointerDown(e, term)}
         on:wheel|capture|nonpassive={(e) => handleTerminalWheel(e, term)}
+        on:contextmenu={(e) => openContextMenu(e, term)}
       >
         <div id="terminal-{term.id}" class="terminal"></div>
+        {#if contextMenu && contextMenu.termId === term.id}
+          <div
+            class="ctx-backdrop"
+            on:mousedown|stopPropagation={closeContextMenu}
+            on:contextmenu|preventDefault|stopPropagation={closeContextMenu}
+            on:wheel|stopPropagation={closeContextMenu}
+          ></div>
+          <div class="ctx-menu" style="left: {contextMenu.x}px; top: {contextMenu.y}px;" role="menu">
+            <button class="ctx-item" role="menuitem" disabled={!contextMenu.hasSelection} on:click={() => ctxCopy(term)}>
+              {$t('splitPane.ctxCopy')}
+            </button>
+            <button class="ctx-item" role="menuitem" on:click={() => ctxPaste(term)}>
+              {$t('splitPane.ctxPaste')}
+            </button>
+            <button class="ctx-item" role="menuitem" on:click={() => ctxSelectAll(term)}>
+              {$t('splitPane.ctxSelectAll')}
+            </button>
+            <div class="ctx-sep"></div>
+            <button class="ctx-item" role="menuitem" on:click={() => ctxDispatch('split', { id: term.id, direction: 'horizontal' })}>
+              {$t('splitPane.splitRight')}
+            </button>
+            <button class="ctx-item" role="menuitem" on:click={() => ctxDispatch('split', { id: term.id, direction: 'vertical' })}>
+              {$t('splitPane.splitDown')}
+            </button>
+            <div class="ctx-sep"></div>
+            <button class="ctx-item" role="menuitem" on:click={() => ctxDispatch('minimize', term.id)}>
+              {$t('splitPane.minimize')}
+            </button>
+            <button class="ctx-item ctx-item-danger" role="menuitem" on:click={() => ctxDispatch('close', term.id)}>
+              {$t('splitPane.close')}
+            </button>
+          </div>
+        {/if}
         {#if term.restoredTranscript && term.restoreClass === 'transcript-restored' && !term.restoreDismissed}
           <div
             class="restore-summary"
@@ -528,6 +626,63 @@
     font-size: 11px;
     line-height: 1.45;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  /* ─── Context Menu ───────────────────────────────────── */
+
+  .ctx-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+    background: transparent;
+  }
+
+  .ctx-menu {
+    position: fixed;
+    z-index: 100;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    background: #1a1e2e;
+    border: 1px solid #2d3348;
+    border-radius: 6px;
+    padding: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .ctx-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: #c9d1d9;
+    font-size: 12px;
+    font-family: inherit;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+  }
+
+  .ctx-item:hover:not(:disabled) {
+    background: #2d3348;
+  }
+
+  .ctx-item:disabled {
+    color: #545d68;
+    cursor: default;
+  }
+
+  .ctx-item-danger:hover:not(:disabled) {
+    background: rgba(244, 112, 103, 0.15);
+    color: #f47067;
+  }
+
+  .ctx-sep {
+    height: 1px;
+    background: #2d3348;
+    margin: 4px 6px;
   }
 
   /* ─── Search Bar ─────────────────────────────────────── */
