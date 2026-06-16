@@ -13,7 +13,7 @@ import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, Con
 import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { generateResumeId, shellQuotePath } from '../util.js';
-import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal } from '../terminals/xtermLifecycle.js';
+import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
 import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';
@@ -176,6 +176,13 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
       WriteToTerminal(id, data);
     });
     newTerminal.cleanupHandlers.push(inputDisposable);
+
+    // Refit whenever the terminal's rendered box changes size (layout-tree
+    // changes, split-drag, window resize). Keeps cols/rows in sync with the
+    // pane so content reflows to the full width instead of staying wrapped at
+    // a previous, narrower size.
+    const disposeResizeObserver = observeTerminalResize(newTerminal, ResizeTerminal);
+    newTerminal.cleanupHandlers.push(disposeResizeObserver);
 
     const handlePaste = (event) => {
       const pasteData = event.clipboardData.getData('text');

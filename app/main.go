@@ -23,6 +23,10 @@ var templates embed.FS
 var appIconPNG []byte
 
 func main() {
+	// Fix dropped/doubled umlaut and dead-key input in the WebKitGTK webview.
+	// Must run before GTK initializes (i.e. before wails.Run). No-op off Linux.
+	configureInputMethod()
+
 	// Create an instance of the app structure
 	app := NewApp(templates, appIconPNG)
 

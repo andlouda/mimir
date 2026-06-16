@@ -25,6 +25,43 @@ export function safelyFitAndResizeTerminal(term, resizeTerminal) {
   }
 }
 
+// observeTerminalResize watches the terminal's own rendered element and refits
+// whenever its box actually changes size. This is what keeps the grid correct
+// when the layout tree changes (e.g. closing 2 of 3 splits so the survivor
+// grows to fill the pane): the xterm element is moved into a larger container
+// and the observer fires, so cols/rows are recomputed and the backend PTY is
+// resized — without it, old content stays wrapped at the previous narrow width.
+// We observe term.terminal.element (stable across reattach) rather than the
+// container div (recreated by Svelte on layout changes).
+export function observeTerminalResize(term, resizeTerminal) {
+  if (!term?.terminal?.element || typeof ResizeObserver === 'undefined') {
+    return () => {};
+  }
+  let frame = 0;
+  const observer = new ResizeObserver(() => {
+    // Coalesce bursts (and break any fit()->resize->observe feedback) into one
+    // refit per animation frame.
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      safelyFitAndResizeTerminal(term, resizeTerminal);
+    });
+  });
+  try {
+    observer.observe(term.terminal.element);
+  } catch (error) {
+    console.error(`Failed to observe resize for terminal ${term.id}:`, error);
+    return () => {};
+  }
+  return () => {
+    if (frame) {
+      cancelAnimationFrame(frame);
+      frame = 0;
+    }
+    observer.disconnect();
+  };
+}
+
 export function safelyAttachTerminal(term, element) {
   if (!term?.terminal || !element) {
     return false;
