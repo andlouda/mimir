@@ -68,6 +68,7 @@
   export let dismissRestoreSummary = () => {};
   export let toggleRecording = () => {};
   export let openTranscriptViewer = () => {};
+  export let openDotEnvViewer = () => {};
   export let startNotesDrag = () => {};
   export let openPage = () => {};
   export let insertFileIntoActiveTerminal = () => {};
@@ -128,6 +129,7 @@
       {dismissRestoreSummary}
       {toggleRecording}
       {openTranscriptViewer}
+      {openDotEnvViewer}
       {startNotesDrag}
       closeNotesPanel={() => { notesPanelOpen = false; setTimeout(handleResize, 50); }}
     />

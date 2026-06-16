@@ -17,7 +17,7 @@
   import './styles/template-manager.css';
   import './styles/workflow-builder.css';
   import { terminals, activeTerminalId, layoutTree, terminalMap, visibleTerminalCount } from './lib/stores/terminalStore.js';
-  import { currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, showFolderManager, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState } from './lib/stores/uiStore.js';
+  import { currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, showFolderManager, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState } from './lib/stores/uiStore.js';
   import { templates, templateToEdit, templatePromptState, showTemplatePicker, showWorkflowPicker, workflowPickerPlaybooks, workflowPickerLoading } from './lib/stores/templateStore.js';
   import { updateInfo, updateChecking, updateDownloading, updateProgress, updateInstalled } from './lib/stores/updateStore.js';
   import { recordingList, aggAvailable, aggStatus, downloadingAgg, aggDownloadInfo, terminalSessionFoldersOpen, customFolders, newFolderName } from './lib/stores/sessionStore.js';
@@ -150,6 +150,19 @@
 
   function closeTranscriptViewer() {
     $transcriptViewerState = null;
+  }
+
+  function openDotEnvViewer(detail) {
+    const term = $terminals.find((t) => t.id === detail.id);
+    $dotEnvViewerState = {
+      terminalId: detail.id,
+      terminalType: detail.type || term?.type || '',
+      label: term?.name || '',
+    };
+  }
+
+  function closeDotEnvViewer() {
+    $dotEnvViewerState = null;
   }
 
   function openAIPanel(mode) {
@@ -536,6 +549,7 @@
     {dismissRestoreSummary}
     {toggleRecording}
     {openTranscriptViewer}
+    {openDotEnvViewer}
     {startNotesDrag}
     {openPage}
     {insertFileIntoActiveTerminal}
@@ -614,5 +628,7 @@
     {runAggDownload}
     bind:transcriptViewerState={$transcriptViewerState}
     {closeTranscriptViewer}
+    bind:dotEnvViewerState={$dotEnvViewerState}
+    {closeDotEnvViewer}
   />
 </main>

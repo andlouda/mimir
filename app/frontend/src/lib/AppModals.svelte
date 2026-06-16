@@ -9,6 +9,7 @@
   import HostKeyModal from './modals/HostKeyModal.svelte';
   import AggDownloadModal from './modals/AggDownloadModal.svelte';
   import TranscriptViewerModal from './modals/TranscriptViewerModal.svelte';
+  import DotEnvViewerModal from './modals/DotEnvViewerModal.svelte';
 
   export let showTemplatePicker = false;
   export let templates = [];
@@ -58,6 +59,8 @@
   export let runAggDownload = () => {};
   export let transcriptViewerState = null;
   export let closeTranscriptViewer = () => {};
+  export let dotEnvViewerState = null;
+  export let closeDotEnvViewer = () => {};
 </script>
 
 {#if showTemplatePicker}
@@ -151,5 +154,14 @@
     initialLabel={transcriptViewerState.label}
     onClose={closeTranscriptViewer}
     onError={onError}
+  />
+{/if}
+
+{#if dotEnvViewerState}
+  <DotEnvViewerModal
+    terminalId={dotEnvViewerState.terminalId}
+    terminalType={dotEnvViewerState.terminalType}
+    label={dotEnvViewerState.label}
+    onClose={closeDotEnvViewer}
   />
 {/if}

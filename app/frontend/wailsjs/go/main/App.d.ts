@@ -100,3 +100,9 @@ export function EnrollFIDO(arg1:string,arg2:string,arg3:string,arg4:string,arg5:
 export function SetRecordInput(arg1:boolean):Promise<void>;
 
 export function RecordInputEnabled():Promise<boolean>;
+
+export function IsDotEnvViewerEnabled():Promise<boolean>;
+
+export function SetDotEnvViewer(arg1:boolean):Promise<void>;
+
+export function ReadDotEnvForTerminalJSON(arg1:number,arg2:string):Promise<string>;

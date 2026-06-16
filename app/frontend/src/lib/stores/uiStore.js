@@ -17,3 +17,5 @@ export const showFolderManager = writable(false);
 export const historyTrackingEnabled = writable(false);
 export const historyConsentDismissed = writable(false);
 export const transcriptViewerState = writable(null);
+// When set to { terminalId, terminalType, label } the secure .env viewer modal opens.
+export const dotEnvViewerState = writable(null);

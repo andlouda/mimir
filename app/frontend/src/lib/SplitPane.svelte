@@ -289,6 +289,10 @@
               {$t('splitPane.ctxSelectAll')}
             </button>
             <div class="ctx-sep"></div>
+            <button class="ctx-item" role="menuitem" on:click={() => ctxDispatch('openenv', { id: term.id, type: term.type })}>
+              {$t('splitPane.ctxShowEnv')}
+            </button>
+            <div class="ctx-sep"></div>
             <button class="ctx-item" role="menuitem" on:click={() => ctxDispatch('split', { id: term.id, direction: 'horizontal' })}>
               {$t('splitPane.splitRight')}
             </button>
@@ -388,6 +392,7 @@
         on:dismissrestore
         on:togglerecording
         on:opentranscript
+        on:openenv
       />
     </div>
 
@@ -428,6 +433,7 @@
         on:dismissrestore
         on:togglerecording
         on:opentranscript
+        on:openenv
       />
     </div>
   </div>

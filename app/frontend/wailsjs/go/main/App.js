@@ -325,3 +325,15 @@ export function SetRecordInput(arg1) {
 export function RecordInputEnabled() {
   return window['go']['main']['App']['RecordInputEnabled']();
 }
+
+export function IsDotEnvViewerEnabled() {
+  return window['go']['main']['App']['IsDotEnvViewerEnabled']();
+}
+
+export function SetDotEnvViewer(arg1) {
+  return window['go']['main']['App']['SetDotEnvViewer'](arg1);
+}
+
+export function ReadDotEnvForTerminalJSON(arg1, arg2) {
+  return window['go']['main']['App']['ReadDotEnvForTerminalJSON'](arg1, arg2);
+}

@@ -287,6 +287,13 @@ func BuildRemoteDiscoveryScript(discoveryTool string, variables map[string]strin
 	return remoteTmuxCwdPrefix(tmuxSessionName) + command, nil
 }
 
+// RemoteTmuxCwdPrefix exposes remoteTmuxCwdPrefix to other packages (e.g. the
+// secure .env viewer) that need to run a command in a remote pane's directory
+// over the existing SSH connection, without shell integration.
+func RemoteTmuxCwdPrefix(tmuxSessionName string) string {
+	return remoteTmuxCwdPrefix(tmuxSessionName)
+}
+
 // remoteTmuxCwdPrefix resolves the remote terminal's working directory via the
 // pane's tmux session (no shell integration needed) and cds into it. Empty
 // when the terminal has no tmux session.

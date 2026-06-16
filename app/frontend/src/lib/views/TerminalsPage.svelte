@@ -42,6 +42,7 @@
   export let dismissRestoreSummary = () => {};
   export let toggleRecording = () => {};
   export let openTranscriptViewer = () => {};
+  export let openDotEnvViewer = () => {};
   export let startNotesDrag = () => {};
   export let closeNotesPanel = () => {};
 </script>
@@ -120,6 +121,7 @@
         on:dismissrestore={(e) => dismissRestoreSummary(e.detail)}
         on:togglerecording={(e) => toggleRecording(e.detail)}
         on:opentranscript={(e) => openTranscriptViewer(e.detail)}
+        on:openenv={(e) => openDotEnvViewer(e.detail)}
       />
     {:else}
       <div class="empty-state">
