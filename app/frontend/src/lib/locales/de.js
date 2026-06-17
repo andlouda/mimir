@@ -358,7 +358,7 @@ export default {
     cancel: 'Abbrechen',
     retry: 'Erneut versuchen',
     intro: 'Liest die .env-Datei aus dem Arbeitsverzeichnis dieses Terminals und zeigt sie hier an — ohne etwas in die Shell zu tippen.',
-    securityNote: 'Die Datei wird über denselben Out-of-Band-Kanal wie Discovery gelesen (SSH-Exec bzw. lokaler tmux-Read), daher landet ihr Inhalt nie im Scrollback, in Aufzeichnungen oder im Befehlsverlauf. Werte bleiben maskiert, bis du sie aufdeckst, und werden nie in Logs geschrieben. Das Feature ist standardmäßig aus.',
+    securityNote: 'Die Datei wird über denselben Out-of-Band-Kanal wie Discovery gelesen (SSH-Exec bzw. lokaler tmux-Read), daher landet ihr Inhalt nie im Scrollback, in Aufzeichnungen oder im Befehlsverlauf. Werte bleiben maskiert, bis du sie aufdeckst, und werden nie in Logs geschrieben. Das Feature ist standardmäßig aus. Beim Aktivieren wird neuen Terminals ein leichtgewichtiger Prompt-Hook hinzugefügt, damit Mimir ihr Arbeitsverzeichnis erkennt.',
     enable: 'Aktivieren & anzeigen',
     enabling: 'Wird aktiviert…',
     loading: '.env wird gelesen…',

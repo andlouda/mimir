@@ -75,6 +75,7 @@ type Manager struct {
 	oscBuffers   map[int][]byte
 	sessionMeta  map[int]SessionMeta
 	runtimeMeta  map[int]TerminalRuntimeMeta
+	lastCwd      map[int]string
 	recorders    map[int]*recording.Recorder
 	// recordInput controls whether keystrokes (input frames) are written to
 	// recordings. Off by default: typed secrets (passwords, keys, pastes) have
@@ -107,6 +108,7 @@ func NewManager() *Manager {
 		oscBuffers:   make(map[int][]byte),
 		sessionMeta:  make(map[int]SessionMeta),
 		runtimeMeta:  make(map[int]TerminalRuntimeMeta),
+		lastCwd:      make(map[int]string),
 		recorders:    make(map[int]*recording.Recorder),
 	}
 }
@@ -259,11 +261,11 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 		path:        shell,
 		tmuxCommand: quoteShellArg(shell),
 	}
-	historyHook := isHistoryEnabled()
+	injectHook := isHistoryEnabled() || shellHookConsent()
 	switch terminalType {
 	case "bash", "wsl":
 		rcContent := "source ~/.bashrc 2>/dev/null || true\nPS1='\\W \\$ '\n"
-		if historyHook {
+		if injectHook {
 			rcContent += mimirBashHook
 		}
 		rcPath, err := writeMimirShellFile("bashrc", rcContent)
@@ -276,7 +278,7 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 		if err := os.MkdirAll(zdotdir, 0700); err == nil {
 			zshrcPath := filepath.Join(zdotdir, ".zshrc")
 			rcContent := "source ~/.zshrc 2>/dev/null || true\nPROMPT='%1~ %# '\n"
-			if historyHook {
+			if injectHook {
 				rcContent += mimirZshHook
 			}
 			if err := os.WriteFile(zshrcPath, []byte(rcContent), 0600); err == nil {
@@ -330,6 +332,7 @@ func (m *Manager) removeTerminal(id int) {
 	delete(m.oscBuffers, id)
 	delete(m.sessionMeta, id)
 	delete(m.runtimeMeta, id)
+	delete(m.lastCwd, id)
 }
 
 // GetTerminalRuntimeMeta returns runtime metadata for a local terminal.
@@ -551,6 +554,12 @@ func (m *Manager) InitializeTerminal(id int) error {
 				m.ptyMutex.Lock()
 				m.oscBuffers[id] = append([]byte(nil), leftover...)
 				m.ptyMutex.Unlock()
+			}
+
+			// Track the latest reported cwd regardless of the history opt-in so
+			// cwd-dependent features keep working with history disabled.
+			if len(commands) > 0 {
+				m.setLastReportedCwd(id, commands[len(commands)-1].CWD)
 			}
 
 			// Store parsed commands asynchronously

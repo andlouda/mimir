@@ -101,9 +101,10 @@
     }
   }
 
+  // Fixed-width mask: a length-dependent mask would leak how long each secret
+  // is to a shoulder-surfer. Empty values render as a muted placeholder instead.
   function mask(value) {
-    const len = Math.min(Math.max(value ? value.length : 0, 4), 24);
-    return '•'.repeat(len || 4);
+    return value ? '••••••••' : '—';
   }
 
   function handleKeydown(e) {

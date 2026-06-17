@@ -358,7 +358,7 @@ export default {
     cancel: 'Cancel',
     retry: 'Retry',
     intro: 'This reads the .env file from this terminal\'s working directory and shows it here — without typing anything in the shell.',
-    securityNote: 'The file is read over the same out-of-band channel as discovery (SSH exec or a local tmux read), so its contents never appear in scrollback, recordings or command history. Values stay masked until you reveal them, and are never written to logs. This feature is off by default.',
+    securityNote: 'The file is read over the same out-of-band channel as discovery (SSH exec or a local tmux read), so its contents never appear in scrollback, recordings or command history. Values stay masked until you reveal them, and are never written to logs. This feature is off by default. Enabling it adds a lightweight prompt hook to newly opened terminals so Mimir can detect their working directory.',
     enable: 'Enable & show',
     enabling: 'Enabling…',
     loading: 'Reading .env…',

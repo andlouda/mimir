@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -72,15 +74,38 @@ func (a *App) SetDotEnvViewer(enabled bool) error {
 	return err
 }
 
+// envReadScript is a POSIX shell snippet that prints up to MaxFileSize bytes of
+// the .env file in the current directory, or the missing sentinel when there is
+// none. It is reused for both the SSH and WSL out-of-band reads so the two paths
+// cannot drift apart.
+func envReadScript() string {
+	return fmt.Sprintf(`if [ -f .env ]; then head -c %d -- .env 2>/dev/null; else printf '%s'; fi`,
+		dotenv.MaxFileSize, envMissingSentinel)
+}
+
+// interpretEnvOutput maps the raw output of envReadScript to file content or an
+// error, translating the missing sentinel into a friendly message.
+func interpretEnvOutput(output string) (string, error) {
+	if strings.TrimSpace(output) == envMissingSentinel {
+		return "", fmt.Errorf("no .env file in the terminal's directory")
+	}
+	return output, nil
+}
+
 // ReadDotEnvForTerminalJSON reads the .env file in the working directory of a
 // specific terminal and returns the parsed key/value pairs as JSON. It mirrors
-// discovery's safety model:
-//   - SSH terminals: the read runs over the existing SSH connection in a fresh
-//     exec session (never the interactive PTY), in the remote pane's directory.
-//   - Local tmux terminals: the file is read from the pane's current directory.
+// discovery's safety model — the read is always out-of-band, never the
+// interactive PTY, so the contents never reach scrollback, recording or history,
+// and only metadata (counts, never values) is logged. The working directory and
+// read mechanism depend on the terminal:
+//   - SSH: read over the existing SSH connection (fresh exec), in the remote
+//     pane's tmux directory.
+//   - WSL: read inside the distro via wsl.exe, since the Windows-side process
+//     cannot open the shell's Linux path directly.
+//   - Other local: read directly from the resolved directory.
 //
-// The file contents never pass through the terminal's scrollback, recording or
-// command history, and only metadata (counts, never values) is logged.
+// The directory is resolved from the tmux pane path, falling back to the latest
+// cwd reported by the shell hook (which also covers terminals without tmux).
 func (a *App) ReadDotEnvForTerminalJSON(terminalID int, terminalType string) (string, error) {
 	if !a.IsDotEnvViewerEnabled() {
 		return "", fmt.Errorf("the secure .env viewer is disabled; enable it first")
@@ -91,31 +116,63 @@ func (a *App) ReadDotEnvForTerminalJSON(terminalID int, terminalType string) (st
 		if meta := a.TerminalManager.GetSSHMeta(terminalID); meta != nil {
 			tmuxSession = meta.Config.TmuxSessionName
 		}
-		script := aiflow.RemoteTmuxCwdPrefix(tmuxSession) +
-			fmt.Sprintf(`if [ -f .env ]; then head -c %d -- .env 2>/dev/null; else printf '%s'; fi`,
-				dotenv.MaxFileSize, envMissingSentinel)
-
-		output, err := runSSHCommandWithTimeout(client, script, discoveryTimeout)
+		output, err := runSSHCommandWithTimeout(client, aiflow.RemoteTmuxCwdPrefix(tmuxSession)+envReadScript(), discoveryTimeout)
 		if err != nil {
 			logDotEnvEvent("dotenv_read_failed", "remote read error")
 			return "", fmt.Errorf("remote .env read failed: %s", firstOutputLine(strings.TrimSpace(output)))
 		}
-		if strings.TrimSpace(output) == envMissingSentinel {
-			return "", fmt.Errorf("no .env file in the remote terminal's directory")
+		content, err := interpretEnvOutput(output)
+		if err != nil {
+			return "", err
 		}
-		return marshalDotEnv("remote", "", output)
+		return marshalDotEnv("remote", "", content)
 	}
 
+	// Resolve the working directory: prefer the tmux pane path, and fall back to
+	// the latest cwd the shell hook reported (which also covers terminals
+	// without a tmux session).
 	dir := a.localTerminalCwd(terminalID, terminalType)
 	if dir == "" {
-		return "", fmt.Errorf("could not resolve the terminal's working directory (no tmux session)")
+		dir = a.TerminalManager.GetLastReportedCwd(terminalID)
 	}
-	content, err := readDotEnvFile(filepath.Join(dir, ".env"))
+	if dir == "" {
+		return "", fmt.Errorf("could not resolve the terminal's working directory yet — open the viewer once the shell has shown a prompt, or start a tmux session")
+	}
+
+	var content string
+	var err error
+	if isWSLTerminalType(terminalType) {
+		// A WSL shell's directory is a Linux path the Windows-side process can't
+		// read directly, so read the file inside the distro, like discovery does.
+		content, err = readDotEnvViaWSL(dir)
+	} else {
+		content, err = readDotEnvFile(filepath.Join(dir, ".env"))
+	}
 	if err != nil {
 		logDotEnvEvent("dotenv_read_failed", "local read error")
 		return "", err
 	}
 	return marshalDotEnv("local", dir, content)
+}
+
+func isWSLTerminalType(terminalType string) bool {
+	return strings.EqualFold(strings.TrimSpace(terminalType), "wsl")
+}
+
+// readDotEnvViaWSL reads the .env file from a WSL terminal's directory by
+// executing inside the distro (wsl.exe), mirroring discovery. The file contents
+// travel over this out-of-band exec, not the interactive PTY. dir is passed as a
+// discrete argument (not through a shell), so it cannot be interpreted as code.
+func readDotEnvViaWSL(dir string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "wsl.exe", "--cd", dir, "--", "sh", "-c", envReadScript())
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("could not read .env in WSL: %s", firstOutputLine(strings.TrimSpace(string(output))))
+	}
+	return interpretEnvOutput(string(output))
 }
 
 // readDotEnvFile reads a local .env file, refusing anything that is not a

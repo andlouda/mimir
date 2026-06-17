@@ -87,7 +87,7 @@ func sanitizeTmuxName(name string) string {
 
 func conptyBashRcBase64() string {
 	rcContent := conptyBashRcBase
-	if isHistoryEnabled() {
+	if isHistoryEnabled() || shellHookConsent() {
 		rcContent += conptyBashHistoryHook
 	}
 	return base64.StdEncoding.EncodeToString([]byte(rcContent))
@@ -114,7 +114,7 @@ func writeMimirShellFile(name string, content string) (string, error) {
 }
 
 func conptyPowerShellCommand() string {
-	if !isHistoryEnabled() {
+	if !isHistoryEnabled() && !shellHookConsent() {
 		return "powershell.exe"
 	}
 	profilePath, err := writeMimirShellFile("mimir-profile.ps1", conptyPowerShellHistoryHook)
@@ -171,6 +171,7 @@ type Manager struct {
 	oscBuffers   map[int][]byte
 	sessionMeta  map[int]SessionMeta
 	runtimeMeta  map[int]TerminalRuntimeMeta
+	lastCwd      map[int]string
 	recorders    map[int]*recording.Recorder
 	// recordInput controls whether keystrokes (input frames) are written to
 	// recordings. Off by default: typed secrets (passwords, keys, pastes) have
@@ -203,6 +204,7 @@ func NewManager() *Manager {
 		oscBuffers:   make(map[int][]byte),
 		sessionMeta:  make(map[int]SessionMeta),
 		runtimeMeta:  make(map[int]TerminalRuntimeMeta),
+		lastCwd:      make(map[int]string),
 		recorders:    make(map[int]*recording.Recorder),
 	}
 }
@@ -406,6 +408,7 @@ func (m *Manager) InitializeTerminal(id int) error {
 				delete(m.sessions, id)
 				delete(m.sessionMeta, id)
 				delete(m.runtimeMeta, id)
+				delete(m.lastCwd, id)
 				m.ptyMutex.Unlock()
 				wailsruntime.EventsEmit(m.ctx, fmt.Sprintf("terminal-closed-%d", id), nil)
 			}
@@ -436,6 +439,12 @@ func (m *Manager) InitializeTerminal(id int) error {
 				m.ptyMutex.Lock()
 				m.oscBuffers[id] = append([]byte(nil), leftover...)
 				m.ptyMutex.Unlock()
+			}
+
+			// Track the latest reported cwd regardless of the history opt-in so
+			// cwd-dependent features keep working with history disabled.
+			if len(commands) > 0 {
+				m.setLastReportedCwd(id, commands[len(commands)-1].CWD)
 			}
 
 			// Store parsed commands asynchronously
@@ -699,4 +708,5 @@ func (m *Manager) CloseSSHTerminal(id int) {
 	delete(m.oscBuffers, id)
 	delete(m.sessionMeta, id)
 	delete(m.runtimeMeta, id)
+	delete(m.lastCwd, id)
 }
