@@ -34,6 +34,32 @@ export function collectLeafIds(node) {
   return [...collectLeafIds(node.children[0]), ...collectLeafIds(node.children[1])];
 }
 
+// moveLeaf relocates draggedId next to targetId, choosing the split orientation
+// from the drop position: 'left'/'right' produce a side-by-side (horizontal)
+// split, 'top'/'bottom' a stacked (vertical) one. Unlike swapLeaves this is a
+// real move — the dragged leaf is detached from wherever it was and re-attached
+// beside the target, which is what lets a left/right layout become top/bottom.
+export function moveLeaf(node, draggedId, targetId, position) {
+  if (!node || draggedId === targetId) return node;
+  const ids = collectLeafIds(node);
+  if (!ids.includes(draggedId) || !ids.includes(targetId)) return node;
+
+  const withoutDragged = removeLeafFromTree(node, draggedId);
+  if (!withoutDragged) return node;
+
+  const direction = position === 'left' || position === 'right' ? 'horizontal' : 'vertical';
+  const draggedFirst = position === 'left' || position === 'top';
+  const draggedLeaf = { type: 'leaf', terminalId: draggedId };
+  const targetLeaf = { type: 'leaf', terminalId: targetId };
+  const splitNode = {
+    type: 'split',
+    direction,
+    ratio: 0.5,
+    children: draggedFirst ? [draggedLeaf, targetLeaf] : [targetLeaf, draggedLeaf],
+  };
+  return replaceLeaf(withoutDragged, targetId, splitNode);
+}
+
 export function swapLeaves(node, idA, idB) {
   if (!node) return node;
   if (node.type === 'leaf') {

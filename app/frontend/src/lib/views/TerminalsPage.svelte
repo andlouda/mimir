@@ -112,7 +112,7 @@
         on:dragstart={(e) => handleDragStart(e.detail.event, e.detail.id)}
         on:dragover={(e) => handleDragOver(e.detail.event, e.detail.id)}
         on:dragleave={(e) => handleDragLeave(e.detail.event)}
-        on:drop={(e) => handleDrop(e.detail.event, e.detail.id)}
+        on:drop={(e) => handleDrop(e.detail.event, e.detail.id, e.detail.zone)}
         on:dragend={(e) => handleDragEnd(e.detail.event)}
         on:searchinput={(e) => updateTerminalSearchQuery(e.detail.id, e.detail.query)}
         on:searchnext={(e) => terminalSearchNext(e.detail)}

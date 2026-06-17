@@ -4,6 +4,7 @@
   import { calculateSplitRatio } from './terminals/splitPaneResize.js';
   import { consumeWheelEvent } from './terminals/wheelScroll.js';
   import { ClipboardGetText, ClipboardSetText } from '../../wailsjs/runtime';
+  import { draggingTerminalId } from './stores/terminalStore.js';
 
   export let node;
   export let terminalMap;
@@ -160,6 +161,32 @@
     dispatch(eventName, detail);
   }
 
+  // Drop zone the pointer is currently over for this pane ('left'|'right'|
+  // 'top'|'bottom'), or null. Drives the highlight overlay while dragging.
+  let dropZone = null;
+
+  // computeDropZone maps the cursor position inside the pane to its nearest edge.
+  function computeDropZone(event, el) {
+    const rect = el.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    const distances = { left: x, right: 1 - x, top: y, bottom: 1 - y };
+    return Object.keys(distances).reduce((a, b) => (distances[b] < distances[a] ? b : a));
+  }
+
+  function onDropOverlayDragOver(event) {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    dropZone = computeDropZone(event, event.currentTarget);
+  }
+
+  function onDropOverlayDrop(event, term) {
+    event.preventDefault();
+    const zone = dropZone || computeDropZone(event, event.currentTarget);
+    dropZone = null;
+    dispatch('drop', { event, id: term.id, zone });
+  }
+
   function handleTerminalPointerDown(event, term) {
     if (!hasVisibleRestoreSummary(term)) {
       return;
@@ -190,9 +217,6 @@
         tabindex="0"
         draggable="true"
         on:dragstart={(e) => dispatch('dragstart', { event: e, id: node.terminalId })}
-        on:dragover={(e) => dispatch('dragover', { event: e, id: node.terminalId })}
-        on:dragleave={(e) => dispatch('dragleave', { event: e })}
-        on:drop={(e) => dispatch('drop', { event: e, id: node.terminalId })}
         on:dragend={(e) => dispatch('dragend', { event: e })}
       >
         <div class="header-left">
@@ -271,6 +295,19 @@
         on:contextmenu={(e) => openContextMenu(e, term)}
       >
         <div id="terminal-{term.id}" class="terminal"></div>
+        {#if $draggingTerminalId !== null && $draggingTerminalId !== term.id}
+          <div
+            class="drop-overlay"
+            role="presentation"
+            on:dragover={onDropOverlayDragOver}
+            on:dragleave={() => (dropZone = null)}
+            on:drop={(e) => onDropOverlayDrop(e, term)}
+          >
+            {#if dropZone}
+              <div class="drop-indicator drop-indicator-{dropZone}"></div>
+            {/if}
+          </div>
+        {/if}
         {#if contextMenu && contextMenu.termId === term.id}
           <div
             class="ctx-backdrop"
@@ -493,6 +530,27 @@
     overflow: hidden;
     background: var(--bg-void);
   }
+
+  /* Shown over every other pane while a terminal is being dragged. Captures the
+     drop and previews where the dragged pane will land. */
+  .drop-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+  }
+
+  .drop-indicator {
+    position: absolute;
+    background: var(--accent-color, #6ea8ff);
+    opacity: 0.28;
+    border: 2px solid var(--accent-color, #6ea8ff);
+    pointer-events: none;
+    transition: all 0.06s ease-out;
+  }
+  .drop-indicator-left { top: 0; bottom: 0; left: 0; width: 50%; }
+  .drop-indicator-right { top: 0; bottom: 0; right: 0; width: 50%; }
+  .drop-indicator-top { left: 0; right: 0; top: 0; height: 50%; }
+  .drop-indicator-bottom { left: 0; right: 0; bottom: 0; height: 50%; }
 
   .restore-badge {
     display: inline-flex;
