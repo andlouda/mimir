@@ -136,7 +136,7 @@ func (a *App) ReadDotEnvForTerminalJSON(terminalID int, terminalType string) (st
 		dir = a.TerminalManager.GetLastReportedCwd(terminalID)
 	}
 	if dir == "" {
-		return "", fmt.Errorf("could not resolve the terminal's working directory yet — open the viewer once the shell has shown a prompt, or start a tmux session")
+		return "", fmt.Errorf("could not resolve the terminal's working directory yet — the cwd hook is only injected into terminals opened after enabling the viewer, so open a new terminal and wait for its first prompt")
 	}
 
 	var content string

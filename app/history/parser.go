@@ -113,7 +113,10 @@ func StripAndExtract(data []byte) (cleaned []byte, commands []ParsedCommand, res
 		// Extract the payload between prefix and terminator
 		payload := remaining[len(oscPrefix):termIdx]
 		cmd := parseOSCPayload(payload)
-		if cmd.Command != "" {
+		// Keep a sequence that carries a command (for history) or just a cwd
+		// (a prompt-time beacon used to track the working directory before any
+		// command has run). Beacons with neither are ignored.
+		if cmd.Command != "" || cmd.CWD != "" {
 			commands = append(commands, cmd)
 		}
 
