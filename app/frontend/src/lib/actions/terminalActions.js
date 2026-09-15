@@ -161,6 +161,21 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
 
   await tick();
 
+  // Input and title handlers do not need a DOM element, so they are wired
+  // unconditionally. Doing this only when the element existed at creation
+  // left terminals that were created or restored minimized without any
+  // keyboard path: after un-minimizing they rendered but never reacted.
+  const inputDisposable = terminal.onData(data => {
+    WriteToTerminal(id, data);
+  });
+  newTerminal.cleanupHandlers.push(inputDisposable);
+
+  // Agents such as Claude Code report their state through the window
+  // title; feed it to the agent detector (see agentActions.js).
+  const titleDisposable = terminal.onTitleChange(title => handleTerminalTitle(id, title));
+  newTerminal.cleanupHandlers.push(titleDisposable);
+  newTerminal.cleanupHandlers.push(() => wiredDom.delete(id));
+
   const element = document.getElementById(`terminal-${id}`);
   if (element) {
     if (safelyAttachTerminal(newTerminal, element)) {
@@ -171,36 +186,8 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
       }
       safelyWriteTerminal(newTerminal, '\x1b[2J\x1b[H');
       safelyFitAndResizeTerminal(newTerminal, ResizeTerminal);
+      wireTerminalDom(newTerminal);
     }
-
-    const inputDisposable = terminal.onData(data => {
-      WriteToTerminal(id, data);
-    });
-    newTerminal.cleanupHandlers.push(inputDisposable);
-
-    // Agents such as Claude Code report their state through the window
-    // title; feed it to the agent detector (see agentActions.js).
-    const titleDisposable = terminal.onTitleChange(title => handleTerminalTitle(id, title));
-    newTerminal.cleanupHandlers.push(titleDisposable);
-
-    // Refit whenever the terminal's rendered box changes size (layout-tree
-    // changes, split-drag, window resize). Keeps cols/rows in sync with the
-    // pane so content reflows to the full width instead of staying wrapped at
-    // a previous, narrower size.
-    const disposeResizeObserver = observeTerminalResize(newTerminal, ResizeTerminal);
-    newTerminal.cleanupHandlers.push(disposeResizeObserver);
-
-    const handlePaste = (event) => {
-      const pasteData = event.clipboardData.getData('text');
-      if (pasteData) {
-        // Route through xterm so bracketed paste applies; otherwise multiline
-        // clipboard content executes line by line the moment it is pasted.
-        terminal.paste(pasteData);
-      }
-      event.preventDefault();
-    };
-    element.addEventListener('paste', handlePaste);
-    newTerminal.cleanupHandlers.push(() => element.removeEventListener('paste', handlePaste));
   } else if (!minimized) {
     errorMessage.set(`Failed to find terminal element for ID: ${id}`);
     console.error(get(errorMessage));
@@ -295,6 +282,41 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   return newTerminal;
 }
 
+// Terminal ids whose DOM-dependent handlers (resize observer, paste) are
+// installed. Kept outside the terminal objects because the store replaces
+// those objects on every output chunk.
+const wiredDom = new Set();
+
+// wireTerminalDom installs the handlers that need xterm's rendered element.
+// It runs on the first successful attach, which for terminals created or
+// restored minimized happens when they are first shown, not at creation.
+// xterm's own element survives re-attaches, so listening there (rather than
+// on the Svelte container) keeps the handlers valid across layout changes.
+export function wireTerminalDom(term) {
+  if (!term?.terminal?.element || wiredDom.has(term.id)) return;
+  wiredDom.add(term.id);
+
+  // Refit whenever the terminal's rendered box changes size (layout-tree
+  // changes, split-drag, window resize). Keeps cols/rows in sync with the
+  // pane so content reflows to the full width instead of staying wrapped at
+  // a previous, narrower size.
+  const disposeResizeObserver = observeTerminalResize(term, ResizeTerminal);
+  term.cleanupHandlers.push(disposeResizeObserver);
+
+  const xtermElement = term.terminal.element;
+  const handlePaste = (event) => {
+    const pasteData = event.clipboardData?.getData('text');
+    if (pasteData) {
+      // Route through xterm so bracketed paste applies; otherwise multiline
+      // clipboard content executes line by line the moment it is pasted.
+      term.terminal.paste(pasteData);
+    }
+    event.preventDefault();
+  };
+  xtermElement.addEventListener('paste', handlePaste);
+  term.cleanupHandlers.push(() => xtermElement.removeEventListener('paste', handlePaste));
+}
+
 export async function reinitializeTerminals() {
   await tick();
   for (const t of get(terminals)) {
@@ -303,6 +325,7 @@ export async function reinitializeTerminals() {
       if (element) {
         if (safelyAttachTerminal(t, element)) {
           safelyFitAndResizeTerminal(t, ResizeTerminal);
+          wireTerminalDom(t);
         }
       }
     }
