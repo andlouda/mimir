@@ -714,6 +714,7 @@ export default {
     noMatches: 'No matches',
   },
   agentPanel: {
+    insertInto: 'Insert into the active terminal: {name}',
     tabSnippets: 'Snippets',
     tabFiles: 'Files',
     tabCommands: 'Commands',
@@ -761,7 +762,7 @@ export default {
     insert: 'Insert into terminal',
     toNotes: 'To notes',
     copied: 'Copied to clipboard.',
-    inserted: 'Inserted into the terminal (press Enter to run).',
+    inserted: 'Inserted into {name} (press Enter to run).',
     savedToNotes: 'Saved as {filename}.',
     source: 'Source',
   },

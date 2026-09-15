@@ -11,7 +11,7 @@
   import { sanitizeHtml } from './util.js';
   import { extractSnippets, firstProse, splitMarkdown } from './agents/markdownBlocks.js';
   import { agentStates } from './stores/agentStore.js';
-  import { terminalMap } from './stores/terminalStore.js';
+  import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
   import { closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentTranscript } from './actions/agentActions.js';
 
@@ -40,6 +40,11 @@
 
   $: agent = $agentStates[terminalId] || null;
   $: term = $terminalMap.get(terminalId) || null;
+  // "Insert" targets the pane the user last clicked (the active terminal),
+  // not the agent's own pane: snippets are meant for the other terminals.
+  // Falls back to the agent's pane when nothing else is active.
+  $: insertTarget = ($activeTerminalId != null && $terminalMap.get($activeTerminalId)) || term;
+  $: insertTitle = insertTarget ? $t('agentPanel.insertInto', { name: insertTarget.name }) : '';
   $: if (terminalId !== loadedFor) { loadedFor = terminalId; resetFor(); refresh(); }
   $: if (agent?.status === 'idle' && agent?.lastChange) refreshSoon();
   $: scheduleAutoRefresh(agent?.status);
@@ -142,13 +147,14 @@
   }
 
   function insertIntoTerminal(code) {
-    const xterm = term?.terminal;
+    const target = insertTarget;
+    const xterm = target?.terminal;
     if (!xterm || typeof xterm.paste !== 'function') return;
     // paste() applies bracketed paste, so multi-line snippets are not executed
     // line by line; the user still confirms with Enter.
     xterm.paste(code.replace(/\n+$/, ''));
     xterm.focus?.();
-    flash($t('agentPanel.inserted'));
+    flash($t('agentPanel.inserted', { name: target.name }));
   }
 
   async function saveToNotes(code, lang = '') {
@@ -306,7 +312,7 @@
                 <div class="agent-code-bar">
                   <span class="agent-code-lang">{snippet.lang || 'code'}</span>
                   <button type="button" class="agent-link" on:click={() => copyText(snippet.code)}>{$t('agentPanel.copy')}</button>
-                  <button type="button" class="agent-link" on:click={() => insertIntoTerminal(snippet.code)} disabled={!term}>{$t('agentPanel.insert')}</button>
+                  <button type="button" class="agent-link" on:click={() => insertIntoTerminal(snippet.code)} disabled={!insertTarget} title={insertTitle}>{$t('agentPanel.insert')}{#if insertTarget && insertTarget.id !== terminalId} → {insertTarget.name}{/if}</button>
                   <button type="button" class="agent-link" on:click={() => saveToNotes(snippet.code, snippet.lang)}>{$t('agentPanel.toNotes')}</button>
                 </div>
                 <pre><code>{snippet.code}</code></pre>
@@ -315,7 +321,7 @@
               <div class="agent-inline">
                 <code>{snippet.code}</code>
                 <button type="button" class="agent-link" on:click={() => copyText(snippet.code)}>{$t('agentPanel.copy')}</button>
-                <button type="button" class="agent-link" on:click={() => insertIntoTerminal(snippet.code)} disabled={!term}>{$t('agentPanel.insert')}</button>
+                <button type="button" class="agent-link" on:click={() => insertIntoTerminal(snippet.code)} disabled={!insertTarget} title={insertTitle}>{$t('agentPanel.insert')}{#if insertTarget && insertTarget.id !== terminalId} → {insertTarget.name}{/if}</button>
               </div>
             {/if}
           {/each}
@@ -370,7 +376,7 @@
               <span>{shortTime(cmd.at)}</span>
               {#if cmd.description}<span class="agent-row-dim">{cmd.description}</span>{/if}
               <button type="button" class="agent-link" on:click={() => copyText(cmd.command)}>{$t('agentPanel.copy')}</button>
-              <button type="button" class="agent-link" on:click={() => insertIntoTerminal(cmd.command)} disabled={!term}>{$t('agentPanel.insert')}</button>
+              <button type="button" class="agent-link" on:click={() => insertIntoTerminal(cmd.command)} disabled={!insertTarget} title={insertTitle}>{$t('agentPanel.insert')}{#if insertTarget && insertTarget.id !== terminalId} → {insertTarget.name}{/if}</button>
             </div>
             <pre><code>{cmd.command}</code></pre>
           </div>
@@ -400,7 +406,7 @@
                     <div class="agent-code-bar">
                       <span class="agent-code-lang">{segment.lang || 'code'}</span>
                       <button type="button" class="agent-link" on:click={() => copyText(segment.code)}>{$t('agentPanel.copy')}</button>
-                      <button type="button" class="agent-link" on:click={() => insertIntoTerminal(segment.code)} disabled={!term}>{$t('agentPanel.insert')}</button>
+                      <button type="button" class="agent-link" on:click={() => insertIntoTerminal(segment.code)} disabled={!insertTarget} title={insertTitle}>{$t('agentPanel.insert')}{#if insertTarget && insertTarget.id !== terminalId} → {insertTarget.name}{/if}</button>
                       <button type="button" class="agent-link" on:click={() => saveToNotes(segment.code, segment.lang)}>{$t('agentPanel.toNotes')}</button>
                     </div>
                     <pre><code>{segment.code}</code></pre>
