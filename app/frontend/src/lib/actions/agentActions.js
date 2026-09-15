@@ -209,6 +209,12 @@ export async function loadAgentPaneText(id, { full = false } = {}) {
   return JSON.parse(raw);
 }
 
+/** Loads git status / diff stat of the agent's working directory. */
+export async function loadAgentGitStatus(id) {
+  const raw = await app()['GetAgentGitStatusJSON'](id, terminalType(id));
+  return JSON.parse(raw);
+}
+
 /** Test hook: number of active watches. */
 export function _activeWatchCount() {
   return watches.size;

@@ -167,3 +167,71 @@ func TestReadTranscriptPicksSessionMatchingPane(t *testing.T) {
 		t.Fatalf("expected newest unverified session, got %+v (err %v)", tr, err)
 	}
 }
+
+const claudeToolSession = `{"type":"assistant","timestamp":"2026-09-15T10:00:00Z","message":{"id":"m1","role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"go test ./...","description":"Run tests"}},{"type":"tool_use","id":"t2","name":"Read","input":{"file_path":"/p/main.go"}}]}}
+{"type":"user","timestamp":"2026-09-15T10:00:01Z","toolUseResult":"Error: Exit code 1\nFAIL","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","is_error":true,"content":"Error: Exit code 1\nFAIL"}]}}
+{"type":"user","timestamp":"2026-09-15T10:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","content":"package main"}]}}
+{"type":"assistant","timestamp":"2026-09-15T10:00:03Z","message":{"id":"m2","role":"assistant","content":[{"type":"tool_use","id":"t3","name":"Edit","input":{"file_path":"/p/main.go","old_string":"a","new_string":"b"}},{"type":"tool_use","id":"t4","name":"Write","input":{"file_path":"/p/new.go","content":"x"}},{"type":"tool_use","id":"t5","name":"Bash","input":{"command":"gofmt -l ."}}]}}
+{"type":"user","timestamp":"2026-09-15T10:00:04Z","toolUseResult":{"stdout":"","stderr":"","interrupted":false},"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t5","content":""}]}}
+{"type":"assistant","timestamp":"2026-09-15T10:00:05Z","message":{"id":"m3","role":"assistant","content":[{"type":"tool_use","id":"t6","name":"Bash","input":{"command":"sleep 100","description":"still running"}}]}}
+`
+
+func TestParseClaudeSessionToolActivity(t *testing.T) {
+	session := ParseClaudeSession([]byte(claudeToolSession))
+	if len(session.Messages) != 0 {
+		t.Fatalf("tool-only records must not produce messages: %+v", session.Messages)
+	}
+	if len(session.Commands) != 3 {
+		t.Fatalf("expected 3 commands, got %+v", session.Commands)
+	}
+	c := session.Commands
+	if c[0].Command != "go test ./..." || c[0].Description != "Run tests" || !c[0].HasExit || c[0].ExitCode != 1 || !c[0].Failed {
+		t.Fatalf("failed command not captured: %+v", c[0])
+	}
+	if c[1].Command != "gofmt -l ." || !c[1].HasExit || c[1].ExitCode != 0 || c[1].Failed {
+		t.Fatalf("successful command not captured: %+v", c[1])
+	}
+	if c[2].HasExit {
+		t.Fatalf("command without result must have no exit: %+v", c[2])
+	}
+	if len(session.Files) != 2 {
+		t.Fatalf("expected 2 files, got %+v", session.Files)
+	}
+	// Changed files first, most recent first.
+	if session.Files[0].Path != "/p/new.go" || session.Files[0].Ops[0] != "write" {
+		t.Fatalf("unexpected first file: %+v", session.Files[0])
+	}
+	if session.Files[1].Path != "/p/main.go" || strings.Join(session.Files[1].Ops, ",") != "read,edit" || session.Files[1].Count != 2 {
+		t.Fatalf("unexpected second file: %+v", session.Files[1])
+	}
+}
+
+const codexToolSession = `{"timestamp":"2026-06-21T11:25:54.623Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"ls\",\"workdir\":\"/x\"}","call_id":"c1"}}
+{"timestamp":"2026-06-21T11:25:54.743Z","type":"response_item","payload":{"type":"function_call_output","call_id":"c1","output":"Chunk ID: 9a\nProcess exited with code 2\nOutput:\nls: x"}}
+{"timestamp":"2026-06-21T11:52:51.533Z","type":"event_msg","payload":{"type":"patch_apply_end","call_id":"c2","success":true,"changes":{"/x/app/schemas.py":{"type":"update"},"/x/app/new.py":{"type":"add"}}}}
+{"timestamp":"2026-06-21T11:53:00.000Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":[\"pytest\",\"-q\"]}","call_id":"c3"}}
+{"timestamp":"2026-06-21T11:53:05.000Z","type":"response_item","payload":{"type":"function_call_output","call_id":"c3","output":"Exit code: 0\nOutput:\n3 passed"}}
+`
+
+func TestParseCodexSessionToolActivity(t *testing.T) {
+	session := ParseCodexSession([]byte(codexToolSession))
+	if len(session.Commands) != 2 {
+		t.Fatalf("expected 2 commands, got %+v", session.Commands)
+	}
+	if session.Commands[0].Command != "ls" || session.Commands[0].ExitCode != 2 || !session.Commands[0].Failed {
+		t.Fatalf("exec_command not captured: %+v", session.Commands[0])
+	}
+	if session.Commands[1].Command != "pytest -q" || session.Commands[1].ExitCode != 0 || session.Commands[1].Failed {
+		t.Fatalf("shell command not captured: %+v", session.Commands[1])
+	}
+	if len(session.Files) != 2 {
+		t.Fatalf("expected 2 files, got %+v", session.Files)
+	}
+	ops := map[string]string{}
+	for _, f := range session.Files {
+		ops[f.Path] = strings.Join(f.Ops, ",")
+	}
+	if ops["/x/app/schemas.py"] != "edit" || ops["/x/app/new.py"] != "write" {
+		t.Fatalf("unexpected file ops: %v", ops)
+	}
+}

@@ -81,10 +81,11 @@ func FindClaudeTranscripts(fs FS, home, cwd string) ([]string, error) {
 }
 
 type claudeRecord struct {
-	Type      string `json:"type"`
-	IsMeta    bool   `json:"isMeta"`
-	Timestamp string `json:"timestamp"`
-	Message   struct {
+	Type          string          `json:"type"`
+	IsMeta        bool            `json:"isMeta"`
+	Timestamp     string          `json:"timestamp"`
+	ToolUseResult json.RawMessage `json:"toolUseResult"`
+	Message       struct {
 		ID      string          `json:"id"`
 		Role    string          `json:"role"`
 		Content json.RawMessage `json:"content"`
@@ -92,16 +93,39 @@ type claudeRecord struct {
 }
 
 type claudeBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type      string          `json:"type"`
+	Text      string          `json:"text"`
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Input     json.RawMessage `json:"input"`
+	ToolUseID string          `json:"tool_use_id"`
+	IsError   bool            `json:"is_error"`
+	Content   json.RawMessage `json:"content"`
+}
+
+type claudeToolInput struct {
+	Command      string `json:"command"`
+	Description  string `json:"description"`
+	FilePath     string `json:"file_path"`
+	NotebookPath string `json:"notebook_path"`
 }
 
 // ParseClaudeTranscript extracts user prompts and assistant text from Claude
-// Code's JSONL session format. Tool calls, tool results, thinking blocks and
-// Claude Code's own meta records are skipped; consecutive assistant records
-// belonging to the same API message are merged into one turn.
+// Code's JSONL session format (see ParseClaudeSession for the full parse).
 func ParseClaudeTranscript(data []byte) []Message {
-	var out []Message
+	return ParseClaudeSession(data).Messages
+}
+
+// ParseClaudeSession extracts messages, touched files and executed commands
+// from Claude Code's JSONL session format. Tool calls, tool results, thinking
+// blocks and Claude Code's own meta records are not shown as messages;
+// consecutive assistant records of the same API message are merged.
+func ParseClaudeSession(data []byte) Session {
+	var out Session
+	files := newFileTracker()
+	// tool_use id → index into out.Commands, to attach the exit code from
+	// the matching tool_result.
+	pending := make(map[string]int)
 	lastAssistantID := ""
 	scanLines(data, func(line []byte) {
 		var rec claudeRecord
@@ -110,6 +134,27 @@ func ParseClaudeTranscript(data []byte) []Message {
 		}
 		switch rec.Type {
 		case "user":
+			for _, b := range claudeBlocks(rec.Message.Content) {
+				if b.Type != "tool_result" {
+					continue
+				}
+				idx, ok := pending[b.ToolUseID]
+				if !ok {
+					continue
+				}
+				delete(pending, b.ToolUseID)
+				cmd := &out.Commands[idx]
+				text := claudeResultText(b.Content)
+				if rec.ToolUseResult != nil {
+					text += "\n" + string(rec.ToolUseResult)
+				}
+				if code, ok := parseExitCode(text); ok {
+					cmd.ExitCode, cmd.HasExit = code, true
+				} else {
+					cmd.ExitCode, cmd.HasExit = 0, true
+				}
+				cmd.Failed = b.IsError || cmd.ExitCode != 0
+			}
 			if rec.IsMeta {
 				return
 			}
@@ -117,22 +162,78 @@ func ParseClaudeTranscript(data []byte) []Message {
 			if text == "" {
 				return
 			}
-			out = append(out, Message{Role: "user", Text: text, Timestamp: rec.Timestamp})
+			out.Messages = append(out.Messages, Message{Role: "user", Text: text, Timestamp: rec.Timestamp})
 			lastAssistantID = ""
 		case "assistant":
+			for _, b := range claudeBlocks(rec.Message.Content) {
+				if b.Type != "tool_use" {
+					continue
+				}
+				var in claudeToolInput
+				_ = json.Unmarshal(b.Input, &in)
+				switch b.Name {
+				case "Bash":
+					if strings.TrimSpace(in.Command) == "" {
+						continue
+					}
+					out.Commands = append(out.Commands, CommandRun{Command: in.Command, Description: in.Description, At: rec.Timestamp})
+					if b.ID != "" {
+						pending[b.ID] = len(out.Commands) - 1
+					}
+				case "Read":
+					files.add(in.FilePath, "read", rec.Timestamp)
+				case "Write":
+					files.add(in.FilePath, "write", rec.Timestamp)
+				case "Edit", "MultiEdit":
+					files.add(in.FilePath, "edit", rec.Timestamp)
+				case "NotebookEdit":
+					files.add(in.NotebookPath, "edit", rec.Timestamp)
+				}
+			}
 			text := claudeTextContent(rec.Message.Content, false)
 			if text == "" {
 				return
 			}
-			if rec.Message.ID != "" && rec.Message.ID == lastAssistantID && len(out) > 0 && out[len(out)-1].Role == "assistant" {
-				out[len(out)-1].Text += "\n\n" + text
+			if rec.Message.ID != "" && rec.Message.ID == lastAssistantID && len(out.Messages) > 0 && out.Messages[len(out.Messages)-1].Role == "assistant" {
+				out.Messages[len(out.Messages)-1].Text += "\n\n" + text
 				return
 			}
 			lastAssistantID = rec.Message.ID
-			out = append(out, Message{Role: "assistant", Text: text, Timestamp: rec.Timestamp})
+			out.Messages = append(out.Messages, Message{Role: "assistant", Text: text, Timestamp: rec.Timestamp})
 		}
 	})
+	out.Files = files.list()
+	out.Commands = capCommands(out.Commands, maxCommands)
 	return out
+}
+
+func claudeBlocks(raw json.RawMessage) []claudeBlock {
+	var blocks []claudeBlock
+	if len(raw) == 0 || raw[0] != '[' {
+		return nil
+	}
+	if err := json.Unmarshal(raw, &blocks); err != nil {
+		return nil
+	}
+	return blocks
+}
+
+// claudeResultText flattens a tool_result content (string or text blocks).
+func claudeResultText(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	var parts []string
+	for _, b := range claudeBlocks(raw) {
+		if b.Type == "text" {
+			parts = append(parts, b.Text)
+		}
+	}
+	return strings.Join(parts, "\n")
 }
 
 // claudeTextContent joins the text blocks of a message. Content is either a
