@@ -1,4 +1,5 @@
 <script>
+  import { agentStates } from './stores/agentStore.js';
   import { createEventDispatcher, tick } from 'svelte';
   import { t } from './i18n.js';
   import { calculateSplitRatio } from './terminals/splitPaneResize.js';
@@ -197,6 +198,13 @@
     }
     dispatch('dismissrestore', term.id);
   }
+  function agentBadgeTitle(agent) {
+    const parts = [agent.label];
+    if (agent.subject) parts.push(agent.subject);
+    if (agent.cwd) parts.push(agent.cwd);
+    parts.push($t('splitPane.agentOpenPanel'));
+    return parts.join('\n');
+  }
 </script>
 
 <svelte:window on:keydown={handleWindowKeydown} />
@@ -225,6 +233,17 @@
           </span>
           {#if term.tmuxActive || ['failed', 'missing'].includes(term.tmuxStatus)}
             <span class="tmux-badge {term.tmuxStatus === 'failed' || term.tmuxStatus === 'missing' ? 'tmux-badge-warning' : ''}" title={tmuxTitle(term)}>{term.tmuxStatus === 'missing' ? 'no tx' : 'tx'}</span>
+          {/if}
+          {#if $agentStates[term.id]}
+            {@const agent = $agentStates[term.id]}
+            <button
+              type="button"
+              class="agent-badge agent-badge-{agent.status || 'unknown'} {agent.attention ? 'agent-badge-attention' : ''}"
+              title={agentBadgeTitle(agent)}
+              on:click|stopPropagation={() => dispatch('openagent', term.id)}
+            >
+              <span class="agent-badge-dot"></span>{agent.label}{#if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}
+            </button>
           {/if}
           {#if term.type === 'ssh'}
             <span class="rc-badge {term.rcMode && term.rcMode !== 'off' ? 'rc-badge-active' : ''}" title={rcTitle(term)}>{term.rcMode && term.rcMode !== 'off' ? 'rc' : 'clean'}</span>
@@ -578,6 +597,31 @@
     font-family: var(--font-mono);
     text-transform: lowercase;
   }
+
+  .agent-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-left: 6px;
+    background: rgba(99, 179, 237, 0.12);
+    color: #63b3ed;
+    border: 1px solid rgba(99, 179, 237, 0.3);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .agent-badge:hover { background: rgba(99, 179, 237, 0.22); }
+  .agent-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .agent-badge-working { color: #e3b341; background: rgba(227, 179, 65, 0.12); border-color: rgba(227, 179, 65, 0.32); }
+  .agent-badge-working .agent-badge-dot { animation: agent-pulse 1.2s ease-in-out infinite; }
+  .agent-badge-attention { color: #7ee787; background: rgba(126, 231, 135, 0.14); border-color: rgba(126, 231, 135, 0.4); box-shadow: 0 0 0 0 rgba(126, 231, 135, 0.5); animation: agent-ring 1.6s ease-out infinite; }
+  @keyframes agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  @keyframes agent-ring { 0% { box-shadow: 0 0 0 0 rgba(126, 231, 135, 0.45); } 100% { box-shadow: 0 0 0 6px rgba(126, 231, 135, 0); } }
 
   .tmux-badge-warning {
     background: rgba(227, 179, 65, 0.14);

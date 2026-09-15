@@ -50,10 +50,16 @@ Mimir is local-first by default.
   rejected to prevent history poisoning from terminal output.
 - SSH RC injection is opt-in per profile and does not write to remote `~/.bashrc`.
 - AI context is sanitized and can be excluded from prompts.
+- Coding-agent awareness: when Claude Code or Codex runs in a pane, Mimir
+  shows the agent and its state in the pane header and can open a side panel
+  with the agent's last messages read from its own session file, so code can
+  be copied exactly, without terminal line wrapping. Detection can be turned
+  off in Settings.
 - Credentials (SSH passwords, AI API key) are stored in the OS keyring when
   available. Without a keyring, they are kept in an encrypted file protected by
-  a master password (Argon2id) plus a machine-bound secret, using envelope
-  encryption. FIDO2/hardware-key unlock is supported as an additional key slot.
+  a master password (Argon2id) plus a per-machine identifier where the OS
+  provides one, using envelope encryption. The master password is the primary
+  protection; the machine identifier only adds friction against copied files. FIDO2/hardware-key unlock is supported as an additional key slot.
 - Terminal recordings store raw output on disk. Keystroke (input) recording is
   off by default. Scrubbing is best-effort, pattern-based, and applied only on
   export — it cannot redact free-form secrets such as a typed password.

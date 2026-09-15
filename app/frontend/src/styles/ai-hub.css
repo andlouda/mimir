@@ -78,6 +78,17 @@
     transform: translateY(-1px);
   }
 
+  .settings-toggle-card {
+    display: block;
+  }
+
+  .settings-toggle-card input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
   .ai-hub-card-top {
     display: flex;
     justify-content: space-between;

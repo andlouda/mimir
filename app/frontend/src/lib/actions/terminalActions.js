@@ -12,7 +12,8 @@ import { EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
-import { generateResumeId, shellQuotePath } from '../util.js';
+import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
+import { handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
 import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
@@ -177,6 +178,11 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     });
     newTerminal.cleanupHandlers.push(inputDisposable);
 
+    // Agents such as Claude Code report their state through the window
+    // title; feed it to the agent detector (see agentActions.js).
+    const titleDisposable = terminal.onTitleChange(title => handleTerminalTitle(id, title));
+    newTerminal.cleanupHandlers.push(titleDisposable);
+
     // Refit whenever the terminal's rendered box changes size (layout-tree
     // changes, split-drag, window resize). Keeps cols/rows in sync with the
     // pane so content reflows to the full width instead of staying wrapped at
@@ -203,6 +209,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
 
   const offOutput = EventsOn(`terminal-output-${id}`, data => {
     safelyWriteTerminal(newTerminal, data);
+    noteTerminalOutput(id, data);
     terminals.update(list => list.map(t => {
       if (t.id !== id) return t;
       const nextOutput = (t.outputBuffer + data).slice(-12000);
@@ -232,6 +239,9 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
 
   await ConfirmFrontendReady(id);
   await InitializeTerminal(id);
+
+  startAgentWatch(id, type);
+  newTerminal.cleanupHandlers.push(() => stopAgentWatch(id));
 
   try {
     const status = await readTmuxStatus(id);
@@ -345,6 +355,11 @@ export async function addTerminal(terminalTypeParam, nameParam, minimized = fals
 
     await reinitializeTerminals();
 
+    if (initialPath && containsControlChars(initialPath)) {
+      // Never type control characters into a fresh PTY (see handleRemoteCD).
+      console.warn('Ignoring initial path with control characters');
+      initialPath = '';
+    }
     if (initialPath) {
       let cdCommand = '';
       switch(type) {

@@ -3,6 +3,7 @@
   // logic stay in the parent and are passed as callbacks. Strings via i18n;
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
+  import { agentDetectionEnabled } from '../stores/agentStore.js';
 
   export let notesPanelOpen = false;
   export let showFolderManager = false;     // bind
@@ -47,6 +48,14 @@
   </div>
 
   <div class="ai-hub-grid">
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x1F916;</span>
+        <input type="checkbox" bind:checked={$agentDetectionEnabled} />
+      </div>
+      <strong>{$t('settings.cards.agentDetection.title')}</strong>
+      <p>{$t('settings.cards.agentDetection.desc')}</p>
+    </label>
     <button type="button" class="ai-hub-card" on:click={onOpenAISettings}>
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x269B;</span>

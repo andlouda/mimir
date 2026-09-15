@@ -25,9 +25,22 @@ Mimir is a local desktop terminal application. It may handle sensitive terminal 
 - Credentials (SSH passwords and the AI API key) use the OS keyring when
   available. The fallback encrypted-file backend uses envelope encryption: a
   random data key is wrapped by a key derived (Argon2id) from a user master
-  password combined with a machine-bound secret. A FIDO2 authenticator can be
+  password combined with a machine identifier where the OS provides one
+  (`/etc/machine-id`, IOPlatformUUID, MachineGuid). That identifier is a
+  secondary layer only: it is readable by local users and is absent on some
+  platforms, in which case derivation is password-only. A FIDO2 authenticator can be
   enrolled as an alternative unlock method (key *or* password). The master
   password remains as a recovery path if a hardware key is lost.
+- The agent panel detects coding agents (Claude Code, Codex, ...) by
+  inspecting the process tree of a pane's tmux session out-of-band (`ps`, never
+  keystrokes). tmux is the primary source: `capture-pane` provides the pane
+  text for every agent and is used to confirm which session file belongs to
+  the pane. Session files (`~/.claude/projects`, `~/.codex/sessions`; over
+  SFTP for SSH panes) are read only to obtain unwrapped text. Those files can contain
+  anything the agent saw, including secrets; they are rendered through the
+  same sanitizer as notes, never uploaded, and only metadata (agent kind,
+  message count) is written to the activity log. Detection is on by default
+  and can be disabled in Settings.
 - Terminal recordings contain raw terminal data and may include secrets.
   Keystroke (input) recording is disabled by default. Scrubbing is best-effort
   and applied only when exporting; it cannot guarantee removal of free-form
