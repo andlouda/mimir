@@ -13,6 +13,7 @@
   export let onSave = () => {};
   export let onProviderChange = () => {};
   export let onUseDevOpsExample = () => {};
+  export let onClearApiKey = () => {};
 
   $: currentProvider = providers.find((p) => p.id === settings.provider) || null;
   $: showApiKey = !currentProvider || currentProvider.supportsApiKey !== false;
@@ -64,7 +65,20 @@
       {#if showApiKey}
         <label class="template-prompt-field">
           <span>{$t('aiSettings.apiKey')}{#if !apiKeyRequired} {$t('aiSettings.optional')}{/if}</span>
-          <input type="password" bind:value={settings.apiKey} placeholder={apiKeyRequired ? $t('aiSettings.apiKeyRequired') : $t('aiSettings.apiKeyOptional')} />
+          <input
+            type="password"
+            autocomplete="off"
+            bind:value={settings.apiKey}
+            placeholder={settings.hasApiKey && !settings.clearApiKey ? $t('aiSettings.apiKeyStored') : (apiKeyRequired ? $t('aiSettings.apiKeyRequired') : $t('aiSettings.apiKeyOptional'))}
+          />
+          {#if settings.hasApiKey && !settings.clearApiKey}
+            <span class="field-hint">
+              {$t('aiSettings.apiKeyStoredHint')}
+              <button type="button" class="modal-secondary-button" on:click={onClearApiKey}>{$t('aiSettings.apiKeyClear')}</button>
+            </span>
+          {:else if settings.clearApiKey}
+            <span class="field-hint">{$t('aiSettings.apiKeyWillBeCleared')}</span>
+          {/if}
         </label>
       {/if}
       <div class="ai-settings-section">

@@ -337,3 +337,15 @@ export function SetDotEnvViewer(arg1) {
 export function ReadDotEnvForTerminalJSON(arg1, arg2) {
   return window['go']['main']['App']['ReadDotEnvForTerminalJSON'](arg1, arg2);
 }
+
+export function DetectAgentForTerminalJSON(arg1, arg2) {
+  return window['go']['main']['App']['DetectAgentForTerminalJSON'](arg1, arg2);
+}
+
+export function GetAgentTranscriptJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetAgentTranscriptJSON'](arg1, arg2, arg3);
+}
+
+export function GetAgentPaneTextJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentPaneTextJSON'](arg1, arg2);
+}

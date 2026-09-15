@@ -4,7 +4,11 @@ export const defaultAISettings = {
   provider: 'openai',
   model: 'gpt-5.4-mini',
   baseUrl: '',
+  // apiKey is write-only: the backend never returns the stored key, it only
+  // reports hasApiKey. A non-empty value here means "replace the stored key".
   apiKey: '',
+  hasApiKey: false,
+  clearApiKey: false,
 };
 
 export const defaultAIToolFlowConfig = {

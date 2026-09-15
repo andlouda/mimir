@@ -2,6 +2,11 @@
   import { t as tr } from '../i18n.js';
   import SplitPane from '../SplitPane.svelte';
   import MarkdownNotes from '../MarkdownNotes.svelte';
+  import AgentTranscriptPanel from '../AgentTranscriptPanel.svelte';
+  // Agent panel state lives in a store (not threaded through props) because
+  // it is opened from deep inside the recursive SplitPane tree.
+  import { agentPanelTerminalId } from '../stores/agentStore.js';
+  import { toggleAgentPanel } from '../actions/agentActions.js';
 
   export let availableTerminalTypes = [];
   export let selectedTerminalType = '';
@@ -122,6 +127,7 @@
         on:togglerecording={(e) => toggleRecording(e.detail)}
         on:opentranscript={(e) => openTranscriptViewer(e.detail)}
         on:openenv={(e) => openDotEnvViewer(e.detail)}
+        on:openagent={(e) => toggleAgentPanel(e.detail)}
       />
     {:else}
       <div class="empty-state">
@@ -129,6 +135,11 @@
       </div>
     {/if}
   </div>
+  {#if $agentPanelTerminalId != null}
+    <div class="agent-panel">
+      <AgentTranscriptPanel terminalId={$agentPanelTerminalId} />
+    </div>
+  {/if}
   {#if notesPanelOpen}
     <button
       type="button"

@@ -215,31 +215,37 @@ func writeMimirShellFile(name string, content string) (string, error) {
 	return path, nil
 }
 
-// mimirBashHook is a PROMPT_COMMAND hook that emits OSC 7337 after each command.
+// mimirBashHook is a PROMPT_COMMAND hook that emits OSC 7337 on every prompt.
+// A new command carries its command line; an unchanged prompt still reports the
+// current cwd (an empty-command beacon) so cwd-dependent features work before
+// any command has been run.
 const mimirBashHook = `__mimir_last_cmd=""
 __mimir_precmd() {
   local exit_code=$?
   local cmd; cmd=$(HISTTIMEFORMAT= history 1 2>/dev/null | sed 's/^ *[0-9]* *//')
-  [ -z "$cmd" ] && return
-  [ "$cmd" = "$__mimir_last_cmd" ] && return
-  __mimir_last_cmd="$cmd"
-  local b64; b64=$(printf '%s' "$cmd" | base64 2>/dev/null | tr -d '\n')
+  local b64=""
+  if [ -n "$cmd" ] && [ "$cmd" != "$__mimir_last_cmd" ]; then
+    __mimir_last_cmd="$cmd"
+    b64=$(printf '%s' "$cmd" | base64 2>/dev/null | tr -d '\n')
+  fi
   printf '\033]7337;cmd=%s;exit=%s;cwd=%s;host=%s;user=%s;shell=bash;ts=%s\007' \
     "$b64" "$exit_code" "$PWD" "$(hostname -s 2>/dev/null || echo unknown)" "$(whoami)" "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)"
 }
 PROMPT_COMMAND="__mimir_precmd;${PROMPT_COMMAND}"
 `
 
-// mimirZshHook is a precmd hook that emits OSC 7337 after each command.
+// mimirZshHook is a precmd hook that emits OSC 7337 on every prompt (see
+// mimirBashHook for the empty-command cwd beacon behaviour).
 const mimirZshHook = `autoload -Uz add-zsh-hook 2>/dev/null
 __mimir_last_cmd=""
 __mimir_precmd() {
   local exit_code=$?
   local cmd; cmd=$(fc -ln -1 2>/dev/null); cmd=${cmd## }
-  [ -z "$cmd" ] && return
-  [ "$cmd" = "$__mimir_last_cmd" ] && return
-  __mimir_last_cmd="$cmd"
-  local b64; b64=$(printf '%s' "$cmd" | base64 2>/dev/null | tr -d '\n')
+  local b64=""
+  if [ -n "$cmd" ] && [ "$cmd" != "$__mimir_last_cmd" ]; then
+    __mimir_last_cmd="$cmd"
+    b64=$(printf '%s' "$cmd" | base64 2>/dev/null | tr -d '\n')
+  fi
   printf '\033]7337;cmd=%s;exit=%s;cwd=%s;host=%s;user=%s;shell=zsh;ts=%s\007' \
     "$b64" "$exit_code" "$PWD" "$(hostname -s 2>/dev/null || echo unknown)" "$(whoami)" "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)"
 }
@@ -568,6 +574,11 @@ func (m *Manager) InitializeTerminal(id int) error {
 				meta := m.sessionMeta[id]
 				m.ptyMutex.Unlock()
 				for _, cmd := range commands {
+					// Skip prompt-time cwd beacons (no command); they only
+					// update the tracked working directory, not history.
+					if cmd.Command == "" {
+						continue
+					}
 					exitCode := 0
 					if cmd.ExitCode != "" {
 						fmt.Sscanf(cmd.ExitCode, "%d", &exitCode)

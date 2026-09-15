@@ -256,6 +256,13 @@ func ValidateCommandSuggestion(mode string, output string) error {
 			return fmt.Errorf("AI returned a chained or redirected command")
 		}
 	}
+	// Command substitution runs a nested command and bypasses the chaining
+	// check above (e.g. `echo $(wget ...)`), so it is rejected as well.
+	for _, fragment := range []string{"$(", "`", "${"} {
+		if strings.Contains(trimmed, fragment) {
+			return fmt.Errorf("AI returned a command with command substitution")
+		}
+	}
 	if strings.Contains(lower, "curl ") && strings.Contains(lower, "sh") {
 		return fmt.Errorf("AI returned a pipe-to-shell style command")
 	}

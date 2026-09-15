@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,11 +18,11 @@ import (
 )
 
 const (
-	updateMaxBytes    = 200 * 1024 * 1024
-	checksumMaxBytes  = 64 * 1024
-	downloadTimeout   = 5 * time.Minute
-	checksumTimeout   = 15 * time.Second
-	progressInterval  = 100 * 1024 // emit progress every 100KB
+	updateMaxBytes   = 200 * 1024 * 1024
+	checksumMaxBytes = 64 * 1024
+	downloadTimeout  = 5 * time.Minute
+	checksumTimeout  = 15 * time.Second
+	progressInterval = 100 * 1024 // emit progress every 100KB
 )
 
 // Progress represents download/install progress sent to the frontend.
@@ -107,17 +108,55 @@ func resolveExpectedSHA(ctx context.Context, info Info) (string, error) {
 	return "", fmt.Errorf("no checksum source available — refusing to download unverified binary")
 }
 
-func downloadChecksums(ctx context.Context, url string) (map[string]string, error) {
+// allowedAssetHosts are the only origins release assets may be fetched from.
+// The URLs come from the GitHub API response; pinning the host means a
+// tampered or spoofed API answer cannot redirect the download elsewhere.
+var allowedAssetHosts = map[string]bool{
+	"github.com":                           true,
+	"objects.githubusercontent.com":        true,
+	"release-assets.githubusercontent.com": true,
+}
+
+func validateAssetURL(rawURL string) error {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return fmt.Errorf("invalid asset URL: %w", err)
+	}
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("asset URL must use https: %s", rawURL)
+	}
+	if !allowedAssetHosts[strings.ToLower(parsed.Hostname())] {
+		return fmt.Errorf("asset URL host %q is not an allowed GitHub release host", parsed.Hostname())
+	}
+	return nil
+}
+
+// assetHTTPClient re-validates every redirect hop: GitHub serves release
+// assets via a redirect to objects.githubusercontent.com, and a redirect
+// must not be able to escape the pinned host set either.
+var assetHTTPClient = &http.Client{
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return fmt.Errorf("too many redirects")
+		}
+		return validateAssetURL(req.URL.String())
+	},
+}
+
+func downloadChecksums(ctx context.Context, rawURL string) (map[string]string, error) {
+	if err := validateAssetURL(rawURL); err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, checksumTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "mimir-update")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := assetHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download checksums: %w", err)
 	}
@@ -153,6 +192,9 @@ func downloadChecksums(ctx context.Context, url string) (map[string]string, erro
 }
 
 func downloadArchive(ctx context.Context, asset *Asset, expectedSHA string, emit func(Progress)) (string, error) {
+	if err := validateAssetURL(asset.URL); err != nil {
+		return "", err
+	}
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
 
@@ -162,7 +204,7 @@ func downloadArchive(ctx context.Context, asset *Asset, expectedSHA string, emit
 	}
 	req.Header.Set("User-Agent", "mimir-update")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := assetHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("download archive: %w", err)
 	}

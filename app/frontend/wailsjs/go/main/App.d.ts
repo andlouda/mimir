@@ -106,3 +106,9 @@ export function IsDotEnvViewerEnabled():Promise<boolean>;
 export function SetDotEnvViewer(arg1:boolean):Promise<void>;
 
 export function ReadDotEnvForTerminalJSON(arg1:number,arg2:string):Promise<string>;
+
+export function DetectAgentForTerminalJSON(arg1:number,arg2:string):Promise<string>;
+
+export function GetAgentTranscriptJSON(arg1:number,arg2:string,arg3:number):Promise<string>;
+
+export function GetAgentPaneTextJSON(arg1:number,arg2:string):Promise<string>;

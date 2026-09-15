@@ -113,7 +113,10 @@ func StripAndExtract(data []byte) (cleaned []byte, commands []ParsedCommand, res
 		// Extract the payload between prefix and terminator
 		payload := remaining[len(oscPrefix):termIdx]
 		cmd := parseOSCPayload(payload)
-		if cmd.Command != "" {
+		// Keep a sequence that carries a command (for history) or just a cwd
+		// (a prompt-time beacon used to track the working directory before any
+		// command has run). Beacons with neither are ignored.
+		if cmd.Command != "" || cmd.CWD != "" {
 			commands = append(commands, cmd)
 		}
 
@@ -152,7 +155,11 @@ func parseOSCPayload(payload []byte) ParsedCommand {
 			if strings.ContainsAny(c, "\x00\r\n") {
 				continue
 			}
-			cmd.Command = c
+			// Strip every other C0 control (ESC, BEL, ...) so stored history
+			// can never re-emit terminal escape sequences when displayed or
+			// fed to the AI context. TAB is the only control kept: it is a
+			// legitimate word separator in shell command lines.
+			cmd.Command = stripControls(c, true)
 		case "exit":
 			cmd.ExitCode = sanitizeField(value)
 		case "cwd":
@@ -176,7 +183,16 @@ func sanitizeField(s string) string {
 	if len(s) > maxFieldLen {
 		s = s[:maxFieldLen]
 	}
+	return stripControls(s, false)
+}
+
+// stripControls removes C0 control characters and DEL. When keepTab is set,
+// TAB survives; everything else below 0x20 is dropped.
+func stripControls(s string, keepTab bool) string {
 	return strings.Map(func(r rune) rune {
+		if r == '\t' && keepTab {
+			return r
+		}
 		if r < 0x20 || r == 0x7f {
 			return -1
 		}

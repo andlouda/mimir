@@ -183,8 +183,11 @@ func (a *App) hostKeyCallback(profileID string, host string, port int) gossh.Hos
 			a.pendingHostKeyMu.Unlock()
 			return fmt.Errorf("HOST_KEY_VERIFY|%s|%s|%s|%s|%s",
 				result.Status, result.Host, result.Fingerprint, result.KeyType, result.Message)
+		default:
+			// Fail closed: any status this switch does not know about must
+			// not silently accept the key.
+			return fmt.Errorf("host key verification failed: unexpected status %q for %s", result.Status, result.Host)
 		}
-		return nil
 	}
 }
 

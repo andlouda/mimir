@@ -10,7 +10,8 @@
   import AIHubView from './views/AIHubView.svelte';
   import SettingsView from './views/SettingsView.svelte';
   import { normalizeTemplates } from './templates/templateHelpers';
-  import { shellQuotePath } from './util';
+  import { containsControlChars, shellQuotePath } from './util';
+  import { errorMessage as errorMessageStore } from './stores/uiStore.js';
 
   export let currentPage = 'terminals';
   export let availableTerminalTypes = [];
@@ -44,6 +45,18 @@
   export let updateInstalled = false;
   export let customFolders = [];
   export let newFolderName = '';
+
+  // The path comes from the remote SFTP listing, i.e. the remote server picks
+  // the bytes. shellQuotePath handles quotes, but control characters would
+  // still be typed into the PTY (CR submits early, ESC can hit readline
+  // bindings), so those paths are refused outright.
+  function handleRemoteCD(terminalId, path) {
+    if (containsControlChars(path)) {
+      errorMessageStore.set('Refused to cd: remote path contains control characters.');
+      return;
+    }
+    WriteToTerminal(terminalId, `cd ${shellQuotePath(path)}\r`);
+  }
 
   export let persistDefaultTerminalType = () => {};
   export let addTerminal = () => {};
@@ -161,7 +174,7 @@
       on:insertIntoTerminal={insertFileIntoActiveTerminal}
       on:openInNotes={handleOpenInNotes}
       on:switchToLocal={() => { fileBrowserRemoteTerminalId = 0; fileBrowserRemoteLabel = ''; }}
-      on:remoteCD={(e) => { WriteToTerminal(e.detail.terminalId, `cd ${shellQuotePath(e.detail.path)}\r`); }}
+      on:remoteCD={(e) => handleRemoteCD(e.detail.terminalId, e.detail.path)}
     />
   {:else if currentPage === "workflowBuilder"}
     <WorkflowBuilder

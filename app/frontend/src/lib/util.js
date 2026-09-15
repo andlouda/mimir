@@ -1,4 +1,5 @@
 // Generic, state-free helpers extracted from App.svelte.
+import DOMPurify from 'dompurify';
 
 /** Single-quotes a path for safe interpolation into a POSIX shell command. */
 export function shellQuotePath(path) {
@@ -6,81 +7,103 @@ export function shellQuotePath(path) {
 }
 
 /**
+ * True when the string contains a C0 control character or DEL. Paths and
+ * names that end up as keystrokes in a terminal must never carry these: a CR
+ * submits a command early and ESC sequences can trigger readline bindings.
+ */
+export function containsControlChars(value) {
+  // eslint-disable-next-line no-control-regex
+  return /[\x00-\x1f\x7f]/.test(String(value ?? ''));
+}
+
+const SANITIZE_ALLOWED_TAGS = [
+  'a', 'abbr', 'blockquote', 'br', 'code', 'del', 'details', 'div', 'em',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'kbd', 'li', 'ol', 'p',
+  'pre', 's', 'span', 'strong', 'sub', 'summary', 'sup', 'table', 'tbody',
+  'td', 'th', 'thead', 'tr', 'ul'
+];
+const SANITIZE_ALLOWED_ATTRS = ['class', 'title', 'href', 'rel', 'target', 'src', 'alt', 'width', 'height'];
+// Remote images are blocked on purpose: an <img src="https://..."> in an
+// imported note is a tracking beacon and extra WebKit attack surface. Only
+// inline raster images survive.
+const SANITIZE_IMG_SRC = /^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,[a-z0-9+/=\s]+$/i;
+const SANITIZE_LINK_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
+
+let purifier = null;
+
+function getPurifier() {
+  if (purifier) return purifier;
+  if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return null;
+  const instance = DOMPurify(window);
+  if (!instance.isSupported) return null;
+  instance.setConfig({
+    ALLOWED_TAGS: SANITIZE_ALLOWED_TAGS,
+    ALLOWED_ATTR: SANITIZE_ALLOWED_ATTRS,
+    ALLOW_DATA_ATTR: false,
+    ALLOW_ARIA_ATTR: false,
+    ALLOW_UNKNOWN_PROTOCOLS: false,
+    ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|data:image\/|#|\/)/i,
+    // Non-URI attributes DOMPurify would otherwise validate against the URI
+    // regexp above. href/src are still checked by the hook below.
+    ADD_URI_SAFE_ATTR: ['target', 'rel', 'width', 'height'],
+    SAFE_FOR_TEMPLATES: false,
+    RETURN_DOM: false,
+    RETURN_DOM_FRAGMENT: false,
+    WHOLE_DOCUMENT: false,
+  });
+  instance.addHook('uponSanitizeAttribute', (node, data) => {
+    const tag = node.nodeName.toLowerCase();
+    const name = data.attrName;
+    if (name === 'href' || name === 'src' || name === 'target' || name === 'rel') {
+      if (tag !== 'a' && tag !== 'img') {
+        data.keepAttr = false;
+        return;
+      }
+    }
+    if ((name === 'alt' || name === 'width' || name === 'height') && tag !== 'img') {
+      data.keepAttr = false;
+      return;
+    }
+    if (tag === 'img' && name === 'src') {
+      data.keepAttr = SANITIZE_IMG_SRC.test(String(data.attrValue || '').trim());
+      return;
+    }
+    if (tag === 'a' && name === 'href') {
+      const value = String(data.attrValue || '').trim();
+      if (value.startsWith('#') || value.startsWith('/')) return;
+      try {
+        data.keepAttr = SANITIZE_LINK_SCHEMES.has(new URL(value, window.location.href).protocol);
+      } catch {
+        data.keepAttr = false;
+      }
+    }
+  });
+  instance.addHook('afterSanitizeAttributes', (node) => {
+    if (node.nodeName.toLowerCase() !== 'a') return;
+    node.setAttribute('rel', 'noreferrer noopener');
+    if (node.getAttribute('target') !== '_blank') {
+      node.removeAttribute('target');
+    }
+  });
+  purifier = instance;
+  return purifier;
+}
+
+/**
  * Sanitizes HTML generated from local or imported Markdown before rendering it
  * with Svelte's {@html}. This is a security boundary: Wails exposes backend
- * methods to the frontend, so imported Markdown must not execute script.
+ * methods (WriteToTerminal, SFTP, ...) to the frontend, so imported Markdown
+ * must not execute script. DOMPurify does the parsing/mutation-safe work; the
+ * config above restricts it to the Markdown subset the notes need.
+ *
+ * Fails closed: without a usable DOM (SSR, tests without jsdom) it returns an
+ * empty string rather than unsanitized markup.
  */
 export function sanitizeHtml(html) {
   if (!html) return '';
-  if (typeof DOMParser === 'undefined') return '';
-
-  const allowedTags = new Set([
-    'a', 'abbr', 'blockquote', 'br', 'code', 'del', 'details', 'div', 'em',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'img', 'kbd', 'li', 'ol', 'p',
-    'pre', 's', 'span', 'strong', 'sub', 'summary', 'sup', 'table', 'tbody',
-    'td', 'th', 'thead', 'tr', 'ul'
-  ]);
-  const globalAttrs = new Set(['class', 'title']);
-  const tagAttrs = {
-    a: new Set(['href', 'rel', 'target']),
-    img: new Set(['src', 'alt', 'width', 'height'])
-  };
-  const uriAttrs = new Set(['href', 'src']);
-  const safeSchemes = new Set(['http:', 'https:', 'mailto:']);
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(`<body>${html}</body>`, 'text/html');
-
-  function isSafeUrl(value) {
-    const trimmed = String(value || '').trim();
-    if (!trimmed) return false;
-    if (trimmed.startsWith('#') || trimmed.startsWith('/')) return true;
-    try {
-      return safeSchemes.has(new URL(trimmed, window.location.href).protocol);
-    } catch {
-      return false;
-    }
-  }
-
-  function cleanNode(node) {
-    if (node.nodeType === Node.COMMENT_NODE) {
-      node.remove();
-      return;
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-    const tag = node.tagName.toLowerCase();
-    if (!allowedTags.has(tag)) {
-      node.replaceWith(...Array.from(node.childNodes));
-      return;
-    }
-
-    for (const attr of Array.from(node.attributes)) {
-      const name = attr.name.toLowerCase();
-      const allowed = globalAttrs.has(name) || tagAttrs[tag]?.has(name);
-      if (!allowed || name.startsWith('on')) {
-        node.removeAttribute(attr.name);
-        continue;
-      }
-      if (uriAttrs.has(name) && !isSafeUrl(attr.value)) {
-        node.removeAttribute(attr.name);
-      }
-    }
-
-    if (tag === 'a') {
-      node.setAttribute('rel', 'noreferrer noopener');
-      if (node.getAttribute('target') === '_blank') {
-        node.setAttribute('target', '_blank');
-      }
-    }
-  }
-
-  let current;
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT);
-  const nodes = [];
-  while ((current = walker.nextNode())) nodes.push(current);
-  for (const node of nodes) cleanNode(node);
-  return doc.body.innerHTML;
+  const instance = getPurifier();
+  if (!instance) return '';
+  return instance.sanitize(String(html));
 }
 
 /** Generates a unique resume id for a terminal session. */

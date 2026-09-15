@@ -191,6 +191,16 @@
     background: var(--accent);
   }
 
+  .agent-panel {
+    flex-shrink: 0;
+    height: 100%;
+    overflow: hidden;
+    border-left: 1px solid var(--border-subtle);
+    width: 440px;
+    min-width: 300px;
+    max-width: 50%;
+  }
+
   .notes-panel {
     flex-shrink: 0;
     height: 100%;

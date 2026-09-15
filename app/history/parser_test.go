@@ -71,8 +71,28 @@ func TestRejectsControlCharsInCommand(t *testing.T) {
 	data := []byte("\x1b]7337;cmd=" + encoded + ";exit=0;cwd=/tmp\x07")
 
 	_, commands, _ := StripAndExtract(data)
-	if len(commands) != 0 {
-		t.Fatalf("expected command with control chars to be rejected, got %+v", commands)
+	// The forged command line must never be recorded as a command. The cwd
+	// field is still allowed through as a (sanitized) beacon, but with no
+	// command it cannot poison history.
+	for _, c := range commands {
+		if c.Command != "" {
+			t.Fatalf("expected command with control chars to be rejected, got %+v", c)
+		}
+	}
+}
+
+// TestCwdOnlyBeaconIsKept ensures a prompt-time sequence that carries only a
+// cwd (no command) is surfaced, so cwd-dependent features can track the working
+// directory before any command has run.
+func TestCwdOnlyBeaconIsKept(t *testing.T) {
+	data := []byte("\x1b]7337;cmd=;exit=0;cwd=/home/u/proj;host=dev;user=t3;shell=bash;ts=2026-06-19T10:00:00Z\x07")
+
+	_, commands, _ := StripAndExtract(data)
+	if len(commands) != 1 {
+		t.Fatalf("expected one cwd beacon, got %d", len(commands))
+	}
+	if commands[0].Command != "" || commands[0].CWD != "/home/u/proj" {
+		t.Fatalf("unexpected beacon: %+v", commands[0])
 	}
 }
 
@@ -100,5 +120,20 @@ func TestSanitizesMetadataFields(t *testing.T) {
 	}
 	if strings.ContainsAny(commands[0].Hostname, "\t\x00\r\n") {
 		t.Fatalf("hostname not sanitized: %q", commands[0].Hostname)
+	}
+}
+
+// TestStripsEscapeSequencesFromCommand ensures non-newline control characters
+// (ESC, BEL) are stripped from a stored command while TAB is preserved.
+func TestStripsEscapeSequencesFromCommand(t *testing.T) {
+	encoded := base64.StdEncoding.EncodeToString([]byte("ls\t-la \x1b[31mred\x1b[0m \x07x"))
+	data := []byte("\x1b]7337;cmd=" + encoded + ";exit=0;cwd=/tmp\x07")
+
+	_, commands, _ := StripAndExtract(data)
+	if len(commands) != 1 {
+		t.Fatalf("expected one command, got %d", len(commands))
+	}
+	if commands[0].Command != "ls\t-la [31mred[0m x" {
+		t.Fatalf("unexpected sanitized command: %q", commands[0].Command)
 	}
 }

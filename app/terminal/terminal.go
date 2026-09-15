@@ -26,40 +26,50 @@ import (
 
 const conptyBashRcBase = "source ~/.bashrc 2>/dev/null || true\nPS1='\\W \\$ '\n"
 
+// conptyBashHistoryHook emits OSC 7337 on every prompt. A new command carries
+// its command line; an unchanged prompt still reports the current cwd (an
+// empty-command beacon) so cwd-dependent features work before any command runs.
 const conptyBashHistoryHook = `__mimir_last_cmd=""
 __mimir_precmd() {
   local exit_code=$?
   local cmd; cmd=$(HISTTIMEFORMAT= history 1 2>/dev/null | sed 's/^ *[0-9]* *//')
-  [ -z "$cmd" ] && return
-  [ "$cmd" = "$__mimir_last_cmd" ] && return
-  __mimir_last_cmd="$cmd"
-  local b64; b64=$(printf '%s' "$cmd" | base64 2>/dev/null | tr -d '\n')
+  local b64=""
+  if [ -n "$cmd" ] && [ "$cmd" != "$__mimir_last_cmd" ]; then
+    __mimir_last_cmd="$cmd"
+    b64=$(printf '%s' "$cmd" | base64 2>/dev/null | tr -d '\n')
+  fi
   printf '\033]7337;cmd=%s;exit=%s;cwd=%s;host=%s;user=%s;shell=bash;ts=%s\007' \
     "$b64" "$exit_code" "$PWD" "$(hostname -s 2>/dev/null || echo unknown)" "$(whoami)" "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)"
 }
 PROMPT_COMMAND="__mimir_precmd;${PROMPT_COMMAND}"
 `
 
+// conptyPowerShellHistoryHook emits OSC 7337 on every prompt. A new command
+// carries its command line; an unchanged prompt still reports the current cwd
+// (an empty-command beacon) so cwd-dependent features work before any command
+// has been run.
 const conptyPowerShellHistoryHook = `$global:__mimir_last_cmd = ''
 function global:prompt {
   $success = $?
   $nativeExit = $global:LASTEXITCODE
+  $cmd = ''
   $historyItem = Get-History -Count 1 -ErrorAction SilentlyContinue
   if ($historyItem -and $historyItem.CommandLine) {
-    $cmd = [string]$historyItem.CommandLine
-    if ($cmd -and $cmd -ne $global:__mimir_last_cmd) {
-      $global:__mimir_last_cmd = $cmd
-      $exitCode = if ($null -ne $nativeExit) { [string]$nativeExit } elseif ($success) { '0' } else { '1' }
-      $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cmd))
-      $cwd = (Get-Location).Path
-      $hostName = $env:COMPUTERNAME
-      if (-not $hostName) { $hostName = 'unknown' }
-      $userName = $env:USERNAME
-      if (-not $userName) { $userName = 'unknown' }
-      $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-      [Console]::Write("$([char]27)]7337;cmd=$b64;exit=$exitCode;cwd=$cwd;host=$hostName;user=$userName;shell=powershell;ts=$ts$([char]7)")
+    $candidate = [string]$historyItem.CommandLine
+    if ($candidate -and $candidate -ne $global:__mimir_last_cmd) {
+      $global:__mimir_last_cmd = $candidate
+      $cmd = $candidate
     }
   }
+  $exitCode = if ($null -ne $nativeExit) { [string]$nativeExit } elseif ($success) { '0' } else { '1' }
+  $b64 = if ($cmd) { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cmd)) } else { '' }
+  $cwd = (Get-Location).Path
+  $hostName = $env:COMPUTERNAME
+  if (-not $hostName) { $hostName = 'unknown' }
+  $userName = $env:USERNAME
+  if (-not $userName) { $userName = 'unknown' }
+  $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+  [Console]::Write("$([char]27)]7337;cmd=$b64;exit=$exitCode;cwd=$cwd;host=$hostName;user=$userName;shell=powershell;ts=$ts$([char]7)")
   return "PS $((Get-Location).Path)> "
 }
 `
@@ -453,6 +463,11 @@ func (m *Manager) InitializeTerminal(id int) error {
 				meta := m.sessionMeta[id]
 				m.ptyMutex.Unlock()
 				for _, cmd := range commands {
+					// Skip prompt-time cwd beacons (no command); they only
+					// update the tracked working directory, not history.
+					if cmd.Command == "" {
+						continue
+					}
 					exitCode := 0
 					if cmd.ExitCode != "" {
 						fmt.Sscanf(cmd.ExitCode, "%d", &exitCode)

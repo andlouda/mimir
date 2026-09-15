@@ -46,6 +46,8 @@ type App struct {
 	PlaybookStore         *workflow.PlaybookStore
 	sshProfileStore       *ssh.ProfileStore
 	sshSecretStore        *ssh.SecretStore
+	agentStates           map[int]agentTerminalState
+	agentMu               sync.Mutex
 	knownHostStore        *ssh.KnownHostStore
 	pendingHostKeys       map[string]pendingSSHHostKey
 	pendingHostKeyMu      sync.Mutex
