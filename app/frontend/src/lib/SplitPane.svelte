@@ -449,6 +449,7 @@
         on:togglerecording
         on:opentranscript
         on:openenv
+        on:openagent
       />
     </div>
 
@@ -490,6 +491,7 @@
         on:togglerecording
         on:opentranscript
         on:openenv
+        on:openagent
       />
     </div>
   </div>
