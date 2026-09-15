@@ -619,9 +619,9 @@
   .agent-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .agent-badge-working { color: #e3b341; background: rgba(227, 179, 65, 0.12); border-color: rgba(227, 179, 65, 0.32); }
   .agent-badge-working .agent-badge-dot { animation: agent-pulse 1.2s ease-in-out infinite; }
-  .agent-badge-attention { color: #7ee787; background: rgba(126, 231, 135, 0.14); border-color: rgba(126, 231, 135, 0.4); box-shadow: 0 0 0 0 rgba(126, 231, 135, 0.5); animation: agent-ring 1.6s ease-out infinite; }
+  .agent-badge-attention { color: #7ee787; background: rgba(126, 231, 135, 0.14); border-color: rgba(126, 231, 135, 0.6); box-shadow: 0 0 0 2px rgba(126, 231, 135, 0.25); }
+  .agent-badge-attention .agent-badge-dot { animation: agent-pulse 1.4s ease-in-out infinite; }
   @keyframes agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
-  @keyframes agent-ring { 0% { box-shadow: 0 0 0 0 rgba(126, 231, 135, 0.45); } 100% { box-shadow: 0 0 0 6px rgba(126, 231, 135, 0); } }
 
   .tmux-badge-warning {
     background: rgba(227, 179, 65, 0.14);

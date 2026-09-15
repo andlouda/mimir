@@ -67,6 +67,20 @@ describe('agent detection', () => {
     expect(get(agentStates)[2].attention).toBe(false);
   });
 
+  test('unchanged detections and title ticks do not rewrite the store', async () => {
+    const payload = JSON.stringify({ detected: true, kind: 'claude', label: 'Claude Code', pid: 1, cwd: '/p', source: 'local', transcripts: true });
+    window.go.main.App.DetectAgentForTerminalJSON.mockResolvedValue(payload);
+    await runAgentDetection(1);
+    const before = get(agentStates);
+    await runAgentDetection(1);
+    expect(get(agentStates)).toBe(before);
+
+    handleTerminalTitle(1, '◐ Bash');
+    const afterTitle = get(agentStates);
+    handleTerminalTitle(1, '◑ Bash');
+    expect(get(agentStates)).toBe(afterTitle);
+  });
+
   test('agent-like title without known agent triggers an immediate probe', () => {
     window.go.main.App.DetectAgentForTerminalJSON.mockResolvedValue(JSON.stringify({ detected: false }));
     handleTerminalTitle(1, '✳ Claude Code');

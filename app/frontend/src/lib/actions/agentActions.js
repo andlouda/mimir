@@ -67,6 +67,12 @@ export async function runAgentDetection(id) {
     return result;
   }
   const previous = get(agentStates)[id];
+  const unchanged = previous
+    && previous.kind === result.kind
+    && previous.pid === result.pid
+    && previous.cwd === result.cwd
+    && previous.source === result.source;
+  if (unchanged) return result;
   setState(id, {
     kind: result.kind,
     label: result.label,
@@ -100,6 +106,10 @@ export function handleTerminalTitle(id, title) {
   }
   const finished = current?.status === 'working' && parsed.status === 'idle';
   const attention = finished && get(activeTerminalId) !== id ? true : (current?.attention || false);
+  // Claude Code re-sets its title about once a second while working (the
+  // spinner glyph rotates). Only write to the store when the visible state
+  // actually changes; every store write re-renders all pane headers.
+  if (current && current.status === parsed.status && current.subject === parsed.subject && current.attention === attention) return;
   setState(id, { status: parsed.status, subject: parsed.subject, attention, lastChange: Date.now() });
 }
 

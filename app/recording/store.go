@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mimir/executil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -472,7 +473,7 @@ func runAgg(bin, castPath, gifPath string) error {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, bin, castPath, gifPath)
-	hideConsoleWindow(cmd)
+	executil.HideConsoleWindow(cmd)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("recording: agg timed out after %s", aggRenderTimeout)
@@ -533,7 +534,7 @@ func aggPath() string {
 
 func aggUsable(path string) bool {
 	cmd := exec.Command(path, "--version")
-	hideConsoleWindow(cmd)
+	executil.HideConsoleWindow(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		s := string(out)
