@@ -1,6 +1,12 @@
 package ssh
 
-import "strings"
+import (
+	"log"
+	"strings"
+	"sync"
+)
+
+var machineSecretWarnOnce sync.Once
 
 // machineSecret returns a stable, machine-scoped secret used as an additional
 // key-derivation input for the encrypted-file secret backend.
@@ -17,6 +23,9 @@ import "strings"
 func machineSecret() []byte {
 	id := strings.TrimSpace(platformMachineID())
 	if id == "" {
+		machineSecretWarnOnce.Do(func() {
+			log.Printf("ssh/secrets: no machine identifier available on this platform; encrypted-file key derivation falls back to master password only")
+		})
 		return nil
 	}
 	return []byte("mimir-machine-v2:" + id)

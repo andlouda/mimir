@@ -13,6 +13,8 @@ import {
 import { errorMessage, showAIMenu } from '../stores/uiStore.js';
 import {
   applyAISettingsDefaults,
+  clearAIApiKey,
+  closeAISettings,
   getAIToolPromptPreview,
   loadAISettingsConfig,
   openAISettings,
@@ -107,6 +109,41 @@ describe('ai settings actions', () => {
 
     expect(getAIToolPromptPreview()).toContain('Use only registered tool IDs');
     expect(getAIToolPromptPreview()).toContain('Available tools');
+  });
+
+  test('never keeps an API key in the store after loading from the backend', async () => {
+    // Even if a (buggy or old) backend returned a key, the store must drop it.
+    window.go.main.App.GetAISettingsJSON.mockResolvedValue(JSON.stringify({ provider: 'openai', model: 'm', baseUrl: '', apiKey: 'leaked', hasApiKey: true }));
+    window.go.main.App.GetAIToolFlowConfigJSON.mockResolvedValue(JSON.stringify(defaultAIToolFlowConfig));
+
+    await loadAISettingsConfig();
+
+    expect(get(aiSettings).apiKey).toBe('');
+    expect(get(aiSettings).hasApiKey).toBe(true);
+  });
+
+  test('sends a newly typed key once and clears it from the store after save', async () => {
+    window.go.main.App.UpdateAISettingsJSON.mockResolvedValue(JSON.stringify({ provider: 'openai', model: 'm', baseUrl: '', hasApiKey: true }));
+    window.go.main.App.UpdateAIToolFlowConfigJSON.mockImplementation(async (payload) => payload);
+    aiSettings.set({ ...defaultAISettings, apiKey: 'sk-new' });
+
+    await saveAISettings();
+
+    const sent = JSON.parse(window.go.main.App.UpdateAISettingsJSON.mock.calls[0][0]);
+    expect(sent.apiKey).toBe('sk-new');
+    expect(get(aiSettings).apiKey).toBe('');
+    expect(get(aiSettings).hasApiKey).toBe(true);
+  });
+
+  test('clear request is sent to the backend and typed keys are dropped on close', () => {
+    aiSettings.set({ ...defaultAISettings, apiKey: 'typed', hasApiKey: true });
+    clearAIApiKey();
+    expect(get(aiSettings).clearApiKey).toBe(true);
+    expect(get(aiSettings).apiKey).toBe('');
+
+    aiSettings.set({ ...defaultAISettings, apiKey: 'typed-but-not-saved' });
+    closeAISettings();
+    expect(get(aiSettings).apiKey).toBe('');
   });
 
   test('saves settings and flow config', async () => {

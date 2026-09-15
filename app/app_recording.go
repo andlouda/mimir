@@ -77,7 +77,7 @@ func (a *App) ExportRecordingScrubbed(id string) (string, error) {
 		return "", nil // user cancelled
 	}
 
-	if err := os.WriteFile(path, []byte(data), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
 		return "", fmt.Errorf("write file: %w", err)
 	}
 	return path, nil
@@ -140,7 +140,7 @@ func (a *App) ExportRecordingTrimmed(id string, cutsJSON string) (string, error)
 		return "", nil
 	}
 
-	if err := os.WriteFile(path, []byte(data), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
 		return "", fmt.Errorf("write file: %w", err)
 	}
 	return path, nil

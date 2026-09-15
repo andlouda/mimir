@@ -32,6 +32,7 @@
   export let saveAISettings = () => {};
   export let applyAISettingsDefaults = () => {};
   export let setDevOpsPrePromptExample = () => {};
+  export let clearAIApiKey = () => {};
   export let showFunctionCatalog = false;
   export let functionCatalog = [];
   export let discoveryTerminalType = '';
@@ -109,6 +110,7 @@
     onSave={saveAISettings}
     onProviderChange={applyAISettingsDefaults}
     onUseDevOpsExample={setDevOpsPrePromptExample}
+    onClearApiKey={clearAIApiKey}
   />
 {/if}
 

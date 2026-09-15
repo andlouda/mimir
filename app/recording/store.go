@@ -369,7 +369,11 @@ func (s *Store) ExportTrimmedGIFTo(id string, cuts []CutRegion, gifPath string) 
 		return fmt.Errorf("recording: gif output path is empty")
 	}
 
-	tmpFile, err := os.CreateTemp("", "mimir-trimmed-*.cast")
+	tmpDir, err := scratchDir()
+	if err != nil {
+		return err
+	}
+	tmpFile, err := os.CreateTemp(tmpDir, "mimir-trimmed-*.cast")
 	if err != nil {
 		return fmt.Errorf("recording: create temp file: %w", err)
 	}
@@ -428,8 +432,27 @@ func (s *Store) ExportGIFTo(id string, gifPath string) error {
 	return nil
 }
 
+// scratchDir returns an app-owned, 0700 temp directory for intermediate
+// export files. Recordings may contain secrets, so they must not be staged in
+// the shared system temp directory.
+func scratchDir() (string, error) {
+	base, err := recordingsDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(base, ".tmp")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", fmt.Errorf("recording: create scratch dir: %w", err)
+	}
+	return dir, nil
+}
+
 func tempOutputPath(pattern string) (string, error) {
-	tmpGif, err := os.CreateTemp("", pattern)
+	tmpDir, err := scratchDir()
+	if err != nil {
+		return "", err
+	}
+	tmpGif, err := os.CreateTemp(tmpDir, pattern)
 	if err != nil {
 		return "", fmt.Errorf("recording: create temp gif path: %w", err)
 	}

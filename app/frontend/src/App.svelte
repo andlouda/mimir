@@ -29,7 +29,7 @@
   import { checkForUpdates, downloadUpdate, openUpdatePage, restartApp } from './lib/actions/updateActions.js';
   import { assignTerminalToFolder as assignTerminalToFolderAction, createFolder, deleteFolder as deleteFolderAction, loadCustomFolders, renameFolder, toggleTerminalFolder } from './lib/actions/folderActions.js';
   import { runAggDownload } from './lib/actions/aggActions.js';
-  import { applyAISettingsDefaults, closeAISettings, getAIToolPromptPreview, getEditablePromptIntroPreview, isUsingDefaultPromptIntroPreview, loadAISettingsConfig, openAISettings, saveAISettings, setDevOpsPrePromptExample, toggleAIMenu } from './lib/actions/aiSettingsActions.js';
+  import { applyAISettingsDefaults, clearAIApiKey, closeAISettings, getAIToolPromptPreview, getEditablePromptIntroPreview, isUsingDefaultPromptIntroPreview, loadAISettingsConfig, openAISettings, saveAISettings, setDevOpsPrePromptExample, toggleAIMenu } from './lib/actions/aiSettingsActions.js';
   import { createDragDropHandlers } from './lib/actions/dragDrop.js';
   import { createKeydownHandler } from './lib/actions/keyboardShortcuts.js';
   import { closeTerminalSearch, dismissRestoreSummary, terminalSearchNext, terminalSearchPrev, toggleTerminalSearch, updateTerminalSearchQuery } from './lib/actions/terminalSearchActions.js';
@@ -606,6 +606,7 @@
     {saveAISettings}
     {applyAISettingsDefaults}
     {setDevOpsPrePromptExample}
+    {clearAIApiKey}
     bind:showFunctionCatalog={$showFunctionCatalog}
     functionCatalog={$functionCatalog}
     discoveryTerminalType={getDiscoveryTerminalType()}

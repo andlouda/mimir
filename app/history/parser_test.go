@@ -122,3 +122,18 @@ func TestSanitizesMetadataFields(t *testing.T) {
 		t.Fatalf("hostname not sanitized: %q", commands[0].Hostname)
 	}
 }
+
+// TestStripsEscapeSequencesFromCommand ensures non-newline control characters
+// (ESC, BEL) are stripped from a stored command while TAB is preserved.
+func TestStripsEscapeSequencesFromCommand(t *testing.T) {
+	encoded := base64.StdEncoding.EncodeToString([]byte("ls\t-la \x1b[31mred\x1b[0m \x07x"))
+	data := []byte("\x1b]7337;cmd=" + encoded + ";exit=0;cwd=/tmp\x07")
+
+	_, commands, _ := StripAndExtract(data)
+	if len(commands) != 1 {
+		t.Fatalf("expected one command, got %d", len(commands))
+	}
+	if commands[0].Command != "ls\t-la [31mred[0m x" {
+		t.Fatalf("unexpected sanitized command: %q", commands[0].Command)
+	}
+}

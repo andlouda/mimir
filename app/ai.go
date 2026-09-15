@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -39,7 +41,27 @@ type AISettings struct {
 	Provider string `json:"provider"`
 	Model    string `json:"model"`
 	BaseURL  string `json:"baseUrl"`
-	APIKey   string `json:"apiKey"`
+	// APIKey is only ever populated backend-side. Payloads handed to the
+	// frontend are redacted via redactAISettings; the frontend sends a value
+	// here only when the user enters a new key.
+	APIKey string `json:"apiKey,omitempty"`
+	// HasAPIKey tells the frontend that a key is configured without
+	// revealing it.
+	HasAPIKey bool `json:"hasApiKey"`
+	// ClearAPIKey is a frontend-only request flag: when true, the stored key
+	// is removed. It is never persisted.
+	ClearAPIKey bool `json:"clearApiKey,omitempty"`
+}
+
+// redactAISettings strips the secret from a settings value before it crosses
+// into the webview. The API key must never reach the frontend: the webview
+// renders untrusted content (imported Markdown, terminal output), so any
+// XSS there would otherwise be able to read it.
+func redactAISettings(settings AISettings) AISettings {
+	settings.HasAPIKey = strings.TrimSpace(settings.APIKey) != ""
+	settings.APIKey = ""
+	settings.ClearAPIKey = false
+	return settings
 }
 
 type responsesRequest struct {
@@ -241,6 +263,8 @@ func SaveAISettings(store *mimirssh.SecretStore, settings AISettings) (AISetting
 
 	settingsForFile := settings
 	settingsForFile.APIKey = ""
+	settingsForFile.HasAPIKey = false
+	settingsForFile.ClearAPIKey = false
 	payload, err := json.MarshalIndent(settingsForFile, "", "  ")
 	if err != nil {
 		return AISettings{}, fmt.Errorf("failed to encode AI settings: %w", err)
@@ -673,7 +697,7 @@ func (a *App) GetAISettingsJSON() (string, error) {
 	settings := normalizeAISettings(a.aiSettings)
 	a.aiMu.Unlock()
 
-	payload, err := json.Marshal(settings)
+	payload, err := json.Marshal(redactAISettings(settings))
 	if err != nil {
 		return "", fmt.Errorf("failed to encode AI settings: %w", err)
 	}
@@ -681,7 +705,10 @@ func (a *App) GetAISettingsJSON() (string, error) {
 	return string(payload), nil
 }
 
-func validateAIBaseURL(rawURL string) error {
+// validateAIBaseURL checks the scheme/host of the configured endpoint. Plain
+// http is only accepted when no API key is in play or the host is loopback:
+// otherwise the bearer token would travel in cleartext.
+func validateAIBaseURL(rawURL string, hasAPIKey bool) error {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return nil
@@ -698,15 +725,49 @@ func validateAIBaseURL(rawURL string) error {
 	if parsed.Host == "" {
 		return fmt.Errorf("AI base URL must include a host")
 	}
+	if parsed.Scheme == "http" && hasAPIKey && !isLoopbackHost(parsed.Hostname()) {
+		return fmt.Errorf("AI base URL must use https when an API key is configured (plain http is only allowed for localhost)")
+	}
 	return nil
 }
 
+func isLoopbackHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	return false
+}
+
+// UpdateAISettingsJSON applies settings sent by the frontend. The frontend
+// never holds the API key, so an empty apiKey means "keep the stored one";
+// clearApiKey removes it explicitly.
 func (a *App) UpdateAISettingsJSON(settingsJSON string) (string, error) {
 	var settings AISettings
 	if err := json.Unmarshal([]byte(settingsJSON), &settings); err != nil {
 		return "", fmt.Errorf("failed to parse AI settings: %w", err)
 	}
-	if err := validateAIBaseURL(settings.BaseURL); err != nil {
+
+	a.aiMu.Lock()
+	currentKey := strings.TrimSpace(a.aiSettings.APIKey)
+	a.aiMu.Unlock()
+
+	switch {
+	case settings.ClearAPIKey:
+		settings.APIKey = ""
+		if a.sshSecretStore != nil {
+			if err := a.sshSecretStore.DeletePassword(aiAPIKeySecretID); err != nil && !os.IsNotExist(err) {
+				log.Printf("ai: clear stored API key: %v", err)
+			}
+		}
+	case strings.TrimSpace(settings.APIKey) == "":
+		settings.APIKey = currentKey
+	}
+
+	if err := validateAIBaseURL(settings.BaseURL, strings.TrimSpace(settings.APIKey) != ""); err != nil {
 		return "", err
 	}
 
@@ -714,12 +775,17 @@ func (a *App) UpdateAISettingsJSON(settingsJSON string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if settings.ClearAPIKey {
+		// SaveAISettings keeps whatever normalizeAISettings resolved (possibly
+		// an env var); an explicit clear must not resurrect the stored key.
+		saved.APIKey = providerAPIKeyFromEnv(saved.Provider)
+	}
 
 	a.aiMu.Lock()
 	a.aiSettings = saved
 	a.aiMu.Unlock()
 
-	payload, err := json.Marshal(saved)
+	payload, err := json.Marshal(redactAISettings(saved))
 	if err != nil {
 		return "", fmt.Errorf("failed to encode AI settings: %w", err)
 	}

@@ -105,8 +105,15 @@ export async function loadAIProviders() {
   }
 }
 
+function normalizeAISettingsFromBackend(raw) {
+  const parsed = JSON.parse(raw);
+  // The backend redacts the key; make sure the store never carries one after
+  // a round-trip, regardless of what the payload contained.
+  return { ...parsed, apiKey: '', clearApiKey: false, hasApiKey: !!parsed.hasApiKey };
+}
+
 export async function loadAISettingsConfig() {
-  aiSettings.set(JSON.parse(await app()['GetAISettingsJSON']()));
+  aiSettings.set(normalizeAISettingsFromBackend(await app()['GetAISettingsJSON']()));
   aiToolFlowConfig.set(normalizeAIToolFlowConfig(JSON.parse(await app()['GetAIToolFlowConfigJSON']())));
   syncAIToolFlowListsFromConfig();
 }
@@ -119,7 +126,13 @@ export async function openAISettings() {
 }
 
 export function closeAISettings() {
+  // Drop any key typed but not saved so it does not linger in the store.
+  aiSettings.update((settings) => ({ ...settings, apiKey: '', clearApiKey: false }));
   showAISettings.set(false);
+}
+
+export function clearAIApiKey() {
+  aiSettings.update((settings) => ({ ...settings, apiKey: '', clearApiKey: true }));
 }
 
 export function toggleAIMenu() {
@@ -144,8 +157,8 @@ export function applyAISettingsDefaults(provider) {
 export async function saveAISettings() {
   try {
     applyAIToolFlowListsToConfig();
-    const saved = JSON.parse(await app()['UpdateAISettingsJSON'](JSON.stringify(get(aiSettings))));
-    aiSettings.set({ ...saved });
+    const saved = normalizeAISettingsFromBackend(await app()['UpdateAISettingsJSON'](JSON.stringify(get(aiSettings))));
+    aiSettings.set(saved);
     const savedFlowConfig = JSON.parse(await app()['UpdateAIToolFlowConfigJSON'](JSON.stringify(get(aiToolFlowConfig))));
     aiToolFlowConfig.set(normalizeAIToolFlowConfig(savedFlowConfig));
     syncAIToolFlowListsFromConfig();

@@ -217,4 +217,9 @@ func TestValidateCommandSuggestion(t *testing.T) {
 	if err := ValidateCommandSuggestion("write_command_from_goal", "echo ok && reboot"); err == nil {
 		t.Fatalf("expected chained command to be blocked")
 	}
+	for _, cmd := range []string{"echo $(wget http://x/y)", "echo `id`", "echo ${PATH}"} {
+		if err := ValidateCommandSuggestion("suggest_next_command", cmd); err == nil {
+			t.Fatalf("expected command substitution %q to be blocked", cmd)
+		}
+	}
 }
