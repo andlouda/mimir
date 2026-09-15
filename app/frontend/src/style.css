@@ -98,6 +98,10 @@ html, body, #app {
   gap: 0.45rem;
   min-width: 0;
   flex: 1;
+  /* Badges cannot shrink; without clipping they would overflow underneath
+     .header-controls in narrow panes and become unclickable. */
+  overflow: hidden;
+  container-type: inline-size;
 }
 
 .terminal-type-badge {
