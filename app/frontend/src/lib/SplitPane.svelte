@@ -242,7 +242,7 @@
               title={agentBadgeTitle(agent)}
               on:click|stopPropagation={() => dispatch('openagent', term.id)}
             >
-              <span class="agent-badge-dot"></span>{agent.label}{#if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}
+              <span class="agent-badge-dot"></span><span class="agent-badge-text">{agent.label}{#if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}</span>
             </button>
           {/if}
           {#if term.type === 'ssh'}
@@ -616,6 +616,14 @@
     white-space: nowrap;
   }
   .agent-badge:hover { background: rgba(99, 179, 237, 0.22); }
+  /* Keep the badge clickable in narrow panes: it never shrinks or slides
+     under the header controls; in very narrow headers only the dot stays. */
+  .agent-badge { flex-shrink: 0; position: relative; z-index: 2; }
+  @container (max-width: 300px) {
+    .agent-badge-text { display: none; }
+    .agent-badge { padding: 2px 6px; }
+  }
+  .tmux-badge, .rc-badge, .restore-badge { flex-shrink: 0; }
   .agent-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .agent-badge-working { color: #e3b341; background: rgba(227, 179, 65, 0.12); border-color: rgba(227, 179, 65, 0.32); }
   .agent-badge-working .agent-badge-dot { animation: agent-pulse 1.2s ease-in-out infinite; }
