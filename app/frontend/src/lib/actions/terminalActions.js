@@ -13,7 +13,7 @@ import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, Con
 import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
-import { handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
+import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
 import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
@@ -228,6 +228,9 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     reinitializeTerminals();
   });
   newTerminal.cleanupHandlers.push(offClosed);
+
+  const offPrompt = EventsOn(`terminal-prompt-${id}`, () => handleTerminalPrompt(id));
+  newTerminal.cleanupHandlers.push(offPrompt);
 
   const offDisconnected = EventsOn(`terminal-disconnected-${id}`, () => {
     terminals.update(list => list.map(t => {

@@ -83,7 +83,7 @@ export default {
       check: 'Check',
     },
     cards: {
-      agentDetection: { title: 'Agent detection', desc: 'Detects Claude Code, Codex and other coding agents running in a pane, shows their state in the pane header and offers their output for exact copying. Probes the pane process list out-of-band; no keystrokes are sent.' },
+      agentDetection: { title: 'Agent detection', desc: 'Detects Claude Code, Codex and other coding agents running in a pane, shows their state in the pane header and offers their output for exact copying. Probes the pane process list out-of-band only when a terminal signals activity (title, startup banner, new prompt); no keystrokes are sent, no periodic polling.' },
       aiSettings: { title: 'AI Settings', desc: 'Manage provider, tool filter, approval policy and prompt configuration.' },
       templates: { title: 'Templates', desc: 'Edit command templates and favorites without keeping them permanently in the sidebar.' },
       notes: { title: 'Notes', desc: 'Show or hide notes as the right-hand terminal panel.' },

@@ -455,6 +455,10 @@ func (m *Manager) InitializeTerminal(id int) error {
 			// cwd-dependent features keep working with history disabled.
 			if len(commands) > 0 {
 				m.setLastReportedCwd(id, commands[len(commands)-1].CWD)
+				// A prompt beacon means the foreground program returned to the
+				// shell; the frontend uses it to re-check agent state without
+				// polling.
+				wailsruntime.EventsEmit(m.ctx, fmt.Sprintf("terminal-prompt-%d", id), commands[len(commands)-1].CWD)
 			}
 
 			// Store parsed commands asynchronously

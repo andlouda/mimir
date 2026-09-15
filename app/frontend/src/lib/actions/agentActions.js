@@ -7,10 +7,13 @@ function app() {
   return window['go']['main']['App'];
 }
 
-// Detection cadence. Local probes are one `ps` per terminal; SSH probes are
-// an exec over the connection, so they run less often.
-const POLL_LOCAL_MS = 20000;
-const POLL_SSH_MS = 60000;
+// Detection is event-driven: window titles (Claude Code), startup banners
+// in the output (Codex, Gemini, Aider, OpenCode) and the shell's prompt
+// beacon (program returned to the shell) trigger a probe. There is no
+// periodic polling of idle terminals. While an agent is known, a slow
+// liveness check notices agents that exit without a prompt beacon (the
+// shell hook is opt-in), so a stale badge disappears within a few minutes.
+const LIVENESS_MS = 3 * 60 * 1000;
 const DEBOUNCE_MS = 1500;
 const INITIAL_DELAY_MS = 2500;
 
@@ -64,8 +67,10 @@ export async function runAgentDetection(id) {
       setState(id, null);
       if (get(agentPanelTerminalId) === id) agentPanelTerminalId.set(null);
     }
+    setLiveness(id, false);
     return result;
   }
+  setLiveness(id, true);
   const previous = get(agentStates)[id];
   const unchanged = previous
     && previous.kind === result.kind
@@ -86,6 +91,23 @@ export async function runAgentDetection(id) {
     detectedAt: previous?.kind === result.kind ? previous.detectedAt : Date.now(),
   });
   return result;
+}
+
+function setLiveness(id, on) {
+  const watch = watches.get(id);
+  if (!watch) return;
+  if (!on) {
+    if (watch.timer) clearInterval(watch.timer);
+    watch.timer = null;
+    return;
+  }
+  if (!watch.timer) watch.timer = setInterval(() => scheduleAgentDetection(id), LIVENESS_MS);
+}
+
+/** The shell showed a new prompt: a running agent has most likely exited. */
+export function handleTerminalPrompt(id) {
+  if (!get(agentDetectionEnabled)) return;
+  if (get(agentStates)[id]) scheduleAgentDetection(id);
 }
 
 /** Feeds an xterm title change into the agent state machine. */
@@ -126,8 +148,8 @@ export function startAgentWatch(id, type) {
   const watch = { type, timer: null, pending: null, lastRun: 0 };
   watches.set(id, watch);
   if (!get(agentDetectionEnabled)) return;
-  const interval = type === 'ssh' ? POLL_SSH_MS : POLL_LOCAL_MS;
-  watch.timer = setInterval(() => scheduleAgentDetection(id), interval);
+  // One probe after start-up covers restored sessions where an agent is
+  // already running; afterwards only events trigger probes.
   setTimeout(() => scheduleAgentDetection(id, { immediate: true }), INITIAL_DELAY_MS);
 }
 

@@ -83,7 +83,7 @@ export default {
       check: 'Prüfen',
     },
     cards: {
-      agentDetection: { title: 'Agent-Erkennung', desc: 'Erkennt Claude Code, Codex und andere Coding-Agenten in einer Pane, zeigt ihren Status im Pane-Header und bietet ihre Ausgabe zum exakten Kopieren an. Prüft die Prozessliste der Pane out-of-band; es werden keine Tastendrücke gesendet.' },
+      agentDetection: { title: 'Agent-Erkennung', desc: 'Erkennt Claude Code, Codex und andere Coding-Agenten in einer Pane, zeigt ihren Status im Pane-Header und bietet ihre Ausgabe zum exakten Kopieren an. Prüft die Prozessliste der Pane out-of-band und nur, wenn ein Terminal Aktivität meldet (Titel, Startbanner, neuer Prompt); keine Tastendrücke, kein regelmäßiges Polling.' },
       aiSettings: { title: 'AI Settings', desc: 'Provider, Tool-Filter, Approval-Policy und Prompt-Konfiguration verwalten.' },
       templates: { title: 'Templates', desc: 'Command-Templates und Favoriten bearbeiten, ohne sie dauerhaft in der Sidebar zu halten.' },
       notes: { title: 'Notes', desc: 'Notes als rechtes Terminal-Panel ein- oder ausblenden.' },
