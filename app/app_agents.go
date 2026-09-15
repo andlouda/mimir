@@ -132,21 +132,39 @@ type agentPaneText struct {
 	Text  string `json:"text"`
 	Width int    `json:"width"`
 	Lines int    `json:"lines"`
+	// HiddenLines is how many scrollback lines before the agent's start were
+	// left out (0 when full was requested or nothing was cut).
+	HiddenLines int `json:"hiddenLines"`
 }
+
+// paneTailLines is the fallback window when no agent launch line is found.
+const paneTailLines = 400
 
 // GetAgentPaneTextJSON returns the tmux pane contents of a terminal (visible
 // screen plus recent scrollback) with soft wraps joined. It works for every
 // tmux-backed terminal regardless of which agent runs in it and does not
 // depend on any agent's file format; the trade-off is that it contains
 // whatever the agent drew, including its own line breaks.
-func (a *App) GetAgentPaneTextJSON(terminalID int, terminalType string) (string, error) {
+//
+// By default the text starts at the last shell prompt that launched the
+// agent, so the panel is not flooded with unrelated scrollback; full=true
+// returns the whole capture.
+func (a *App) GetAgentPaneTextJSON(terminalID int, terminalType string, full bool) (string, error) {
 	output, err := a.runPaneScript(terminalID, terminalType, agentCaptureScript)
 	if err != nil {
 		return "", err
 	}
 	text, width := parseAgentCapture(output)
-	logAgentEvent("agent_pane_read", fmt.Sprintf("%d lines", strings.Count(text, "\n")+1))
-	payload, err := json.Marshal(agentPaneText{Text: text, Width: width, Lines: strings.Count(text, "\n") + 1})
+	hidden := 0
+	if !full {
+		kind := agents.Kind("")
+		if state, ok := a.rememberedAgent(terminalID); ok {
+			kind = state.kind
+		}
+		text, hidden = agents.TrimToAgentStart(text, kind, paneTailLines)
+	}
+	logAgentEvent("agent_pane_read", fmt.Sprintf("%d lines (%d hidden)", strings.Count(text, "\n")+1, hidden))
+	payload, err := json.Marshal(agentPaneText{Text: text, Width: width, Lines: strings.Count(text, "\n") + 1, HiddenLines: hidden})
 	if err != nil {
 		return "", fmt.Errorf("failed to encode pane text: %w", err)
 	}

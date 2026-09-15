@@ -204,8 +204,8 @@ agentDetectionEnabled.subscribe((enabled) => {
 });
 
 /** Loads the raw tmux pane text (screen + scrollback) for a terminal. */
-export async function loadAgentPaneText(id) {
-  const raw = await app()['GetAgentPaneTextJSON'](id, terminalType(id));
+export async function loadAgentPaneText(id, { full = false } = {}) {
+  const raw = await app()['GetAgentPaneTextJSON'](id, terminalType(id), full);
   return JSON.parse(raw);
 }
 

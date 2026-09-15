@@ -24,6 +24,7 @@
   // own line breaks). The user can switch to compare both.
   let view = 'file';
   let pane = null;
+  let paneFull = false;
   let paneLoading = false;
   let loading = false;
   let error = '';
@@ -34,7 +35,7 @@
 
   $: agent = $agentStates[terminalId] || null;
   $: term = $terminalMap.get(terminalId) || null;
-  $: if (terminalId !== loadedFor) { loadedFor = terminalId; transcript = null; pane = null; view = 'file'; error = ''; refresh(); }
+  $: if (terminalId !== loadedFor) { loadedFor = terminalId; transcript = null; pane = null; paneFull = false; view = 'file'; error = ''; refresh(); }
   // A finished turn means new content: reload once the agent goes idle.
   $: if (agent?.status === 'idle' && agent?.lastChange) refreshSoon();
   $: scheduleAutoRefresh(agent?.status);
@@ -65,11 +66,12 @@
     }
   }
 
-  async function refreshPane() {
+  async function refreshPane(full = paneFull) {
     if (paneLoading || terminalId == null) return;
     paneLoading = true;
+    paneFull = full;
     try {
-      pane = await loadAgentPaneText(terminalId);
+      pane = await loadAgentPaneText(terminalId, { full });
       error = '';
     } catch (e) {
       error = String(e?.message || e);
@@ -178,6 +180,11 @@
         <div class="agent-code">
           <div class="agent-code-bar">
             <span class="agent-code-lang">tmux · {pane.lines} {$t('agentPanel.lines')} · {pane.width} {$t('agentPanel.cols')}</span>
+            {#if pane.hiddenLines > 0}
+              <button type="button" class="agent-link" on:click={() => refreshPane(true)} title={$t('agentPanel.showAllTitle', { n: pane.hiddenLines })}>{$t('agentPanel.showAll', { n: pane.hiddenLines })}</button>
+            {:else if paneFull}
+              <button type="button" class="agent-link" on:click={() => refreshPane(false)}>{$t('agentPanel.showSession')}</button>
+            {/if}
             <button type="button" class="agent-link" on:click={() => copyText(pane.text)}>{$t('agentPanel.copy')}</button>
           </div>
           <pre><code>{pane.text}</code></pre>

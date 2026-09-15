@@ -346,6 +346,6 @@ export function GetAgentTranscriptJSON(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetAgentTranscriptJSON'](arg1, arg2, arg3);
 }
 
-export function GetAgentPaneTextJSON(arg1, arg2) {
-  return window['go']['main']['App']['GetAgentPaneTextJSON'](arg1, arg2);
+export function GetAgentPaneTextJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetAgentPaneTextJSON'](arg1, arg2, arg3);
 }
