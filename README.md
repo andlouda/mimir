@@ -52,9 +52,10 @@ Mimir is local-first by default.
 - AI context is sanitized and can be excluded from prompts.
 - Coding-agent awareness: when Claude Code or Codex runs in a pane, Mimir
   shows the agent and its state in the pane header and can open a side panel
-  with the agent's last messages read from its own session file, so code can
-  be copied exactly, without terminal line wrapping. Detection can be turned
-  off in Settings.
+  fed by the agent's own session file: the snippets of its last answer (exact
+  text, no terminal line wrapping), the files it read or changed next to the
+  git working-tree status, and the commands it ran with their exit codes.
+  Detection can be turned off in Settings.
 - Credentials (SSH passwords, AI API key) are stored in the OS keyring when
   available. Without a keyring, they are kept in an encrypted file protected by
   a master password (Argon2id) plus a per-machine identifier where the OS

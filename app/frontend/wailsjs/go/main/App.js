@@ -349,3 +349,7 @@ export function GetAgentTranscriptJSON(arg1, arg2, arg3) {
 export function GetAgentPaneTextJSON(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetAgentPaneTextJSON'](arg1, arg2, arg3);
 }
+
+export function GetAgentGitStatusJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentGitStatusJSON'](arg1, arg2);
+}

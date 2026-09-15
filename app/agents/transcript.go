@@ -44,6 +44,10 @@ type Transcript struct {
 	MatchScore float64 `json:"matchScore"`
 	// Candidates is how many session files matched the working directory.
 	Candidates int `json:"candidates"`
+	// Files the agent read or changed and Commands it executed, extracted
+	// from the tool-call records of the session.
+	Files    []FileActivity `json:"files"`
+	Commands []CommandRun   `json:"commands"`
 }
 
 // ReadOptions tunes ReadTranscript.
@@ -142,16 +146,23 @@ func readOne(fs FS, kind Kind, label, file, cwd string, limit int) (Transcript, 
 			data = data[i+1:]
 		}
 	}
-	var messages []Message
+	var session Session
 	switch kind {
 	case KindClaude:
-		messages = ParseClaudeTranscript(data)
+		session = ParseClaudeSession(data)
 	case KindCodex:
-		messages = ParseCodexTranscript(data)
+		session = ParseCodexSession(data)
 	}
+	messages := session.Messages
 	if len(messages) > limit {
 		messages = messages[len(messages)-limit:]
 		truncated = true
+	}
+	if session.Files == nil {
+		session.Files = []FileActivity{}
+	}
+	if session.Commands == nil {
+		session.Commands = []CommandRun{}
 	}
 	return Transcript{
 		Kind:        kind,
@@ -161,6 +172,8 @@ func readOne(fs FS, kind Kind, label, file, cwd string, limit int) (Transcript, 
 		Messages:    messages,
 		Truncated:   truncated,
 		Source:      SourceFile,
+		Files:       session.Files,
+		Commands:    session.Commands,
 	}, nil
 }
 

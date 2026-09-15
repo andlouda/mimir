@@ -1,51 +1,76 @@
 <script>
-  // Side panel showing the last exchanges of the coding agent running in a
-  // terminal, read from the agent's own session file. Code blocks arrive
-  // exactly as the agent wrote them, without terminal wrapping.
+  // Side panel for the coding agent running in a terminal. It does not mirror
+  // the conversation (the terminal next to it already shows that); it pulls
+  // out what the terminal cannot hand over cleanly: exact snippets of the
+  // last answer, the files the agent touched, the commands it ran. Data comes
+  // from the agent's own session file; the tmux capture is the fallback.
   import { onDestroy } from 'svelte';
   import { marked } from 'marked';
   import { ClipboardSetText } from '../../wailsjs/runtime';
   import { t } from './i18n.js';
   import { sanitizeHtml } from './util.js';
-  import { splitMarkdown } from './agents/markdownBlocks.js';
+  import { extractSnippets, firstProse, splitMarkdown } from './agents/markdownBlocks.js';
   import { agentStates } from './stores/agentStore.js';
   import { terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
-  import { closeAgentPanel, loadAgentPaneText, loadAgentTranscript } from './actions/agentActions.js';
+  import { closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentTranscript } from './actions/agentActions.js';
 
   export let terminalId;
 
   const REFRESH_WORKING_MS = 6000;
   const MESSAGE_LIMIT = 12;
+  const TABS = ['snippets', 'files', 'commands', 'history', 'screen'];
 
   let transcript = null;
-  // 'file': messages from the agent's session file (exact text).
-  // 'screen': the tmux pane capture (always available, but with the agent's
-  // own line breaks). The user can switch to compare both.
-  let view = 'file';
+  let view = 'snippets';
   let pane = null;
   let paneFull = false;
   let paneLoading = false;
+  let git = null;
+  let gitLoading = false;
   let loading = false;
   let error = '';
   let feedback = '';
   let feedbackTimer = null;
   let refreshTimer = null;
+  let refreshSoonTimer = null;
   let loadedFor = null;
+  let showOlderSnippets = false;
+  let summaryExpanded = false;
 
   $: agent = $agentStates[terminalId] || null;
   $: term = $terminalMap.get(terminalId) || null;
-  $: if (terminalId !== loadedFor) { loadedFor = terminalId; transcript = null; pane = null; paneFull = false; view = 'file'; error = ''; refresh(); }
-  // A finished turn means new content: reload once the agent goes idle.
+  $: if (terminalId !== loadedFor) { loadedFor = terminalId; resetFor(); refresh(); }
   $: if (agent?.status === 'idle' && agent?.lastChange) refreshSoon();
   $: scheduleAutoRefresh(agent?.status);
+
+  $: assistantMessages = (transcript?.messages || []).filter((m) => m.role === 'assistant');
+  $: lastAnswer = assistantMessages.length ? assistantMessages[assistantMessages.length - 1] : null;
+  $: lastUserPrompt = [...(transcript?.messages || [])].reverse().find((m) => m.role === 'user') || null;
+  $: summary = lastAnswer ? firstProse(lastAnswer.text, summaryExpanded ? 4000 : 320) : '';
+  $: snippetGroups = buildSnippetGroups(assistantMessages, showOlderSnippets);
+  $: commandsNewestFirst = [...(transcript?.commands || [])].reverse();
+  $: failedCommands = (transcript?.commands || []).filter((c) => c.failed).length;
+  $: changedFiles = (transcript?.files || []).filter((f) => f.ops.some((op) => op !== 'read'));
+
+  function resetFor() {
+    transcript = null; pane = null; paneFull = false; git = null; view = 'snippets';
+    error = ''; showOlderSnippets = false; summaryExpanded = false;
+  }
+
+  function buildSnippetGroups(messages, includeOlder) {
+    const source = includeOlder ? messages.slice(-6) : messages.slice(-1);
+    return source
+      .map((m, i) => ({ key: `${m.timestamp || ''}-${i}`, timestamp: m.timestamp, snippets: extractSnippets(m.text) }))
+      .filter((g) => g.snippets.length)
+      .reverse();
+  }
 
   function scheduleAutoRefresh(status) {
     if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
     if (status === 'working') refreshTimer = setInterval(refresh, REFRESH_WORKING_MS);
   }
 
-  let refreshSoonTimer = null;
   function refreshSoon() {
     if (refreshSoonTimer) clearTimeout(refreshSoonTimer);
     refreshSoonTimer = setTimeout(refresh, 800);
@@ -59,6 +84,7 @@
     try {
       transcript = await loadAgentTranscript(terminalId, MESSAGE_LIMIT);
       error = '';
+      if (view === 'files' && git) refreshGit();
     } catch (e) {
       error = String(e?.message || e);
     } finally {
@@ -80,10 +106,24 @@
     }
   }
 
+  async function refreshGit() {
+    if (gitLoading || terminalId == null) return;
+    gitLoading = true;
+    try {
+      git = await loadAgentGitStatus(terminalId);
+      error = '';
+    } catch (e) {
+      error = String(e?.message || e);
+    } finally {
+      gitLoading = false;
+    }
+  }
+
   function showView(next) {
     view = next;
     if (next === 'screen' && !pane) refreshPane();
-    if (next === 'file' && !transcript) refresh();
+    else if (next !== 'screen' && !transcript) refresh();
+    if (next === 'files' && !git) refreshGit();
   }
 
   function flash(message) {
@@ -111,16 +151,28 @@
     flash($t('agentPanel.inserted'));
   }
 
-  async function saveToNotes(block) {
+  async function saveToNotes(code, lang = '') {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = `agent-${agent?.kind || 'snippet'}-${stamp}.md`;
-    const body = '```' + (block.lang || '') + '\n' + block.code + '\n```\n';
+    const body = '```' + lang + '\n' + code + '\n```\n';
     try {
       await window['go']['main']['App']['SaveNote'](filename, body);
       notesPanelOpen.set(true);
       flash($t('agentPanel.savedToNotes', { filename }));
     } catch (e) {
       error = `Save failed: ${e?.message || e}`;
+    }
+  }
+
+  async function openFileInNotes(path) {
+    try {
+      const app = window['go']['main']['App'];
+      if (agent?.source === 'ssh') await app['ImportNoteFromRemote'](terminalId, path);
+      else await app['ImportNoteFromLocal'](path);
+      notesPanelOpen.set(true);
+      flash($t('agentPanel.openedInNotes'));
+    } catch (e) {
+      error = `Open failed: ${e?.message || e}`;
     }
   }
 
@@ -140,6 +192,22 @@
     return parts.length > 2 ? '…/' + parts.slice(-2).join('/') : p;
   }
 
+  function relPath(p) {
+    const cwd = transcript?.cwd || agent?.cwd || '';
+    if (cwd && p.startsWith(cwd + '/')) return p.slice(cwd.length + 1);
+    return p;
+  }
+
+  function tabLabel(tab) {
+    switch (tab) {
+      case 'snippets': return $t('agentPanel.tabSnippets');
+      case 'files': return $t('agentPanel.tabFiles') + (changedFiles.length ? ` (${changedFiles.length})` : '');
+      case 'commands': return $t('agentPanel.tabCommands') + (failedCommands ? ` (${failedCommands}✗)` : '');
+      case 'history': return $t('agentPanel.tabHistory');
+      default: return $t('agentPanel.viewScreen');
+    }
+  }
+
   onDestroy(() => {
     if (refreshTimer) clearInterval(refreshTimer);
     if (refreshSoonTimer) clearTimeout(refreshSoonTimer);
@@ -157,13 +225,15 @@
       <span class="agent-panel-sub" title={transcript?.cwd || agent?.cwd || ''}>{term?.name || ''}{agent?.cwd ? ' · ' + shortPath(agent.cwd) : ''}</span>
     </div>
     <div class="agent-panel-actions">
-      <div class="agent-view-switch" role="tablist">
-        <button type="button" class="agent-btn {view === 'file' ? 'agent-btn-active' : ''}" role="tab" aria-selected={view === 'file'} on:click={() => showView('file')} title={$t('agentPanel.viewFileTitle')}>{$t('agentPanel.viewFile')}</button>
-        <button type="button" class="agent-btn {view === 'screen' ? 'agent-btn-active' : ''}" role="tab" aria-selected={view === 'screen'} on:click={() => showView('screen')} title={$t('agentPanel.viewScreenTitle')}>{$t('agentPanel.viewScreen')}</button>
-      </div>
-      <button type="button" class="agent-btn" on:click={refresh} disabled={loading || paneLoading} title={$t('agentPanel.refresh')}>{loading || paneLoading ? '…' : '↻'}</button>
+      <button type="button" class="agent-btn" on:click={() => (view === 'screen' ? refreshPane() : refresh())} disabled={loading || paneLoading} title={$t('agentPanel.refresh')}>{loading || paneLoading ? '…' : '↻'}</button>
       <button type="button" class="agent-btn" on:click={closeAgentPanel} title={$t('agentPanel.close')}>&#x2715;</button>
     </div>
+  </div>
+
+  <div class="agent-tabs" role="tablist">
+    {#each TABS as tab (tab)}
+      <button type="button" class="agent-tab {view === tab ? 'agent-tab-active' : ''}" role="tab" aria-selected={view === tab} on:click={() => showView(tab)}>{tabLabel(tab)}</button>
+    {/each}
   </div>
 
   {#if feedback}
@@ -192,6 +262,7 @@
       {:else if paneLoading}
         <p class="agent-panel-hint">{$t('agentPanel.loading')}</p>
       {/if}
+
     {:else if !transcript && loading}
       <p class="agent-panel-hint">{$t('agentPanel.loading')}</p>
     {:else if !transcript}
@@ -199,54 +270,157 @@
     {:else}
       {#if transcript.source === 'tmux'}
         <p class="agent-panel-hint agent-panel-warn">{$t('agentPanel.fallbackHint')}</p>
-      {:else}
-        <p class="agent-panel-hint {transcript.verified ? 'agent-panel-ok' : 'agent-panel-warn'}" title={transcript.sessionFile}>
-          {transcript.verified ? $t('agentPanel.verified') : $t('agentPanel.unverified')}{#if transcript.candidates > 1} · {$t('agentPanel.candidates', { n: transcript.candidates })}{/if}
+      {:else if !transcript.verified}
+        <p class="agent-panel-hint agent-panel-warn" title={transcript.sessionFile}>
+          {$t('agentPanel.unverified')}{#if transcript.candidates > 1} · {$t('agentPanel.candidates', { n: transcript.candidates })}{/if}
         </p>
       {/if}
-      {#if transcript.truncated}
-        <p class="agent-panel-hint">{$t('agentPanel.truncated', { n: transcript.messages.length })}</p>
-      {/if}
-      {#each transcript.messages as message, index (index)}
-        <div class="agent-msg agent-msg-{message.role}">
-          <div class="agent-msg-meta">
-            <span>{message.role === 'user' ? $t('agentPanel.you') : (agent?.label || transcript.label)}</span>
-            <span>{shortTime(message.timestamp)}</span>
-            {#if message.role === 'assistant'}
-              <button type="button" class="agent-link" on:click={() => copyText(message.text)}>{$t('agentPanel.copyMessage')}</button>
+
+      {#if view === 'snippets'}
+        {#if lastAnswer}
+          <div class="agent-summary">
+            <div class="agent-msg-meta">
+              <span>{agent?.status === 'idle' ? $t('agentPanel.lastAnswerIdle') : $t('agentPanel.lastAnswer')}</span>
+              <span>{shortTime(lastAnswer.timestamp)}</span>
+              <button type="button" class="agent-link" on:click={() => copyText(lastAnswer.text)}>{$t('agentPanel.copyMessage')}</button>
+            </div>
+            {#if lastUserPrompt}
+              <div class="agent-summary-prompt" title={lastUserPrompt.text}>❯ {lastUserPrompt.text.length > 140 ? lastUserPrompt.text.slice(0, 140) + '…' : lastUserPrompt.text}</div>
+            {/if}
+            <div class="agent-summary-text">{summary}</div>
+            {#if lastAnswer.text.length > 320}
+              <button type="button" class="agent-link" on:click={() => (summaryExpanded = !summaryExpanded)}>{summaryExpanded ? $t('agentPanel.less') : $t('agentPanel.more')}</button>
             {/if}
           </div>
-          {#if message.role === 'user'}
-            <div class="agent-msg-user">{message.text}</div>
-          {:else}
-            {#each splitMarkdown(message.text) as segment, i (i)}
-              {#if segment.type === 'text'}
-                <div class="agent-prose">{@html renderProse(segment.text)}</div>
-              {:else}
-                <div class="agent-code">
-                  <div class="agent-code-bar">
-                    <span class="agent-code-lang">{segment.lang || 'code'}</span>
-                    <button type="button" class="agent-link" on:click={() => copyText(segment.code)}>{$t('agentPanel.copy')}</button>
-                    <button type="button" class="agent-link" on:click={() => insertIntoTerminal(segment.code)} disabled={!term}>{$t('agentPanel.insert')}</button>
-                    <button type="button" class="agent-link" on:click={() => saveToNotes(segment)}>{$t('agentPanel.toNotes')}</button>
-                  </div>
-                  <pre><code>{segment.code}</code></pre>
-                </div>
-              {/if}
-            {/each}
+        {/if}
+        {#if snippetGroups.length === 0}
+          <p class="agent-panel-hint">{$t('agentPanel.noSnippets')}</p>
+        {/if}
+        {#each snippetGroups as group (group.key)}
+          {#if showOlderSnippets}
+            <div class="agent-group-label">{shortTime(group.timestamp)}</div>
           {/if}
+          {#each group.snippets as snippet, i (i)}
+            {#if snippet.type === 'code'}
+              <div class="agent-code">
+                <div class="agent-code-bar">
+                  <span class="agent-code-lang">{snippet.lang || 'code'}</span>
+                  <button type="button" class="agent-link" on:click={() => copyText(snippet.code)}>{$t('agentPanel.copy')}</button>
+                  <button type="button" class="agent-link" on:click={() => insertIntoTerminal(snippet.code)} disabled={!term}>{$t('agentPanel.insert')}</button>
+                  <button type="button" class="agent-link" on:click={() => saveToNotes(snippet.code, snippet.lang)}>{$t('agentPanel.toNotes')}</button>
+                </div>
+                <pre><code>{snippet.code}</code></pre>
+              </div>
+            {:else}
+              <div class="agent-inline">
+                <code>{snippet.code}</code>
+                <button type="button" class="agent-link" on:click={() => copyText(snippet.code)}>{$t('agentPanel.copy')}</button>
+                <button type="button" class="agent-link" on:click={() => insertIntoTerminal(snippet.code)} disabled={!term}>{$t('agentPanel.insert')}</button>
+              </div>
+            {/if}
+          {/each}
+        {/each}
+        {#if assistantMessages.length > 1}
+          <button type="button" class="agent-link agent-more" on:click={() => (showOlderSnippets = !showOlderSnippets)}>{showOlderSnippets ? $t('agentPanel.olderHide') : $t('agentPanel.olderShow')}</button>
+        {/if}
+
+      {:else if view === 'files'}
+        <div class="agent-section-head">
+          <span>{$t('agentPanel.gitTitle')}</span>
+          <button type="button" class="agent-link" on:click={refreshGit} disabled={gitLoading}>{gitLoading ? '…' : $t('agentPanel.gitReload')}</button>
         </div>
-      {/each}
+        {#if git && !git.isRepo}
+          <p class="agent-panel-hint">{$t('agentPanel.gitNotRepo')}</p>
+        {:else if git}
+          {#if git.status}
+            <pre class="agent-pre">{git.status}</pre>
+          {:else}
+            <p class="agent-panel-hint">{$t('agentPanel.gitClean')}</p>
+          {/if}
+          {#if git.diffStat}
+            <pre class="agent-pre agent-pre-dim">{git.diffStat}</pre>
+          {/if}
+        {/if}
+        <div class="agent-section-head"><span>{$t('agentPanel.filesTitle', { n: transcript.files.length })}</span></div>
+        {#if transcript.files.length === 0}
+          <p class="agent-panel-hint">{$t('agentPanel.noFiles')}</p>
+        {/if}
+        {#each transcript.files as file (file.path)}
+          <div class="agent-row" title={file.path}>
+            <span class="agent-ops">
+              {#each file.ops as op (op)}<span class="agent-op agent-op-{op}">{op}</span>{/each}
+            </span>
+            <code class="agent-row-main">{relPath(file.path)}</code>
+            <span class="agent-row-dim">{file.count > 1 ? '×' + file.count : ''} {shortTime(file.lastAt)}</span>
+            <button type="button" class="agent-link" on:click={() => copyText(file.path)}>{$t('agentPanel.copy')}</button>
+            {#if agent?.source !== 'wsl'}
+              <button type="button" class="agent-link" on:click={() => openFileInNotes(file.path)}>{$t('agentPanel.toNotes')}</button>
+            {/if}
+          </div>
+        {/each}
+
+      {:else if view === 'commands'}
+        {#if commandsNewestFirst.length === 0}
+          <p class="agent-panel-hint">{$t('agentPanel.noCommands')}</p>
+        {/if}
+        {#each commandsNewestFirst as cmd, i (i)}
+          <div class="agent-cmd {cmd.failed ? 'agent-cmd-failed' : ''}">
+            <div class="agent-msg-meta">
+              <span class="agent-exit {cmd.hasExit ? (cmd.failed ? 'agent-exit-fail' : 'agent-exit-ok') : ''}" title={cmd.hasExit ? `exit ${cmd.exitCode}` : ''}>{cmd.hasExit ? (cmd.failed ? '✗ ' + cmd.exitCode : '✓') : '…'}</span>
+              <span>{shortTime(cmd.at)}</span>
+              {#if cmd.description}<span class="agent-row-dim">{cmd.description}</span>{/if}
+              <button type="button" class="agent-link" on:click={() => copyText(cmd.command)}>{$t('agentPanel.copy')}</button>
+              <button type="button" class="agent-link" on:click={() => insertIntoTerminal(cmd.command)} disabled={!term}>{$t('agentPanel.insert')}</button>
+            </div>
+            <pre><code>{cmd.command}</code></pre>
+          </div>
+        {/each}
+
+      {:else}
+        {#if transcript.truncated}
+          <p class="agent-panel-hint">{$t('agentPanel.truncated', { n: transcript.messages.length })}</p>
+        {/if}
+        {#each transcript.messages as message, index (index)}
+          <div class="agent-msg agent-msg-{message.role}">
+            <div class="agent-msg-meta">
+              <span>{message.role === 'user' ? $t('agentPanel.you') : (agent?.label || transcript.label)}</span>
+              <span>{shortTime(message.timestamp)}</span>
+              {#if message.role === 'assistant'}
+                <button type="button" class="agent-link" on:click={() => copyText(message.text)}>{$t('agentPanel.copyMessage')}</button>
+              {/if}
+            </div>
+            {#if message.role === 'user'}
+              <div class="agent-msg-user">{message.text}</div>
+            {:else}
+              {#each splitMarkdown(message.text) as segment, i (i)}
+                {#if segment.type === 'text'}
+                  <div class="agent-prose">{@html renderProse(segment.text)}</div>
+                {:else}
+                  <div class="agent-code">
+                    <div class="agent-code-bar">
+                      <span class="agent-code-lang">{segment.lang || 'code'}</span>
+                      <button type="button" class="agent-link" on:click={() => copyText(segment.code)}>{$t('agentPanel.copy')}</button>
+                      <button type="button" class="agent-link" on:click={() => insertIntoTerminal(segment.code)} disabled={!term}>{$t('agentPanel.insert')}</button>
+                      <button type="button" class="agent-link" on:click={() => saveToNotes(segment.code, segment.lang)}>{$t('agentPanel.toNotes')}</button>
+                    </div>
+                    <pre><code>{segment.code}</code></pre>
+                  </div>
+                {/if}
+              {/each}
+            {/if}
+          </div>
+        {/each}
+      {/if}
     {/if}
   </div>
   <div class="agent-panel-footer" title={transcript?.sessionFile || ''}>
-    {#if transcript?.sessionFile}{$t('agentPanel.source')}: {shortPath(transcript.sessionFile)}{/if}
+    {#if transcript?.sessionFile}{transcript.verified ? '✓ ' : ''}{$t('agentPanel.source')}: {shortPath(transcript.sessionFile)}{/if}
   </div>
 </div>
 
 <style>
   .agent-panel-inner { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 12px; }
-  .agent-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); }
+  .agent-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 8px 10px 4px; }
   .agent-panel-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
   .agent-panel-label { font-weight: 700; }
   .agent-panel-sub { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -256,17 +430,23 @@
   .agent-panel-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .agent-btn { background: transparent; border: 1px solid var(--border-subtle); color: inherit; border-radius: 4px; padding: 2px 7px; cursor: pointer; }
   .agent-btn:hover { background: rgba(255, 255, 255, 0.06); }
-  .agent-btn-active { background: rgba(99, 179, 237, 0.18); border-color: rgba(99, 179, 237, 0.5); }
-  .agent-view-switch { display: flex; gap: 2px; margin-right: 4px; }
-  .agent-panel-ok { color: #7ee787; }
-  .agent-panel-warn { color: #e3b341; }
+  .agent-tabs { display: flex; gap: 2px; padding: 0 10px 6px; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; }
+  .agent-tab { background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--text-secondary); padding: 4px 8px; cursor: pointer; font-size: 11px; }
+  .agent-tab:hover { color: inherit; }
+  .agent-tab-active { color: #63b3ed; border-bottom-color: #63b3ed; }
   .agent-panel-feedback { padding: 4px 10px; color: #7ee787; }
   .agent-panel-error { padding: 4px 10px; color: #f85149; white-space: pre-wrap; }
-  .agent-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 10px; }
+  .agent-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
   .agent-panel-hint { color: var(--text-secondary); margin: 0; }
+  .agent-panel-warn { color: #e3b341; }
+  .agent-summary { border: 1px solid rgba(99, 179, 237, 0.3); background: rgba(99, 179, 237, 0.06); border-radius: 6px; padding: 6px 8px; }
+  .agent-summary-prompt { color: var(--text-secondary); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+  .agent-summary-text { white-space: pre-wrap; word-break: break-word; }
+  .agent-group-label { color: var(--text-secondary); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+  .agent-more { align-self: flex-start; }
   .agent-msg { border: 1px solid var(--border-subtle); border-radius: 6px; padding: 6px 8px; }
   .agent-msg-user { white-space: pre-wrap; word-break: break-word; opacity: 0.85; }
-  .agent-msg-meta { display: flex; gap: 8px; align-items: center; color: var(--text-secondary); font-size: 11px; margin-bottom: 4px; }
+  .agent-msg-meta { display: flex; gap: 8px; align-items: center; color: var(--text-secondary); font-size: 11px; margin-bottom: 4px; flex-wrap: wrap; }
   .agent-msg-meta span:first-child { font-weight: 600; color: inherit; }
   .agent-link { background: none; border: 0; color: #63b3ed; cursor: pointer; padding: 0 2px; font-size: 11px; }
   .agent-link:hover { text-decoration: underline; }
@@ -275,9 +455,26 @@
   .agent-prose :global(p) { margin: 4px 0; }
   .agent-prose :global(ul), .agent-prose :global(ol) { margin: 4px 0; padding-left: 18px; }
   .agent-prose :global(code) { font-family: var(--font-mono); font-size: 11px; background: rgba(255, 255, 255, 0.06); padding: 0 3px; border-radius: 3px; }
-  .agent-code { margin: 6px 0; border: 1px solid var(--border-subtle); border-radius: 6px; overflow: hidden; }
+  .agent-code { border: 1px solid var(--border-subtle); border-radius: 6px; overflow: hidden; }
   .agent-code-bar { display: flex; gap: 8px; align-items: center; padding: 3px 8px; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid var(--border-subtle); }
   .agent-code-lang { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); margin-right: auto; }
-  .agent-code pre { margin: 0; padding: 8px; overflow-x: auto; font-family: var(--font-mono); font-size: 11px; line-height: 1.4; }
+  .agent-code pre, .agent-cmd pre, .agent-pre { margin: 0; padding: 8px; overflow-x: auto; font-family: var(--font-mono); font-size: 11px; line-height: 1.4; }
+  .agent-pre { border: 1px solid var(--border-subtle); border-radius: 6px; white-space: pre; }
+  .agent-pre-dim { color: var(--text-secondary); }
+  .agent-inline { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border: 1px solid var(--border-subtle); border-radius: 6px; }
+  .agent-inline code { font-family: var(--font-mono); font-size: 11px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-section-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-top: 4px; }
+  .agent-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--border-subtle); }
+  .agent-row-main { font-family: var(--font-mono); font-size: 11px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-row-dim { color: var(--text-secondary); font-size: 10px; white-space: nowrap; }
+  .agent-ops { display: inline-flex; gap: 2px; flex-shrink: 0; }
+  .agent-op { font-size: 9px; text-transform: uppercase; border-radius: 3px; padding: 0 4px; border: 1px solid var(--border-subtle); color: var(--text-secondary); }
+  .agent-op-write, .agent-op-edit { color: #e3b341; border-color: rgba(227, 179, 65, 0.4); }
+  .agent-op-delete { color: #f85149; border-color: rgba(248, 81, 73, 0.4); }
+  .agent-cmd { border: 1px solid var(--border-subtle); border-radius: 6px; padding: 4px 8px 0; }
+  .agent-cmd-failed { border-color: rgba(248, 81, 73, 0.4); }
+  .agent-exit { font-family: var(--font-mono); }
+  .agent-exit-ok { color: #7ee787; }
+  .agent-exit-fail { color: #f85149; }
   .agent-panel-footer { padding: 4px 10px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 14px; }
 </style>

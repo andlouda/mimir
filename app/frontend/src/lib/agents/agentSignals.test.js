@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { outputMentionsAgent, parseAgentTitle } from './agentSignals.js';
-import { extractCodeBlocks, splitMarkdown } from './markdownBlocks.js';
+import { extractCodeBlocks, extractSnippets, firstProse, splitMarkdown } from './markdownBlocks.js';
 
 describe('parseAgentTitle', () => {
   test('recognises Claude Code working and idle titles', () => {
@@ -53,5 +53,25 @@ describe('splitMarkdown', () => {
   test('plain text without fences is one text segment', () => {
     expect(splitMarkdown('hello')).toEqual([{ type: 'text', text: 'hello' }]);
     expect(splitMarkdown('')).toEqual([]);
+  });
+});
+
+describe('extractSnippets / firstProse', () => {
+  test('collects blocks first, then unique inline code', () => {
+    const md = 'Run `go test ./...` then edit `app/main.go`:\n\n```bash\ngo test ./...\n```\n\nAlso `ls` and `app/main.go` again.';
+    const snippets = extractSnippets(md);
+    expect(snippets).toEqual([
+      { type: 'code', lang: 'bash', code: 'go test ./...' },
+      { type: 'inline', code: 'app/main.go' },
+    ]);
+  });
+
+  test('firstProse strips code and caps length', () => {
+    const md = '## Result\n\nThe **fix** is in.\n\n```js\nx\n```\n\nDetails follow.';
+    expect(firstProse(md)).toBe('Result\nThe fix is in.\nDetails follow.');
+    const long = 'word '.repeat(200);
+    const summary = firstProse(long, 100);
+    expect(summary.length).toBeLessThanOrEqual(101);
+    expect(summary.endsWith('…')).toBe(true);
   });
 });

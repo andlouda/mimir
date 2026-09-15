@@ -56,3 +56,48 @@ export function splitMarkdown(markdown) {
 export function extractCodeBlocks(markdown) {
   return splitMarkdown(markdown).filter((s) => s.type === 'code');
 }
+
+const INLINE_CODE = /`([^`\n]+)`/g;
+
+/**
+ * Extracts the copy-worthy pieces of an agent answer: fenced code blocks and
+ * inline code spans (commands, paths, flags). Inline spans that are already
+ * part of a block, are duplicates, or are too short to be useful are dropped.
+ * @returns {Array<{type:'code', lang:string, code:string} | {type:'inline', code:string}>}
+ */
+export function extractSnippets(markdown) {
+  const segments = splitMarkdown(markdown);
+  const blocks = segments.filter((s) => s.type === 'code' && s.code.trim());
+  const blockText = blocks.map((b) => b.code).join('\n');
+  const seen = new Set();
+  const inline = [];
+  for (const seg of segments) {
+    if (seg.type !== 'text') continue;
+    for (const m of seg.text.matchAll(INLINE_CODE)) {
+      const code = m[1].trim();
+      if (code.length < 3 || seen.has(code) || blockText.includes(code)) continue;
+      seen.add(code);
+      inline.push({ type: 'inline', code });
+    }
+  }
+  return [...blocks, ...inline];
+}
+
+/**
+ * First lines of prose of an answer, with code blocks removed and the length
+ * capped, for a "what did it just say" summary.
+ */
+export function firstProse(markdown, maxChars = 320) {
+  const prose = splitMarkdown(markdown)
+    .filter((s) => s.type === 'text')
+    .map((s) => s.text)
+    .join('\n')
+    .replace(/^#+\s*/gm, '')
+    .replace(/\*\*/g, '')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+  if (prose.length <= maxChars) return prose;
+  const cut = prose.slice(0, maxChars);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > maxChars * 0.6 ? cut.slice(0, lastSpace) : cut) + '…';
+}

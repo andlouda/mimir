@@ -171,6 +171,83 @@ func (a *App) GetAgentPaneTextJSON(terminalID int, terminalType string, full boo
 	return string(payload), nil
 }
 
+// agentGitStatus is the payload of GetAgentGitStatusJSON.
+type agentGitStatus struct {
+	Cwd      string `json:"cwd"`
+	IsRepo   bool   `json:"isRepo"`
+	Status   string `json:"status"`   // git status --short
+	DiffStat string `json:"diffStat"` // git diff --stat (unstaged + staged)
+}
+
+const gitStatusSeparator = "__MIMIR_GIT__"
+
+// gitStatusScript prints a marker when cwd is a git work tree, then the
+// short status and the diff stat. It is a read-only inspection.
+const gitStatusScript = `if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then echo ` + gitStatusSeparator + `; git status --short 2>/dev/null | head -n 200; echo ` + gitStatusSeparator + `; git diff --stat HEAD 2>/dev/null | tail -n 60; fi`
+
+// GetAgentGitStatusJSON reports what changed in the working tree of the
+// directory the agent runs in, so the panel can show a review summary next
+// to the files the agent touched. Runs git out-of-band in the pane's cwd
+// (local, WSL or over SSH) and never writes anything.
+func (a *App) GetAgentGitStatusJSON(terminalID int, terminalType string) (string, error) {
+	state, ok := a.rememberedAgent(terminalID)
+	if !ok || state.cwd == "" {
+		return "", fmt.Errorf("no agent directory known for this terminal")
+	}
+	output, err := a.runInAgentDir(terminalID, terminalType, state, gitStatusScript)
+	if err != nil {
+		return "", err
+	}
+	result := agentGitStatus{Cwd: state.cwd}
+	parts := strings.Split(output, gitStatusSeparator)
+	if len(parts) >= 3 {
+		result.IsRepo = true
+		result.Status = strings.TrimSpace(parts[1])
+		result.DiffStat = strings.TrimSpace(parts[2])
+	}
+	payload, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode git status: %w", err)
+	}
+	return string(payload), nil
+}
+
+// runInAgentDir executes a POSIX shell script in the agent's working
+// directory in the environment the terminal lives in.
+func (a *App) runInAgentDir(terminalID int, terminalType string, state agentTerminalState, script string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
+	defer cancel()
+	switch state.source {
+	case "ssh":
+		client := a.TerminalManager.GetSSHClient(terminalID)
+		if client == nil {
+			return "", fmt.Errorf("ssh connection is gone")
+		}
+		output, err := runSSHCommandWithTimeout(client, "cd "+shellQuote(state.cwd)+" 2>/dev/null && "+script, discoveryTimeout)
+		if err != nil && strings.TrimSpace(output) == "" {
+			return "", fmt.Errorf("remote command failed: %v", err)
+		}
+		return output, nil
+	case "wsl":
+		cmd := exec.CommandContext(ctx, "wsl.exe", "--cd", state.cwd, "--", "sh", "-c", script)
+		executil.HideConsoleWindow(cmd)
+		output, err := cmd.Output()
+		if err != nil && len(output) == 0 {
+			return "", fmt.Errorf("wsl command failed: %v", err)
+		}
+		return string(output), nil
+	default:
+		cmd := exec.CommandContext(ctx, "sh", "-c", script)
+		cmd.Dir = state.cwd
+		executil.HideConsoleWindow(cmd)
+		output, err := cmd.Output()
+		if err != nil && len(output) == 0 {
+			return "", fmt.Errorf("command failed: %v", err)
+		}
+		return string(output), nil
+	}
+}
+
 // parseAgentProbe splits probe output into the pane root pid, its cwd and the
 // process rows.
 func parseAgentProbe(output string) (rootPID int, cwd string, procs []agents.Process) {
