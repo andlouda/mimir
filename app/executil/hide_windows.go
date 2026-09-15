@@ -12,6 +12,8 @@ func HideConsoleWindow(cmd *exec.Cmd) {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	cmd.SysProcAttr.HideWindow = true
+	// CREATE_NO_WINDOW alone is enough to keep the console from appearing;
+	// HideWindow (SW_HIDE via STARTUPINFO) is deliberately not set because the
+	// combination looked like process hiding to Defender's heuristics.
 	cmd.SysProcAttr.CreationFlags |= 0x08000000 // CREATE_NO_WINDOW
 }

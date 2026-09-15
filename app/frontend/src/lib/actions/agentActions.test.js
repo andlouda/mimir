@@ -3,6 +3,7 @@ import { get } from 'svelte/store';
 import { agentDetectionEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import {
+  handleTerminalPrompt,
   handleTerminalTitle,
   loadAgentPaneText,
   loadAgentTranscript,
@@ -101,16 +102,41 @@ describe('agent detection', () => {
     expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(1);
   });
 
-  test('watch polls and stops cleanly', () => {
+  test('idle terminals are probed once at start-up and never polled', async () => {
     window.go.main.App.DetectAgentForTerminalJSON.mockResolvedValue(JSON.stringify({ detected: false }));
     startAgentWatch(1, 'bash');
     vi.advanceTimersByTime(2600);
     expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(20100);
-    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(10 * 60 * 1000);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(1);
+    // A prompt without a known agent is ignored too.
+    handleTerminalPrompt(1);
+    vi.advanceTimersByTime(5000);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(1);
+  });
+
+  test('a known agent gets a slow liveness check and a prompt re-check', async () => {
+    const detected = JSON.stringify({ detected: true, kind: 'codex', label: 'Codex', pid: 7, cwd: '/p', source: 'local', transcripts: true });
+    window.go.main.App.DetectAgentForTerminalJSON.mockResolvedValue(detected);
+    startAgentWatch(1, 'bash');
+    await runAgentDetection(1);
+    expect(get(agentStates)[1].kind).toBe('codex');
+    vi.advanceTimersByTime(2600); // the one start-up probe
+    const calls = window.go.main.App.DetectAgentForTerminalJSON.mock.calls.length;
+
+    vi.advanceTimersByTime(3 * 60 * 1000 + 10);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(calls + 1);
+
+    // Prompt beacon → agent probably exited → re-check, which now says gone.
+    window.go.main.App.DetectAgentForTerminalJSON.mockResolvedValue(JSON.stringify({ detected: false }));
+    handleTerminalPrompt(1);
+    vi.advanceTimersByTime(2000);
+    await vi.runOnlyPendingTimersAsync();
+    expect(get(agentStates)[1]).toBeUndefined();
+    const after = window.go.main.App.DetectAgentForTerminalJSON.mock.calls.length;
+    vi.advanceTimersByTime(10 * 60 * 1000);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(after);
     stopAgentWatch(1);
-    vi.advanceTimersByTime(60000);
-    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(2);
   });
 
   test('disabling detection drops state and skips probes', () => {
