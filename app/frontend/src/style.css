@@ -40,19 +40,26 @@ html, body, #app {
 
 .terminal .xterm {
   height: 100% !important;
-  /* Breathing room between the pane edge and column 1 / the top row. The
+  /* Breathing room between the pane edge and the text on all sides. The
      fit addon subtracts the xterm element's own padding when it computes
      cols/rows, so this is the one safe place for it. */
-  padding: 4px 8px 0 8px;
+  padding: 4px 8px;
 }
 
+/* xterm 6 draws its own slim scrollbar (a VS Code-style slider, colours
+   from the terminal theme) on top of the viewport. The viewport's native
+   scrollbar would appear next to it as a second, differently styled bar,
+   so it is hidden; wheel and slider scrolling keep working. The viewport
+   also gets Mimir's background instead of xterm's pure black, which
+   otherwise shows as a black strip below the last row and in the gutter. */
 .terminal .xterm-viewport {
-  overflow-y: scroll !important;
-  scrollbar-width: thin;
-  /* xterm's stylesheet paints the viewport pure black; the strip below the
-     last full row (and the padding) would show as a black bar against
-     Mimir's background. */
   background-color: var(--bg-void) !important;
+  scrollbar-width: none;
+}
+
+.terminal .xterm-viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .terminal .xterm-rows {

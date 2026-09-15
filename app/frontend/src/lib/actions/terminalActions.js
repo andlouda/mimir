@@ -23,6 +23,11 @@ const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
 
 const XTERM_THEME = {
   background: '#0c0e14',
+  // xterm 6's own scrollbar slider; without these it falls back to the
+  // foreground colour at 20% (a light grey bar).
+  scrollbarSliderBackground: 'rgba(99, 179, 237, 0.22)',
+  scrollbarSliderHoverBackground: 'rgba(99, 179, 237, 0.4)',
+  scrollbarSliderActiveBackground: 'rgba(99, 179, 237, 0.55)',
   foreground: '#c9d1d9',
   cursor: '#63b3ed',
   cursorAccent: '#0c0e14',
@@ -110,6 +115,8 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     fontSize: 13,
     lineHeight: 1.35,
     scrollback: 100000,
+    // Also sets the width of xterm 6's scrollbar slider (default 14px).
+    overviewRuler: { width: 8 },
     theme: XTERM_THEME
   });
   const fitAddon = new FitAddon();
