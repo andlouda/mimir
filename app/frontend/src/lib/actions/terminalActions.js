@@ -14,7 +14,7 @@ import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/la
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
-import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize } from '../terminals/xtermLifecycle.js';
+import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
 import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';
@@ -324,8 +324,10 @@ export async function reinitializeTerminals() {
       const element = document.getElementById(`terminal-${t.id}`);
       if (element) {
         if (safelyAttachTerminal(t, element)) {
-          safelyFitAndResizeTerminal(t, ResizeTerminal);
           wireTerminalDom(t);
+          // The container is new after a layout change: watch it, then fit.
+          rebindTerminalResize(t);
+          safelyFitAndResizeTerminal(t, ResizeTerminal);
         }
       }
     }
