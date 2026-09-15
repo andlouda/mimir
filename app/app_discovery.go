@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mimir/executil"
 	"os/exec"
 	"strings"
 	"time"
@@ -133,6 +134,7 @@ func (a *App) localTerminalCwd(terminalID int, terminalType string) string {
 		return ""
 	}
 
+	executil.HideConsoleWindow(cmd)
 	output, err := cmd.Output()
 	if err != nil {
 		return ""

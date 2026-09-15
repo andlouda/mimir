@@ -3,6 +3,7 @@ package aiflow
 import (
 	"context"
 	"fmt"
+	"mimir/executil"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -116,6 +117,7 @@ func (r *CachedDiscoveryResolver) runSpec(terminalType string, spec discoveryCmd
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, command, args...)
+	executil.HideConsoleWindow(cmd)
 	// For WSL the workdir travels via `wsl.exe --cd`; setting Dir would point
 	// the Windows-side process at a Linux path.
 	if spec.wantsWorkdir && !isWSLTerminalType(terminalType) && filepath.IsAbs(r.workdir) {

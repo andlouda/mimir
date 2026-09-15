@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mimir/executil"
 	"os"
 	"os/exec"
 	"path"
@@ -109,6 +110,7 @@ func (a *App) runPaneScript(terminalID int, terminalType string, build func(tmux
 	default:
 		return "", fmt.Errorf("agent features need a tmux-backed terminal")
 	}
+	executil.HideConsoleWindow(cmd)
 	output, err := cmd.Output()
 	if err != nil && !strings.Contains(string(output), agentProbeSeparator) {
 		return "", fmt.Errorf("local tmux probe failed")
@@ -339,7 +341,9 @@ func (a *App) agentFS(terminalID int, source string) (agents.FS, string, func(),
 func wslHomeUNC() (base string, home string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "wsl.exe", "--", "sh", "-c", `printf '%s\n%s\n' "$HOME" "$WSL_DISTRO_NAME"`).Output()
+	cmd := exec.CommandContext(ctx, "wsl.exe", "--", "sh", "-c", `printf '%s\n%s\n' "$HOME" "$WSL_DISTRO_NAME"`)
+	executil.HideConsoleWindow(cmd)
+	out, err := cmd.Output()
 	if err != nil {
 		return "", "", fmt.Errorf("could not query WSL home: %s", firstOutputLine(strings.TrimSpace(string(out))))
 	}

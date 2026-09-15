@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mimir/executil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -168,6 +169,7 @@ func readDotEnvViaWSL(dir string) (string, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "wsl.exe", "--cd", dir, "--", "sh", "-c", envReadScript())
+	executil.HideConsoleWindow(cmd)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("could not read .env in WSL: %s", firstOutputLine(strings.TrimSpace(string(output))))
