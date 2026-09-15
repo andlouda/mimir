@@ -23,6 +23,44 @@ func TestJoinFullWidthRows(t *testing.T) {
 	if JoinFullWidthRows(text, 0) != text {
 		t.Fatalf("zero width must be a no-op")
 	}
+
+	// Full-width rules drawn by agents must not swallow the next line.
+	rule := strings.Repeat("─", width)
+	text = rule + "\nAccessing workspace:\n" + rule + "\n❯ "
+	if got := JoinFullWidthRows(text, width); got != text {
+		t.Fatalf("rule lines were joined: %q", got)
+	}
+}
+
+func TestTrimToAgentStart(t *testing.T) {
+	text := strings.Join([]string{
+		"system32 $ ls",
+		" a.dll",
+		" b.dll",
+		"~ $ claude",
+		"● first session",
+		"~ $ ls",
+		"test $ claude --resume",
+		"● second session",
+		"❯ ",
+	}, "\n")
+	got, dropped := TrimToAgentStart(text, KindClaude, 500)
+	if dropped != 6 || !strings.HasPrefix(got, "test $ claude --resume\n● second") {
+		t.Fatalf("unexpected trim: dropped=%d got=%q", dropped, got)
+	}
+	// No launch line: keep the tail.
+	got, dropped = TrimToAgentStart("1\n2\n3\n4", KindCodex, 2)
+	if got != "3\n4" || dropped != 2 {
+		t.Fatalf("tail fallback: %q %d", got, dropped)
+	}
+	got, dropped = TrimToAgentStart("1\n2", KindCodex, 5)
+	if got != "1\n2" || dropped != 0 {
+		t.Fatalf("short text must be untouched: %q %d", got, dropped)
+	}
+	// A file named like the agent is not a launch.
+	if _, dropped := TrimToAgentStart("x $ cat claude.md\ny", KindClaude, 0); dropped != 0 {
+		t.Fatalf("cat claude.md must not count as launch")
+	}
 }
 
 func TestCleanPaneText(t *testing.T) {

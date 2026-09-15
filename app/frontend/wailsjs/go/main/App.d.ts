@@ -111,4 +111,4 @@ export function DetectAgentForTerminalJSON(arg1:number,arg2:string):Promise<stri
 
 export function GetAgentTranscriptJSON(arg1:number,arg2:string,arg3:number):Promise<string>;
 
-export function GetAgentPaneTextJSON(arg1:number,arg2:string):Promise<string>;
+export function GetAgentPaneTextJSON(arg1:number,arg2:string,arg3:boolean):Promise<string>;

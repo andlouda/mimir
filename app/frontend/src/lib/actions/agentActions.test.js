@@ -151,7 +151,9 @@ describe('agent detection', () => {
   test('loads the tmux pane text with the terminal type', async () => {
     window.go.main.App.GetAgentPaneTextJSON.mockResolvedValue(JSON.stringify({ text: 'screen', width: 80, lines: 1 }));
     const pane = await loadAgentPaneText(1);
-    expect(window.go.main.App.GetAgentPaneTextJSON).toHaveBeenCalledWith(1, 'bash');
+    expect(window.go.main.App.GetAgentPaneTextJSON).toHaveBeenCalledWith(1, 'bash', false);
+    await loadAgentPaneText(1, { full: true });
+    expect(window.go.main.App.GetAgentPaneTextJSON).toHaveBeenLastCalledWith(1, 'bash', true);
     expect(pane.text).toBe('screen');
   });
 

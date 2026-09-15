@@ -3,6 +3,7 @@ package agents
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // PaneSource marks a transcript that was assembled from the tmux pane
@@ -26,13 +27,90 @@ func JoinFullWidthRows(text string, width int) string {
 	var out []string
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
-		for len([]rune(line)) == width && i+1 < len(lines) && strings.TrimSpace(lines[i+1]) != "" && !strings.HasSuffix(line, " ") {
+		for len([]rune(line)) == width && i+1 < len(lines) && joinable(line, lines[i+1]) {
 			line += strings.TrimLeft(lines[i+1], " ")
 			i++
 		}
 		out = append(out, line)
 	}
 	return strings.Join(out, "\n")
+}
+
+// joinable reports whether a full-width row looks like a token that was cut
+// mid-way: it must end in a word character and the next row must start with
+// one. Rules drawn from box characters ("────") and rows ending in a space
+// are complete on their own and never joined.
+func joinable(line, next string) bool {
+	runes := []rune(line)
+	if len(runes) == 0 {
+		return false
+	}
+	last := runes[len(runes)-1]
+	nextTrim := strings.TrimLeft(next, " ")
+	if nextTrim == "" {
+		return false
+	}
+	first := []rune(nextTrim)[0]
+	return isTokenRune(last) && isTokenRune(first)
+}
+
+func isTokenRune(r rune) bool {
+	if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		return true
+	}
+	return strings.ContainsRune("/._~:-=&?%+@#", r)
+}
+
+// TrimToAgentStart cuts pane text down to the last agent session: everything
+// before the last shell prompt line that launched the agent (e.g. "~ $ claude")
+// is dropped. When no such line exists, the last maxLines lines are kept.
+// The number of dropped lines is returned so the UI can say so.
+func TrimToAgentStart(text string, kind Kind, maxLines int) (string, int) {
+	lines := strings.Split(text, "\n")
+	start := -1
+	if d, ok := Lookup(kind); ok {
+		for i := len(lines) - 1; i >= 0; i-- {
+			if promptLaunches(lines[i], d.Binaries) {
+				start = i
+				break
+			}
+		}
+	}
+	if start < 0 && maxLines > 0 && len(lines) > maxLines {
+		start = len(lines) - maxLines
+	}
+	if start <= 0 {
+		return text, 0
+	}
+	return strings.Join(lines[start:], "\n"), start
+}
+
+// promptLaunches reports whether a line looks like a shell prompt that ran one
+// of the binaries: the prompt marker ($, %, #, ❯, >) followed by the binary as
+// the command word.
+func promptLaunches(line string, binaries []string) bool {
+	trimmed := strings.TrimSpace(line)
+	for _, marker := range []string{"$ ", "% ", "# ", "❯ ", "> "} {
+		idx := strings.LastIndex(trimmed, marker)
+		if idx < 0 {
+			continue
+		}
+		cmd := strings.TrimSpace(trimmed[idx+len(marker):])
+		word := cmd
+		if sp := strings.IndexByte(cmd, ' '); sp >= 0 {
+			word = cmd[:sp]
+		}
+		base := word
+		if slash := strings.LastIndexAny(word, "/\\"); slash >= 0 {
+			base = word[slash+1:]
+		}
+		for _, b := range binaries {
+			if base == b {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // CleanPaneText trims trailing whitespace per line and collapses the empty
