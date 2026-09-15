@@ -25,14 +25,19 @@ export function safelyFitAndResizeTerminal(term, resizeTerminal) {
   }
 }
 
-// observeTerminalResize watches the terminal's own rendered element and refits
-// whenever its box actually changes size. This is what keeps the grid correct
-// when the layout tree changes (e.g. closing 2 of 3 splits so the survivor
-// grows to fill the pane): the xterm element is moved into a larger container
-// and the observer fires, so cols/rows are recomputed and the backend PTY is
-// resized — without it, old content stays wrapped at the previous narrow width.
-// We observe term.terminal.element (stable across reattach) rather than the
-// container div (recreated by Svelte on layout changes).
+// observeTerminalResize refits the terminal whenever its box changes size
+// (layout-tree changes, split-drag, window resize), keeping cols/rows in sync
+// with the pane so content reflows instead of staying at a previous size.
+//
+// Two elements are observed: xterm's own root element and its current
+// container (#terminal-<id>). The root alone is not enough: xterm sizes its
+// root by rows/cols, so a container that only grows in height (closing a
+// pane in a vertical split, dragging a horizontal divider) never changes the
+// root's size and the observer would never fire — the classic "pane stays
+// small" symptom. The container is re-created by Svelte on layout changes,
+// so rebindTerminalResize re-observes the new one after every attach.
+const resizeObservers = new Map(); // term.id → ResizeObserver
+
 export function observeTerminalResize(term, resizeTerminal) {
   if (!term?.terminal?.element || typeof ResizeObserver === 'undefined') {
     return () => {};
@@ -47,19 +52,31 @@ export function observeTerminalResize(term, resizeTerminal) {
       safelyFitAndResizeTerminal(term, resizeTerminal);
     });
   });
-  try {
-    observer.observe(term.terminal.element);
-  } catch (error) {
-    console.error(`Failed to observe resize for terminal ${term.id}:`, error);
-    return () => {};
-  }
+  resizeObservers.set(term.id, observer);
+  rebindTerminalResize(term);
   return () => {
     if (frame) {
       cancelAnimationFrame(frame);
       frame = 0;
     }
     observer.disconnect();
+    resizeObservers.delete(term.id);
   };
+}
+
+// rebindTerminalResize (re)targets the terminal's resize observer at xterm's
+// root element and its current container. Call after every attach.
+export function rebindTerminalResize(term) {
+  const observer = resizeObservers.get(term?.id);
+  const root = term?.terminal?.element;
+  if (!observer || !root) return;
+  try {
+    observer.disconnect();
+    observer.observe(root);
+    if (root.parentElement) observer.observe(root.parentElement);
+  } catch (error) {
+    console.error(`Failed to observe resize for terminal ${term.id}:`, error);
+  }
 }
 
 export function safelyAttachTerminal(term, element) {
