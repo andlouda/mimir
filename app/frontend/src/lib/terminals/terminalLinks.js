@@ -1,10 +1,10 @@
-// URL handling inside terminals: xterm's web-links addon underlines URLs on
-// hover; Ctrl/Cmd+click opens them in the system browser, the context menu
-// offers open/copy for the URL under the pointer. Only http(s) is ever
-// opened: terminal output is untrusted and other schemes could reach local
-// handlers.
-import { WebLinksAddon } from '@xterm/addon-web-links';
+// URL handling inside terminals: URLs are underlined on hover, Ctrl/Cmd+click
+// opens them in the system browser, the context menu offers open/copy for the
+// URL under the pointer. Detection joins URLs that a program wrapped across
+// rows (see multiRowLinks.js). Only http(s) is ever opened: terminal output
+// is untrusted and other schemes could reach local handlers.
 import { BrowserOpenURL } from '../../../wailsjs/runtime';
+import { findLinksAt } from './multiRowLinks.js';
 
 const hovered = new Map(); // terminal id → url under the pointer
 
@@ -37,17 +37,39 @@ export function clearHoveredLink(terminalId) {
   hovered.delete(terminalId);
 }
 
-/** Creates the addon for one terminal; load it with terminal.loadAddon(). */
-export function createWebLinksAddon(terminalId, { open = openUrl } = {}) {
-  return new WebLinksAddon(
-    (event, uri) => {
-      // Plain clicks go to the application (or place the cursor); a modifier
-      // makes the intent explicit, like in GNOME Terminal / Windows Terminal.
-      if (event?.ctrlKey || event?.metaKey) open(uri);
+/**
+ * Creates an xterm link provider for one terminal; register it with
+ * terminal.registerLinkProvider() and dispose the result on cleanup.
+ */
+export function createLinkProvider(terminalId, terminal, { open = openUrl } = {}) {
+  const rowText = (y) => {
+    const line = terminal.buffer?.active?.getLine?.(y - 1);
+    return line ? line.translateToString(true) : null;
+  };
+  return {
+    provideLinks(y, callback) {
+      let found = [];
+      try {
+        found = findLinksAt(rowText, y, terminal.cols || 0);
+      } catch (error) {
+        console.error('Link detection failed:', error);
+      }
+      if (!found.length) {
+        callback(undefined);
+        return;
+      }
+      callback(found.map((link) => ({
+        range: { start: link.start, end: link.end },
+        text: link.text,
+        decorations: { underline: true, pointerCursor: true },
+        activate: (event, text) => {
+          // Plain clicks go to the application (or place the cursor); a
+          // modifier makes the intent explicit, like in GNOME Terminal.
+          if (event?.ctrlKey || event?.metaKey) open(text);
+        },
+        hover: (_event, text) => hovered.set(terminalId, text),
+        leave: () => hovered.delete(terminalId),
+      })));
     },
-    {
-      hover: (_event, text) => hovered.set(terminalId, text),
-      leave: () => hovered.delete(terminalId),
-    },
-  );
+  };
 }
