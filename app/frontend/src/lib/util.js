@@ -106,6 +106,26 @@ export function sanitizeHtml(html) {
   return instance.sanitize(String(html));
 }
 
+/**
+ * Joins a multi-line terminal selection into one line, undoing wraps that a
+ * program drew itself (Claude Code, Codex): a row that fills the terminal
+ * width was cut mid-token and is glued to the next row without a space
+ * (URLs, paths, tokens); a shorter row was wrapped at a word boundary and
+ * gets a single space. Continuation indentation is dropped.
+ */
+export function joinSelectionLines(text, cols) {
+  const lines = String(text ?? '').replace(/\r/g, '').split('\n');
+  if (lines.length <= 1) return lines[0] || '';
+  let out = lines[0].trimEnd();
+  for (let i = 1; i < lines.length; i++) {
+    const next = lines[i].trim();
+    if (!next) continue;
+    const prevFull = cols > 0 && lines[i - 1].length >= cols;
+    out += prevFull ? next : ' ' + next;
+  }
+  return out;
+}
+
 /** Generates a unique resume id for a terminal session. */
 export function generateResumeId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

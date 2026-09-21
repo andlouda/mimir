@@ -8,6 +8,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { createWriteOnlyClipboardProvider } from '../terminals/osc52Clipboard.js';
+import { clearHoveredLink, createWebLinksAddon } from '../terminals/terminalLinks.js';
 import { EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/layoutTree.js';
@@ -124,6 +125,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   const searchAddon = new SearchAddon();
   terminal.loadAddon(searchAddon);
   terminal.loadAddon(new ClipboardAddon(undefined, createWriteOnlyClipboardProvider()));
+  terminal.loadAddon(createWebLinksAddon(id));
 
   const newTerminal = {
     id,
@@ -182,6 +184,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   const titleDisposable = terminal.onTitleChange(title => handleTerminalTitle(id, title));
   newTerminal.cleanupHandlers.push(titleDisposable);
   newTerminal.cleanupHandlers.push(() => wiredDom.delete(id));
+  newTerminal.cleanupHandlers.push(() => clearHoveredLink(id));
 
   const element = document.getElementById(`terminal-${id}`);
   if (element) {

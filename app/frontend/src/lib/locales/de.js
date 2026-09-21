@@ -335,6 +335,11 @@ export default {
     save: 'Speichern',
   },
   splitPane: {
+    ctxOpenLink: 'Link im Browser öffnen',
+    ctxCopyLink: 'Link kopieren',
+    ctxCopyJoined: 'Als eine Zeile kopieren',
+    ctxCopyJoinedTitle: 'Verbindet die markierten Zeilen: mitten im Token getrennte Zeilen (URLs, Pfade) werden zusammengeklebt, an Wortgrenzen umgebrochene bekommen ein Leerzeichen',
+    ctxShiftHint: 'Dieses Programm nutzt die Maus selbst. Shift gedrückt halten und ziehen, um Text zu markieren; Strg+Klick öffnet Links.',
     agentWorking: 'arbeitet',
     agentDone: 'fertig',
     agentOpenPanel: 'Klicken, um das Agent-Transkript zu öffnen',

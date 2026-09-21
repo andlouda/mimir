@@ -1,5 +1,7 @@
 <script>
   import { agentStates } from './stores/agentStore.js';
+  import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
+  import { joinSelectionLines } from './util.js';
   import { createEventDispatcher, tick } from 'svelte';
   import { t } from './i18n.js';
   import { calculateSplitRatio } from './terminals/splitPaneResize.js';
@@ -111,12 +113,48 @@
     event.preventDefault();
     event.stopPropagation();
     dispatch('activate', term.id);
+    const selection = term.terminal?.getSelection?.() || '';
+    const link = hoveredLink(term.id);
+    // Programs like Claude Code enable mouse tracking, which swallows drag
+    // selection; xterm still selects when Shift is held. Surface that hint
+    // when it applies, because otherwise "copy" just looks broken.
+    const mouseTracking = term.terminal?.modes?.mouseTrackingMode && term.terminal.modes.mouseTrackingMode !== 'none';
     contextMenu = {
       termId: term.id,
       x: Math.max(0, Math.min(event.clientX, window.innerWidth - CTX_MENU_WIDTH)),
       y: Math.max(0, Math.min(event.clientY, window.innerHeight - CTX_MENU_HEIGHT)),
-      hasSelection: Boolean(term.terminal?.hasSelection?.())
+      hasSelection: selection.length > 0,
+      multiLine: selection.includes('\n'),
+      link: isOpenableUrl(link) ? link : '',
+      mouseTracking: Boolean(mouseTracking) && selection.length === 0,
     };
+  }
+
+  async function ctxCopyJoined(term) {
+    closeContextMenu();
+    try {
+      const text = term.terminal?.getSelection?.() || '';
+      if (text) await ClipboardSetText(joinSelectionLines(text, term.terminal?.cols || 0));
+    } catch (error) {
+      console.error('Context menu copy failed:', error);
+    }
+    term.terminal?.focus?.();
+  }
+
+  async function ctxCopyLink(term, link) {
+    closeContextMenu();
+    try {
+      if (link) await ClipboardSetText(link);
+    } catch (error) {
+      console.error('Context menu copy link failed:', error);
+    }
+    term.terminal?.focus?.();
+  }
+
+  function ctxOpenLink(term, link) {
+    closeContextMenu();
+    openUrl(link);
+    term.terminal?.focus?.();
   }
 
   function closeContextMenu() {
@@ -335,9 +373,26 @@
             on:wheel|stopPropagation={closeContextMenu}
           ></div>
           <div class="ctx-menu" style="left: {contextMenu.x}px; top: {contextMenu.y}px;" role="menu">
+            {#if contextMenu.link}
+              <button class="ctx-item" role="menuitem" on:click={() => ctxOpenLink(term, contextMenu.link)} title={contextMenu.link}>
+                {$t('splitPane.ctxOpenLink')}
+              </button>
+              <button class="ctx-item" role="menuitem" on:click={() => ctxCopyLink(term, contextMenu.link)} title={contextMenu.link}>
+                {$t('splitPane.ctxCopyLink')}
+              </button>
+              <div class="ctx-sep"></div>
+            {/if}
             <button class="ctx-item" role="menuitem" disabled={!contextMenu.hasSelection} on:click={() => ctxCopy(term)}>
               {$t('splitPane.ctxCopy')}
             </button>
+            {#if contextMenu.multiLine}
+              <button class="ctx-item" role="menuitem" on:click={() => ctxCopyJoined(term)} title={$t('splitPane.ctxCopyJoinedTitle')}>
+                {$t('splitPane.ctxCopyJoined')}
+              </button>
+            {/if}
+            {#if contextMenu.mouseTracking}
+              <div class="ctx-hint">{$t('splitPane.ctxShiftHint')}</div>
+            {/if}
             <button class="ctx-item" role="menuitem" on:click={() => ctxPaste(term)}>
               {$t('splitPane.ctxPaste')}
             </button>
@@ -785,6 +840,14 @@
 
   .ctx-item:hover:not(:disabled) {
     background: #2d3348;
+  }
+
+  .ctx-hint {
+    padding: 4px 10px 6px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    white-space: normal;
+    max-width: 200px;
   }
 
   .ctx-item:disabled {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from 'vitest';
-import { containsControlChars, sanitizeHtml, shellQuotePath } from './util.js';
+import { containsControlChars, joinSelectionLines, sanitizeHtml, shellQuotePath } from './util.js';
 
 describe('sanitizeHtml', () => {
   test('keeps the Markdown subset', () => {
@@ -67,5 +67,24 @@ describe('shell path helpers', () => {
 
   test('shellQuotePath escapes single quotes', () => {
     expect(shellQuotePath("/tmp/it's")).toBe("'/tmp/it'\\''s'");
+  });
+});
+
+describe('joinSelectionLines', () => {
+  test('glues full-width rows and spaces word-wrapped rows', () => {
+    const cols = 20;
+    const text = [
+      '  https://example.co', // 20 chars → cut mid-token
+      '  m/login?x=1',
+      'short line',            // word wrap → space
+      '  next words',
+    ].join('\n');
+    expect(joinSelectionLines(text, cols)).toBe('  https://example.com/login?x=1 short line next words');
+  });
+
+  test('single line and empty input pass through', () => {
+    expect(joinSelectionLines('abc', 80)).toBe('abc');
+    expect(joinSelectionLines('', 80)).toBe('');
+    expect(joinSelectionLines('a\n\nb', 80)).toBe('a b');
   });
 });
