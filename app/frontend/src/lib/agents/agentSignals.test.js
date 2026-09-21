@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { outputMentionsAgent, parseAgentTitle } from './agentSignals.js';
-import { extractCodeBlocks, extractSnippets, firstProse, splitMarkdown } from './markdownBlocks.js';
+import { extractCodeBlocks, extractSnippets, firstProse, groupTurns, splitMarkdown } from './markdownBlocks.js';
 
 describe('parseAgentTitle', () => {
   test('recognises Claude Code working and idle titles', () => {
@@ -73,5 +73,25 @@ describe('extractSnippets / firstProse', () => {
     const summary = firstProse(long, 100);
     expect(summary.length).toBeLessThanOrEqual(101);
     expect(summary.endsWith('…')).toBe(true);
+  });
+});
+
+describe('groupTurns', () => {
+  test('keeps every assistant record of a turn together', () => {
+    const messages = [
+      { role: 'user', text: 'do it' },
+      { role: 'assistant', text: 'Run this:\n\n```bash\nmake test\n```' },
+      { role: 'assistant', text: 'Done, tell me if it fails.' },
+      { role: 'user', text: 'thanks' },
+      { role: 'assistant', text: 'Welcome.' },
+    ];
+    const turns = groupTurns(messages);
+    expect(turns).toHaveLength(2);
+    expect(turns[0].prompt.text).toBe('do it');
+    expect(turns[0].answers.map((a) => a.text)).toEqual(['Run this:\n\n```bash\nmake test\n```', 'Done, tell me if it fails.']);
+    expect(turns[1].answers).toHaveLength(1);
+    // Turns without an answer are dropped; leading answers without a prompt are kept.
+    expect(groupTurns([{ role: 'user', text: 'x' }])).toEqual([]);
+    expect(groupTurns([{ role: 'assistant', text: 'hi' }])[0].prompt).toBeNull();
   });
 });
