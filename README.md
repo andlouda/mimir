@@ -50,6 +50,11 @@ Mimir is local-first by default.
   rejected to prevent history poisoning from terminal output.
 - SSH RC injection is opt-in per profile and does not write to remote `~/.bashrc`.
 - AI context is sanitized and can be excluded from prompts.
+- Copy and links in panes: drag to select; when a program such as Claude
+  Code has taken over the mouse, hold Shift while dragging. The context menu
+  offers "Copy as one line" for text a program wrapped itself (URLs, long
+  commands). URLs are underlined on hover; Ctrl+click (Cmd on macOS) opens
+  them in the browser, the context menu can open or copy them.
 - Coding-agent awareness: when Claude Code or Codex runs in a pane, Mimir
   shows the agent and its state in the pane header and can open a side panel
   fed by the agent's own session file: the snippets of its last answer (exact

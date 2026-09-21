@@ -335,6 +335,11 @@ export default {
     save: 'Save',
   },
   splitPane: {
+    ctxOpenLink: 'Open link in browser',
+    ctxCopyLink: 'Copy link',
+    ctxCopyJoined: 'Copy as one line',
+    ctxCopyJoinedTitle: 'Joins the selected rows: rows cut mid-token (URLs, paths) are glued together, word-wrapped rows get a space',
+    ctxShiftHint: 'This program uses the mouse itself. Hold Shift while dragging to select text; Ctrl+click opens links.',
     agentWorking: 'working',
     agentDone: 'done',
     agentOpenPanel: 'Click to open the agent transcript panel',
