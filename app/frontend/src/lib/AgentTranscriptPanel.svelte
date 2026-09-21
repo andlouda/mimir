@@ -9,7 +9,7 @@
   import { ClipboardSetText } from '../../wailsjs/runtime';
   import { t } from './i18n.js';
   import { sanitizeHtml } from './util.js';
-  import { extractSnippets, firstProse, splitMarkdown } from './agents/markdownBlocks.js';
+  import { extractSnippets, firstProse, groupTurns, splitMarkdown } from './agents/markdownBlocks.js';
   import { agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
@@ -18,7 +18,7 @@
   export let terminalId;
 
   const REFRESH_WORKING_MS = 6000;
-  const MESSAGE_LIMIT = 12;
+  const MESSAGE_LIMIT = 24;
   const TABS = ['snippets', 'files', 'commands', 'history', 'screen'];
 
   let transcript = null;
@@ -50,10 +50,15 @@
   $: scheduleAutoRefresh(agent?.status);
 
   $: assistantMessages = (transcript?.messages || []).filter((m) => m.role === 'assistant');
-  $: lastAnswer = assistantMessages.length ? assistantMessages[assistantMessages.length - 1] : null;
-  $: lastUserPrompt = [...(transcript?.messages || [])].reverse().find((m) => m.role === 'user') || null;
+  // A reply can be spread over several assistant records (text, tool call,
+  // text, ...); the unit the user cares about is the whole turn since their
+  // last prompt.
+  $: turns = groupTurns(transcript?.messages || []);
+  $: lastTurn = turns.length ? turns[turns.length - 1] : null;
+  $: lastAnswer = lastTurn ? { text: lastTurn.answers.map((a) => a.text).join('\n\n'), timestamp: lastTurn.answers[lastTurn.answers.length - 1].timestamp } : null;
+  $: lastUserPrompt = lastTurn?.prompt || null;
   $: summary = lastAnswer ? firstProse(lastAnswer.text, summaryExpanded ? 4000 : 320) : '';
-  $: snippetGroups = buildSnippetGroups(assistantMessages, showOlderSnippets);
+  $: snippetGroups = buildSnippetGroups(turns, showOlderSnippets);
   $: commandsNewestFirst = [...(transcript?.commands || [])].reverse();
   $: failedCommands = (transcript?.commands || []).filter((c) => c.failed).length;
   $: changedFiles = (transcript?.files || []).filter((f) => f.ops.some((op) => op !== 'read'));
@@ -63,10 +68,23 @@
     error = ''; showOlderSnippets = false; summaryExpanded = false;
   }
 
-  function buildSnippetGroups(messages, includeOlder) {
-    const source = includeOlder ? messages.slice(-6) : messages.slice(-1);
+  function buildSnippetGroups(allTurns, includeOlder) {
+    const source = includeOlder ? allTurns.slice(-4) : allTurns.slice(-1);
     return source
-      .map((m, i) => ({ key: `${m.timestamp || ''}-${i}`, timestamp: m.timestamp, snippets: extractSnippets(m.text) }))
+      .map((turn, i) => {
+        const last = turn.answers[turn.answers.length - 1];
+        const seen = new Set();
+        const snippets = [];
+        for (const answer of turn.answers) {
+          for (const snippet of extractSnippets(answer.text)) {
+            const key = `${snippet.type}:${snippet.code}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            snippets.push(snippet);
+          }
+        }
+        return { key: `${last.timestamp || ''}-${i}`, timestamp: last.timestamp, prompt: turn.prompt?.text || '', snippets };
+      })
       .filter((g) => g.snippets.length)
       .reverse();
   }
@@ -304,7 +322,7 @@
         {/if}
         {#each snippetGroups as group (group.key)}
           {#if showOlderSnippets}
-            <div class="agent-group-label">{shortTime(group.timestamp)}</div>
+            <div class="agent-group-label" title={group.prompt}>{shortTime(group.timestamp)}{group.prompt ? ' · ❯ ' + (group.prompt.length > 60 ? group.prompt.slice(0, 60) + '…' : group.prompt) : ''}</div>
           {/if}
           {#each group.snippets as snippet, i (i)}
             {#if snippet.type === 'code'}
@@ -326,7 +344,7 @@
             {/if}
           {/each}
         {/each}
-        {#if assistantMessages.length > 1}
+        {#if turns.length > 1}
           <button type="button" class="agent-link agent-more" on:click={() => (showOlderSnippets = !showOlderSnippets)}>{showOlderSnippets ? $t('agentPanel.olderHide') : $t('agentPanel.olderShow')}</button>
         {/if}
 

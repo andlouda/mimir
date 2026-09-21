@@ -101,3 +101,29 @@ export function firstProse(markdown, maxChars = 320) {
   const lastSpace = cut.lastIndexOf(' ');
   return (lastSpace > maxChars * 0.6 ? cut.slice(0, lastSpace) : cut) + '…';
 }
+
+/**
+ * Groups a transcript into turns: one user prompt followed by every
+ * assistant message until the next prompt. Agents split a single reply
+ * across several records (text, tool call, text, ...), so "the last answer"
+ * must mean the whole last turn, not the last record.
+ * @param {Array<{role:string, text:string, timestamp?:string}>} messages
+ * @returns {Array<{prompt: object|null, answers: object[]}>}
+ */
+export function groupTurns(messages) {
+  const turns = [];
+  let current = null;
+  for (const message of messages || []) {
+    if (message.role === 'user') {
+      current = { prompt: message, answers: [] };
+      turns.push(current);
+      continue;
+    }
+    if (!current) {
+      current = { prompt: null, answers: [] };
+      turns.push(current);
+    }
+    current.answers.push(message);
+  }
+  return turns.filter((t) => t.answers.length > 0);
+}
