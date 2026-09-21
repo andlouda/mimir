@@ -114,3 +114,5 @@ export function GetAgentTranscriptJSON(arg1:number,arg2:string,arg3:number):Prom
 export function GetAgentPaneTextJSON(arg1:number,arg2:string,arg3:boolean):Promise<string>;
 
 export function GetAgentGitStatusJSON(arg1:number,arg2:string):Promise<string>;
+
+export function GetTmuxPasteBufferJSON(arg1:number,arg2:string):Promise<string>;

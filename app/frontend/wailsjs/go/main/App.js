@@ -353,3 +353,7 @@ export function GetAgentPaneTextJSON(arg1, arg2, arg3) {
 export function GetAgentGitStatusJSON(arg1, arg2) {
   return window['go']['main']['App']['GetAgentGitStatusJSON'](arg1, arg2);
 }
+
+export function GetTmuxPasteBufferJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetTmuxPasteBufferJSON'](arg1, arg2);
+}

@@ -335,6 +335,8 @@ export default {
     save: 'Save',
   },
   splitPane: {
+    ctxCopyTmux: 'Copy last tmux selection',
+    ctxCopyTmuxTitle: 'Fetches the text tmux copied last (its paste buffer) and puts it on the clipboard — works even when the remote tmux cannot forward selections itself',
     ctxOpenLink: 'Open link in browser',
     ctxCopyLink: 'Copy link',
     ctxCopyJoined: 'Copy as one line',

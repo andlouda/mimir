@@ -335,6 +335,8 @@ export default {
     save: 'Speichern',
   },
   splitPane: {
+    ctxCopyTmux: 'Letzte tmux-Auswahl kopieren',
+    ctxCopyTmuxTitle: 'Holt den Text, den tmux zuletzt kopiert hat (sein Paste-Puffer), in die Zwischenablage — auch wenn das entfernte tmux Markierungen nicht selbst weiterreichen kann',
     ctxOpenLink: 'Link im Browser öffnen',
     ctxCopyLink: 'Link kopieren',
     ctxCopyJoined: 'Als eine Zeile kopieren',

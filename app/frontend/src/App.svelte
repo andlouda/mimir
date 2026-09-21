@@ -291,6 +291,7 @@
     toggleTerminalSearch,
     toggleWorkflowPicker,
     closeTerminalSearch,
+    addTerminal: () => doAddTerminal(),
   });
 
   async function openPage(page) {

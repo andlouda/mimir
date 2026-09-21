@@ -9,6 +9,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { createWriteOnlyClipboardProvider } from '../terminals/osc52Clipboard.js';
 import { clearHoveredLink, createLinkProvider } from '../terminals/terminalLinks.js';
+import { isGlobalShortcut } from './keyboardShortcuts.js';
 import { EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/layoutTree.js';
@@ -126,6 +127,9 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   terminal.loadAddon(searchAddon);
   terminal.loadAddon(new ClipboardAddon(undefined, createWriteOnlyClipboardProvider()));
   const linkProviderDisposable = terminal.registerLinkProvider(createLinkProvider(id, terminal));
+  // Keep Mimir's global shortcuts out of the shell; the window handler still
+  // receives them because xterm does not stop propagation.
+  terminal.attachCustomKeyEventHandler((event) => !isGlobalShortcut(event));
 
   const newTerminal = {
     id,
@@ -255,6 +259,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
         tmuxMode: status?.mode || '',
         tmuxStatus: status?.status || '',
         tmuxError: status?.error || '',
+        tmuxVersion: status?.version || '',
         rcMode: status?.rcMode || '',
         rcStatus: status?.rcStatus || '',
         shellPath: status?.shellPath || '',
@@ -266,6 +271,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     newTerminal.tmuxMode = status?.mode || '';
     newTerminal.tmuxStatus = status?.status || '';
     newTerminal.tmuxError = status?.error || '';
+    newTerminal.tmuxVersion = status?.version || '';
     newTerminal.rcMode = status?.rcMode || '';
     newTerminal.rcStatus = status?.rcStatus || '';
     newTerminal.shellPath = status?.shellPath || '';
