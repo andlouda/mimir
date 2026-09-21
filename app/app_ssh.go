@@ -215,10 +215,13 @@ func (a *App) dialJumpHost(profileID string, profile ssh.Profile) (*gossh.Client
 	return client, nil
 }
 
-func probeRemoteTmux(cfg terminal.SSHConnectConfig) (bool, string) {
+// probeRemoteTmux reports whether tmux exists on the host and which version
+// it is (the version is shown in the pane's tmux badge; old releases lack
+// set-clipboard external / OSC 52, which explains missing mouse copy).
+func probeRemoteTmux(cfg terminal.SSHConnectConfig) (bool, string, string) {
 	hostKeyCallback := cfg.HostKeyCallback
 	if hostKeyCallback == nil {
-		return false, "host key verification not configured"
+		return false, "", "host key verification not configured"
 	}
 	clientCfg := &gossh.ClientConfig{
 		User:            cfg.Username,
@@ -231,33 +234,34 @@ func probeRemoteTmux(cfg terminal.SSHConnectConfig) (bool, string) {
 	if cfg.ProxyClient != nil {
 		conn, err := cfg.ProxyClient.Dial("tcp", addr)
 		if err != nil {
-			return false, err.Error()
+			return false, "", err.Error()
 		}
 		clientConn, chans, reqs, err := gossh.NewClientConn(conn, addr, clientCfg)
 		if err != nil {
 			conn.Close()
-			return false, err.Error()
+			return false, "", err.Error()
 		}
 		client = gossh.NewClient(clientConn, chans, reqs)
 	} else {
 		var err error
 		client, err = gossh.Dial("tcp", addr, clientCfg)
 		if err != nil {
-			return false, err.Error()
+			return false, "", err.Error()
 		}
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return false, err.Error()
+		return false, "", err.Error()
 	}
 	defer session.Close()
 
-	if err := session.Run("command -v tmux >/dev/null 2>&1"); err != nil {
-		return false, err.Error()
+	out, err := session.Output("command -v tmux >/dev/null 2>&1 && tmux -V 2>/dev/null")
+	if err != nil {
+		return false, "", err.Error()
 	}
-	return true, ""
+	return true, strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(string(out)), "tmux ")), ""
 }
 
 // GetSSHProfiles returns all saved SSH profiles.
@@ -337,6 +341,7 @@ func (a *App) GetSSHTerminalTmuxStatus(terminalID int) map[string]any {
 		"mode":        meta.Config.TmuxMode,
 		"status":      meta.Config.TmuxStatus,
 		"error":       meta.Config.TmuxError,
+		"version":     meta.Config.TmuxVersion,
 		"rcMode":      meta.Config.RCMode,
 		"rcStatus":    meta.Config.RCStatus,
 	}
@@ -406,9 +411,10 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 		ProxyClient:     proxyClient,
 	}
 	if tmuxEnabled {
-		if tmuxAvailable, probeErr := probeRemoteTmux(cfg); tmuxAvailable {
+		if tmuxAvailable, version, probeErr := probeRemoteTmux(cfg); tmuxAvailable {
 			cfg.TmuxActive = true
 			cfg.TmuxStatus = "active"
+			cfg.TmuxVersion = version
 		} else {
 			cfg.TmuxActive = false
 			cfg.TmuxStatus = "missing"

@@ -60,7 +60,7 @@
 
   function tmuxTitle(term) {
     const status = term.tmuxStatus || (term.tmuxActive ? 'active' : 'plain');
-    const parts = [`tmux ${status}`];
+    const parts = [`tmux ${status}${term.tmuxVersion ? ' ' + term.tmuxVersion : ''}`];
     if (term.tmuxSessionName) parts.push(term.tmuxSessionName);
     if (term.shellPath) parts.push(term.shellPath);
     if (term.tmuxError) parts.push(term.tmuxError);
@@ -128,6 +128,50 @@
       link: isOpenableUrl(link) ? link : '',
       mouseTracking: Boolean(mouseTracking) && selection.length === 0,
     };
+  }
+
+  // Mouse selections inside tmux are copied by the remote tmux into its own
+  // paste buffer and normally forwarded to Mimir via OSC 52. Old tmux versions
+  // and hosts without the Ms capability never forward, so after a drag that
+  // produced no local selection the buffer is fetched out-of-band and put on
+  // the clipboard if it changed. Also available explicitly via the menu.
+  const lastTmuxBuffer = new Map(); // term.id → last text put on the clipboard
+  let dragStart = null;
+
+  async function fetchTmuxBuffer(term) {
+    const raw = await window['go']['main']['App']['GetTmuxPasteBufferJSON'](term.id, term.type);
+    return JSON.parse(raw || '{}').text || '';
+  }
+
+  async function syncTmuxSelection(term, { force = false } = {}) {
+    try {
+      const text = await fetchTmuxBuffer(term);
+      if (!text) return false;
+      if (!force && lastTmuxBuffer.get(term.id) === text) return false;
+      lastTmuxBuffer.set(term.id, text);
+      await ClipboardSetText(text);
+      return true;
+    } catch (error) {
+      console.error('tmux buffer sync failed:', error);
+      return false;
+    }
+  }
+
+  function handleTerminalPointerUp(event, term) {
+    const start = dragStart;
+    dragStart = null;
+    if (!start || start.termId !== term.id || !term.tmuxActive || event.button !== 0) return;
+    const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+    if (moved < 4 || event.shiftKey) return;
+    if (term.terminal?.hasSelection?.()) return; // xterm handled it locally
+    // Give the remote tmux a moment to finish copy-mode before reading.
+    setTimeout(() => syncTmuxSelection(term), 250);
+  }
+
+  async function ctxCopyTmuxBuffer(term) {
+    closeContextMenu();
+    await syncTmuxSelection(term, { force: true });
+    term.terminal?.focus?.();
   }
 
   async function ctxCopyJoined(term) {
@@ -227,6 +271,7 @@
   }
 
   function handleTerminalPointerDown(event, term) {
+    dragStart = event.button === 0 ? { termId: term.id, x: event.clientX, y: event.clientY } : null;
     if (!hasVisibleRestoreSummary(term)) {
       return;
     }
@@ -349,6 +394,7 @@
         class="terminal-container"
         on:pointerdown|capture={(e) => handleTerminalPointerDown(e, term)}
         on:wheel|capture|nonpassive={(e) => handleTerminalWheel(e, term)}
+        on:pointerup|capture={(e) => handleTerminalPointerUp(e, term)}
         on:contextmenu={(e) => openContextMenu(e, term)}
       >
         <div id="terminal-{term.id}" class="terminal"></div>
@@ -388,6 +434,11 @@
             {#if contextMenu.multiLine}
               <button class="ctx-item" role="menuitem" on:click={() => ctxCopyJoined(term)} title={$t('splitPane.ctxCopyJoinedTitle')}>
                 {$t('splitPane.ctxCopyJoined')}
+              </button>
+            {/if}
+            {#if term.tmuxActive}
+              <button class="ctx-item" role="menuitem" on:click={() => ctxCopyTmuxBuffer(term)} title={$t('splitPane.ctxCopyTmuxTitle')}>
+                {$t('splitPane.ctxCopyTmux')}
               </button>
             {/if}
             {#if contextMenu.mouseTracking}

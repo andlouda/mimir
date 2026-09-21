@@ -127,6 +127,32 @@ func (a *App) capturePane(terminalID int, terminalType string) (string, int) {
 	return parseAgentCapture(output)
 }
 
+// tmuxBufferScript prints the newest tmux paste buffer of the pane's server.
+func tmuxBufferScript(tmuxBin, _ string) string {
+	return `echo ` + agentProbeSeparator + `; ` + tmuxBin + ` show-buffer 2>/dev/null`
+}
+
+// GetTmuxPasteBufferJSON returns the text tmux copied last (its newest paste
+// buffer) for a tmux-backed terminal. Mouse selections inside tmux land there
+// even when the remote tmux cannot forward them via OSC 52 (old versions,
+// missing Ms capability), so the frontend can still put them on the clipboard.
+func (a *App) GetTmuxPasteBufferJSON(terminalID int, terminalType string) (string, error) {
+	output, err := a.runPaneScript(terminalID, terminalType, tmuxBufferScript)
+	if err != nil {
+		return "", err
+	}
+	_, text, found := strings.Cut(output, agentProbeSeparator)
+	if !found {
+		text = ""
+	}
+	text = strings.TrimPrefix(text, "\n")
+	payload, err := json.Marshal(map[string]string{"text": text})
+	if err != nil {
+		return "", fmt.Errorf("failed to encode tmux buffer: %w", err)
+	}
+	return string(payload), nil
+}
+
 // agentPaneText is the payload of GetAgentPaneTextJSON.
 type agentPaneText struct {
 	Text  string `json:"text"`

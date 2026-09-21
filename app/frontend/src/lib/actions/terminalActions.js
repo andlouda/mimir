@@ -255,6 +255,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
         tmuxMode: status?.mode || '',
         tmuxStatus: status?.status || '',
         tmuxError: status?.error || '',
+        tmuxVersion: status?.version || '',
         rcMode: status?.rcMode || '',
         rcStatus: status?.rcStatus || '',
         shellPath: status?.shellPath || '',
@@ -266,6 +267,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     newTerminal.tmuxMode = status?.mode || '';
     newTerminal.tmuxStatus = status?.status || '';
     newTerminal.tmuxError = status?.error || '';
+    newTerminal.tmuxVersion = status?.version || '';
     newTerminal.rcMode = status?.rcMode || '';
     newTerminal.rcStatus = status?.rcStatus || '';
     newTerminal.shellPath = status?.shellPath || '';
