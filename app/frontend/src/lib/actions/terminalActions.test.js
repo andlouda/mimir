@@ -25,7 +25,6 @@ vi.mock('@xterm/xterm', () => ({ Terminal: vi.fn() }));
 vi.mock('@xterm/addon-fit', () => ({ FitAddon: vi.fn() }));
 vi.mock('@xterm/addon-search', () => ({ SearchAddon: vi.fn() }));
 vi.mock('@xterm/addon-clipboard', () => ({ ClipboardAddon: vi.fn() }));
-vi.mock('@xterm/addon-web-links', () => ({ WebLinksAddon: vi.fn(function () {}) }));
 vi.mock('../../../wailsjs/runtime', () => ({
   EventsOn: vi.fn(() => vi.fn()),
   BrowserOpenURL: vi.fn(),

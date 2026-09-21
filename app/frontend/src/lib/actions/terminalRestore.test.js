@@ -23,6 +23,7 @@ vi.mock('@xterm/xterm', () => ({
     this.rows = 24;
     this.cols = 80;
     this.loadAddon = vi.fn();
+    this.registerLinkProvider = vi.fn(() => ({ dispose: vi.fn() }));
     this.onData = vi.fn((fn) => { this._onData = fn; return { dispose: vi.fn() }; });
     this.onTitleChange = vi.fn(() => ({ dispose: vi.fn() }));
     this.open = vi.fn(() => { this.element = fakeXtermElement; });
@@ -36,7 +37,6 @@ vi.mock('@xterm/xterm', () => ({
 vi.mock('@xterm/addon-fit', () => ({ FitAddon: vi.fn(function () { this.fit = vi.fn(); }) }));
 vi.mock('@xterm/addon-search', () => ({ SearchAddon: vi.fn(function () {}) }));
 vi.mock('@xterm/addon-clipboard', () => ({ ClipboardAddon: vi.fn(function () {}) }));
-vi.mock('@xterm/addon-web-links', () => ({ WebLinksAddon: vi.fn(function () {}) }));
 vi.mock('../../../wailsjs/runtime', () => ({
   EventsOn: vi.fn(() => vi.fn()),
   BrowserOpenURL: vi.fn(),
