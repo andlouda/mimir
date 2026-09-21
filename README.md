@@ -29,6 +29,9 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
 - SSH host-key verification (TOFU)
 - tmux-backed SSH reconnect with unique session isolation
 - SFTP file browser for remote hosts
+- Keyboard: Ctrl+Tab / Ctrl+Shift+Tab or Ctrl+Shift+←/→ switch panes,
+  Ctrl+Shift+1…9 jump to a pane, Ctrl+Shift+T opens a new terminal,
+  Ctrl+Shift+N toggles notes, Ctrl+Shift+P templates
 - Terminal scrollback search (Ctrl+Shift+F)
 - 58 built-in command templates with discovery-driven variables
 - Workflow engine with playbooks, approval flow, and AI steps

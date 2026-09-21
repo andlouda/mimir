@@ -24,6 +24,7 @@ vi.mock('@xterm/xterm', () => ({
     this.cols = 80;
     this.loadAddon = vi.fn();
     this.registerLinkProvider = vi.fn(() => ({ dispose: vi.fn() }));
+    this.attachCustomKeyEventHandler = vi.fn();
     this.onData = vi.fn((fn) => { this._onData = fn; return { dispose: vi.fn() }; });
     this.onTitleChange = vi.fn(() => ({ dispose: vi.fn() }));
     this.open = vi.fn(() => { this.element = fakeXtermElement; });
