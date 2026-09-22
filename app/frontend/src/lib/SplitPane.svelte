@@ -3,6 +3,7 @@
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
   import { tmuxScrollKeys } from './terminals/wheelScroll.js';
+  import { WriteToTerminal } from '../../wailsjs/go/main/App';
   import { createEventDispatcher, tick } from 'svelte';
   import { t } from './i18n.js';
   import { calculateSplitRatio } from './terminals/splitPaneResize.js';

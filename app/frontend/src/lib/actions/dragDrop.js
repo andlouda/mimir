@@ -7,8 +7,12 @@ export function createDragDropHandlers({ reinitializeTerminals, documentRef = ()
     draggingTerminalId.set(id);
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', String(id));
+    // currentTarget is only valid during dispatch (WebKit nulls it afterwards),
+    // so grab the element now and apply the class after the drag image is
+    // taken.
+    const target = event.currentTarget;
     setTimeout(() => {
-      event.currentTarget.classList.add('dragging');
+      target?.classList?.add('dragging');
     }, 0);
   }
 

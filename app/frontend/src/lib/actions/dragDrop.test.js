@@ -95,4 +95,19 @@ describe('drag drop handlers', () => {
     handleDragEnd({ target: { classList: classList() } });
     expect(get(draggingTerminalId)).toBe(null);
   });
+
+  test('drag start survives currentTarget being cleared after dispatch', () => {
+    vi.useFakeTimers();
+    const handlers = createDragDropHandlers({ reinitializeTerminals: vi.fn() });
+    const classes = new Set();
+    const event = {
+      dataTransfer: { setData: vi.fn(), effectAllowed: '' },
+      currentTarget: { classList: { add: (c) => classes.add(c) } },
+    };
+    handlers.handleDragStart(event, 1);
+    event.currentTarget = null; // what WebKit does once the event is over
+    vi.runAllTimers();
+    expect(classes.has('dragging')).toBe(true);
+    vi.useRealTimers();
+  });
 });
