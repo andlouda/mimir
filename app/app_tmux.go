@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
+	"mimir/executil"
 	"mimir/terminal"
 )
 
@@ -39,8 +44,10 @@ func (a *App) GetTmuxIntegrationMode() string {
 	return a.TerminalManager.TmuxIntegrationMode()
 }
 
-// SetTmuxIntegrationMode persists the mode and applies it to terminals
-// started from now on; running terminals keep their session as it is.
+// SetTmuxIntegrationMode persists the mode, applies it to terminals started
+// from now on and switches running tmux sessions live between the invisible
+// and classic integrations. "off" cannot be applied to a running session
+// (it already lives inside tmux) and takes effect for new terminals only.
 func (a *App) SetTmuxIntegrationMode(mode string) (string, error) {
 	mode = terminal.NormalizeTmuxMode(mode)
 	path, err := tmuxModePath()
@@ -54,5 +61,50 @@ func (a *App) SetTmuxIntegrationMode(mode string) (string, error) {
 		return "", fmt.Errorf("save tmux mode: %w", err)
 	}
 	a.TerminalManager.SetTmuxIntegrationMode(mode)
+	a.applyTmuxModeToRunning(mode)
 	return mode, nil
+}
+
+// applyTmuxModeToRunning pushes the mode's mouse option and key bindings into
+// every running tmux session, out-of-band (never through the PTY).
+func (a *App) applyTmuxModeToRunning(mode string) {
+	if terminal.NormalizeTmuxMode(mode) == terminal.TmuxModeOff {
+		return
+	}
+	mouse := terminal.TmuxMouseEnabled(mode)
+	for _, id := range a.TerminalManager.SessionIDs() {
+		if client := a.TerminalManager.GetSSHClient(id); client != nil {
+			meta := a.TerminalManager.GetSSHMeta(id)
+			if meta == nil || !meta.Config.TmuxActive || !tmuxSessionNamePattern.MatchString(meta.Config.TmuxSessionName) {
+				continue
+			}
+			script := terminal.RenderTmuxScript("tmux", terminal.TmuxLiveUpdateCommands(mode, meta.Config.TmuxSessionName))
+			if _, err := runSSHCommandWithTimeout(client, script, discoveryTimeout); err != nil {
+				log.Printf("tmux mode: remote update for terminal %d failed: %v", id, err)
+				continue
+			}
+			a.TerminalManager.SetTmuxMouse(id, mouse)
+			continue
+		}
+		rt := a.TerminalManager.GetTerminalRuntimeMeta(id)
+		if !rt.TmuxActive || !tmuxSessionNamePattern.MatchString(rt.TmuxSessionName) {
+			continue
+		}
+		args := append([]string{"-L", "mimir"}, terminal.RenderTmuxArgs(terminal.TmuxLiveUpdateCommands(mode, rt.TmuxSessionName))...)
+		ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
+		var cmd *exec.Cmd
+		if runtime.GOOS == "windows" {
+			cmd = exec.CommandContext(ctx, "wsl.exe", append([]string{"--", "tmux"}, args...)...)
+		} else {
+			cmd = exec.CommandContext(ctx, "tmux", args...)
+		}
+		executil.HideConsoleWindow(cmd)
+		err := cmd.Run()
+		cancel()
+		if err != nil {
+			log.Printf("tmux mode: local update for terminal %d failed: %v", id, err)
+			continue
+		}
+		a.TerminalManager.SetTmuxMouse(id, mouse)
+	}
 }

@@ -145,3 +145,77 @@ func (m *Manager) TmuxIntegrationMode() string {
 	defer m.ptyMutex.Unlock()
 	return NormalizeTmuxMode(m.tmuxMode)
 }
+
+// TmuxLiveUpdateCommands lists the commands that switch a running tmux
+// session between the invisible and classic integrations: the session's
+// mouse option plus the mode's key bindings (bindings are server-global; the
+// other mode's bindings are harmless and left in place).
+func TmuxLiveUpdateCommands(mode string, session string) [][]string {
+	mode = NormalizeTmuxMode(mode)
+	if mode == TmuxModeOff {
+		return nil
+	}
+	var cmds [][]string
+	for _, cmd := range TmuxOptionCommands(mode) {
+		switch {
+		case len(cmd) >= 3 && cmd[0] == "set" && cmd[1] == "mouse":
+			cmds = append(cmds, []string{"set", "-t", session + ":", "mouse", cmd[2]})
+		case cmd[0] == "bind-key":
+			cmds = append(cmds, cmd)
+		}
+	}
+	return cmds
+}
+
+// RenderTmuxArgs joins commands into argv tokens for one tmux invocation.
+func RenderTmuxArgs(cmds [][]string) []string {
+	var out []string
+	for i, cmd := range cmds {
+		if i > 0 {
+			out = append(out, ";")
+		}
+		out = append(out, cmd...)
+	}
+	return out
+}
+
+// RenderTmuxScript joins commands into a POSIX shell string ("tmux a \; b").
+func RenderTmuxScript(tmuxBin string, cmds [][]string) string {
+	var b strings.Builder
+	b.WriteString(tmuxBin)
+	for i, cmd := range cmds {
+		if i > 0 {
+			b.WriteString(` \;`)
+		}
+		for _, tok := range cmd {
+			b.WriteByte(' ')
+			b.WriteString(posixQuote(tok))
+		}
+	}
+	return b.String()
+}
+
+// SessionIDs returns the ids of all registered terminal sessions.
+func (m *Manager) SessionIDs() []int {
+	m.ptyMutex.Lock()
+	defer m.ptyMutex.Unlock()
+	ids := make([]int, 0, len(m.sessions))
+	for id := range m.sessions {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// SetTmuxMouse records, after a live update, whether tmux owns the mouse in
+// a terminal (local runtime metadata or SSH config).
+func (m *Manager) SetTmuxMouse(id int, mouse bool) {
+	m.ptyMutex.Lock()
+	defer m.ptyMutex.Unlock()
+	if meta, ok := m.runtimeMeta[id]; ok {
+		meta.TmuxMouse = mouse
+		m.runtimeMeta[id] = meta
+	}
+	if meta, ok := m.sshMeta[id]; ok && meta != nil {
+		meta.Config.TmuxMouse = mouse
+	}
+}

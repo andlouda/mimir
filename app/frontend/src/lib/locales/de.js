@@ -91,7 +91,7 @@ export default {
         desc_invisible: 'tmux hält nur die Sitzungen über Neustarts und SSH-Abbrüche am Leben. Markieren, Kopieren, Links und Kontextmenü funktionieren wie in einem normalen Terminal; das Mausrad scrollt weiterhin durch die tmux-History.',
         desc_classic: 'tmux übernimmt die Maus: Ziehen markiert im tmux-Copy-Mode und kommt per OSC 52 oder Puffer-Abgleich zurück. Markierungen können über mehrere Seiten History gehen.',
         desc_off: 'Lokale Terminals starten ohne tmux: keine Sitzungs-Wiederherstellung nach Neustart, alles nativ. SSH-Profile behalten ihren eigenen tmux-Schalter.',
-        note: 'Gilt für Terminals, die ab jetzt geöffnet werden.',
+        note: 'Unsichtbar und Klassisch werden sofort auf laufende tmux-Terminals angewendet; Aus gilt für Terminals, die ab jetzt geöffnet werden.',
       },
       agentDetection: { title: 'Agent-Erkennung', desc: 'Erkennt Claude Code, Codex und andere Coding-Agenten in einer Pane, zeigt ihren Status im Pane-Header und bietet ihre Ausgabe zum exakten Kopieren an. Prüft die Prozessliste der Pane out-of-band und nur, wenn ein Terminal Aktivität meldet (Titel, Startbanner, neuer Prompt); keine Tastendrücke, kein regelmäßiges Polling.' },
       aiSettings: { title: 'AI Settings', desc: 'Provider, Tool-Filter, Approval-Policy und Prompt-Konfiguration verwalten.' },
