@@ -30,8 +30,10 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
 - tmux-backed SSH reconnect with unique session isolation
 - SFTP file browser for remote hosts
 - Keyboard: Ctrl+Tab / Ctrl+Shift+Tab or Ctrl+Shift+←/→ switch panes,
-  Ctrl+Shift+1…9 jump to a pane, Ctrl+Shift+T opens a new terminal,
-  Ctrl+Shift+N toggles notes, Ctrl+Shift+P templates
+  Ctrl+Shift+1…9 jump to the n-th terminal in the sidebar (restoring it if
+  minimized; the sidebar shows the digit), Ctrl+Shift+M minimizes the active
+  pane, Ctrl+Shift+U restores the last minimized one, Ctrl+Shift+T opens a
+  new terminal, Ctrl+Shift+N toggles notes, Ctrl+Shift+P templates
 - Terminal scrollback search (Ctrl+Shift+F)
 - 58 built-in command templates with discovery-driven variables
 - Workflow engine with playbooks, approval flow, and AI steps
