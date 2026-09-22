@@ -81,6 +81,9 @@ type Manager struct {
 	// recordings. Off by default: typed secrets (passwords, keys, pastes) have
 	// no detectable pattern and cannot be scrubbed reliably on export.
 	recordInput bool
+	// tmuxMode is the tmux integration mode for new terminals (see
+	// tmux_options.go); "" behaves like TmuxModeInvisible.
+	tmuxMode string
 }
 
 // SessionMeta holds metadata about a terminal session for history recording.
@@ -96,7 +99,9 @@ type TerminalRuntimeMeta struct {
 	TmuxMode        string
 	TmuxStatus      string
 	TmuxError       string
-	ShellPath       string
+	// TmuxMouse is true when tmux owns the mouse (classic integration).
+	TmuxMouse bool
+	ShellPath string
 }
 
 // NewManager creates a new terminal manager.
@@ -388,7 +393,11 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 		ShellPath:  shell,
 	}
 	usingTmux := false
-	if localTmuxEligible(terminalType) {
+	tmuxMode := m.TmuxIntegrationMode()
+	if tmuxMode == TmuxModeOff {
+		meta.TmuxMode = "off"
+		meta.TmuxStatus = "disabled"
+	} else if localTmuxEligible(terminalType) {
 		if tmuxPath, ok := resolveExecutable(
 			[]string{"tmux"},
 			[]string{"/usr/bin/tmux", "/bin/tmux", "/usr/local/bin/tmux"},
@@ -397,33 +406,14 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 				tmuxSessionName = fmt.Sprintf("mimir-local-%d", id)
 			}
 			cmdPath = tmuxPath
-			cmdArgs = []string{
+			cmdArgs = append([]string{
 				"-L", "mimir",
 				"new-session", "-A", "-s", tmuxSessionName, launch.tmuxCommand,
-				";", "set", "status", "off",
-				";", "set", "escape-time", "0",
-				";", "set", "mouse", "on",
-				";", "set", "history-limit", "100000",
-				";", "set", "prefix", "None",
-				";", "set", "prefix2", "None",
-				// Copy mouse selections to the system clipboard via OSC 52.
-				// "external" (not "on") so programs inside the session cannot
-				// write to the clipboard themselves; the Ms override is needed
-				// because most xterm-256color terminfo entries lack it.
-				";", "set", "-s", "set-clipboard", "external",
-				";", "set", "-ga", "terminal-overrides", `,xterm*:Ms=\E]52;%p1%s;%p2%s\007`,
-				// Mimir draws its own context menu; drop tmux's right-click menu.
-				";", "unbind-key", "-n", "MouseDown3Pane",
-				";", "unbind-key", "-n", "M-MouseDown3Pane",
-				// Finer wheel steps (default is 5 lines per wheel event).
-				";", "bind-key", "-T", "copy-mode", "WheelUpPane", "send-keys", "-N3", "-X", "scroll-up",
-				";", "bind-key", "-T", "copy-mode", "WheelDownPane", "send-keys", "-N3", "-X", "scroll-down",
-				";", "bind-key", "-T", "copy-mode-vi", "WheelUpPane", "send-keys", "-N3", "-X", "scroll-up",
-				";", "bind-key", "-T", "copy-mode-vi", "WheelDownPane", "send-keys", "-N3", "-X", "scroll-down",
-			}
+			}, TmuxOptionArgs(tmuxMode)...)
 			meta.TmuxActive = true
 			meta.TmuxSessionName = tmuxSessionName
 			meta.TmuxStatus = "active"
+			meta.TmuxMouse = TmuxMouseEnabled(tmuxMode)
 			usingTmux = true
 		} else {
 			meta.TmuxStatus = "missing"

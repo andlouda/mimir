@@ -32,6 +32,7 @@ type SSHConnectConfig struct {
 	TmuxStatus      string
 	TmuxError       string
 	TmuxVersion     string
+	TmuxMouse       bool
 	RCMode          string
 	RCStatus        string
 	ProxyClient     *ssh.Client

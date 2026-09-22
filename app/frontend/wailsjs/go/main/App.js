@@ -357,3 +357,11 @@ export function GetAgentGitStatusJSON(arg1, arg2) {
 export function GetTmuxPasteBufferJSON(arg1, arg2) {
   return window['go']['main']['App']['GetTmuxPasteBufferJSON'](arg1, arg2);
 }
+
+export function GetTmuxIntegrationMode() {
+  return window['go']['main']['App']['GetTmuxIntegrationMode']();
+}
+
+export function SetTmuxIntegrationMode(arg1) {
+  return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
+}

@@ -83,6 +83,16 @@ export default {
       check: 'Check',
     },
     cards: {
+      tmuxMode: {
+        title: 'tmux integration',
+        invisible: 'Invisible (recommended)',
+        classic: 'Classic (tmux owns the mouse)',
+        off: 'Off for local terminals',
+        desc_invisible: 'tmux only keeps sessions alive across restarts and SSH drops. Selecting, copying, links and the context menu work like in a plain terminal; the wheel still scrolls through tmux history.',
+        desc_classic: 'tmux handles the mouse: drags select in tmux copy-mode and come back via OSC 52 or the buffer sync. Selections can span pages of history.',
+        desc_off: 'Local terminals start without tmux: no session persistence after a restart, everything native. SSH profiles keep their own tmux switch.',
+        note: 'Applies to terminals opened from now on.',
+      },
       agentDetection: { title: 'Agent detection', desc: 'Detects Claude Code, Codex and other coding agents running in a pane, shows their state in the pane header and offers their output for exact copying. Probes the pane process list out-of-band only when a terminal signals activity (title, startup banner, new prompt); no keystrokes are sent, no periodic polling.' },
       aiSettings: { title: 'AI Settings', desc: 'Manage provider, tool filter, approval policy and prompt configuration.' },
       templates: { title: 'Templates', desc: 'Edit command templates and favorites without keeping them permanently in the sidebar.' },
@@ -335,6 +345,8 @@ export default {
     save: 'Save',
   },
   splitPane: {
+    tmuxInvisible: 'invisible (mouse handled by Mimir)',
+    tmuxClassic: 'classic (mouse handled by tmux)',
     ctxCopyTmux: 'Copy last tmux selection',
     ctxCopyTmuxTitle: 'Fetches the text tmux copied last (its paste buffer) and puts it on the clipboard — works even when the remote tmux cannot forward selections itself',
     ctxOpenLink: 'Open link in browser',

@@ -17,7 +17,7 @@
   import './styles/template-manager.css';
   import './styles/workflow-builder.css';
   import { terminals, activeTerminalId, layoutTree, terminalMap, visibleTerminalCount } from './lib/stores/terminalStore.js';
-  import { currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, showFolderManager, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState } from './lib/stores/uiStore.js';
+  import { currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, showFolderManager, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState, tmuxIntegrationMode } from './lib/stores/uiStore.js';
   import { templates, templateToEdit, templatePromptState, showTemplatePicker, showWorkflowPicker, workflowPickerPlaybooks, workflowPickerLoading } from './lib/stores/templateStore.js';
   import { updateInfo, updateChecking, updateDownloading, updateProgress, updateInstalled } from './lib/stores/updateStore.js';
   import { recordingList, aggAvailable, aggStatus, downloadingAgg, aggDownloadInfo, terminalSessionFoldersOpen, customFolders, newFolderName } from './lib/stores/sessionStore.js';
@@ -417,6 +417,11 @@
       await loadTemplatesFromBackend();
       await loadCustomFolders();
       $historyTrackingEnabled = await IsHistoryTrackingEnabled();
+      try {
+        $tmuxIntegrationMode = await window['go']['main']['App']['GetTmuxIntegrationMode']();
+      } catch (error) {
+        console.warn('Could not load tmux integration mode:', error);
+      }
       await loadAISettingsConfig();
 
       try {

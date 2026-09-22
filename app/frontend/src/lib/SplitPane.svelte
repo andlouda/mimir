@@ -2,6 +2,7 @@
   import { agentStates } from './stores/agentStore.js';
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
+  import { tmuxScrollKeys } from './terminals/wheelScroll.js';
   import { createEventDispatcher, tick } from 'svelte';
   import { t } from './i18n.js';
   import { calculateSplitRatio } from './terminals/splitPaneResize.js';
@@ -60,7 +61,7 @@
 
   function tmuxTitle(term) {
     const status = term.tmuxStatus || (term.tmuxActive ? 'active' : 'plain');
-    const parts = [`tmux ${status}${term.tmuxVersion ? ' ' + term.tmuxVersion : ''}`];
+    const parts = [`tmux ${status}${term.tmuxVersion ? ' ' + term.tmuxVersion : ''}${term.tmuxActive ? (term.tmuxMouse ? ' · ' + $t('splitPane.tmuxClassic') : ' · ' + $t('splitPane.tmuxInvisible')) : ''}`];
     if (term.tmuxSessionName) parts.push(term.tmuxSessionName);
     if (term.shellPath) parts.push(term.shellPath);
     if (term.tmuxError) parts.push(term.tmuxError);
@@ -74,7 +75,22 @@
 
   function handleTerminalWheel(event, term) {
     const xterm = term?.terminal;
-    if (!xterm || xterm.buffer?.active?.type === 'alternate') {
+    if (!xterm) return;
+    if (xterm.buffer?.active?.type === 'alternate') {
+      // Inside tmux (always the alternate screen). With the "invisible"
+      // integration tmux has no mouse, so wheel events are turned into the
+      // Shift+PageUp/PageDown keys bound to copy-mode scrolling — unless a
+      // program in the pane asked for the mouse itself (then xterm forwards
+      // the wheel as mouse events, as it should).
+      const appHasMouse = xterm.modes?.mouseTrackingMode && xterm.modes.mouseTrackingMode !== 'none';
+      if (term.tmuxActive && !term.tmuxMouse && !appHasMouse) {
+        const lineHeightPx = (xterm.options?.fontSize || 13) * (xterm.options?.lineHeight || 1);
+        const lines = consumeWheelEvent(xterm, event, lineHeightPx, xterm.rows);
+        event.preventDefault();
+        event.stopPropagation();
+        const keys = tmuxScrollKeys(lines);
+        if (keys) WriteToTerminal(term.id, keys);
+      }
       return;
     }
 
@@ -160,7 +176,7 @@
   function handleTerminalPointerUp(event, term) {
     const start = dragStart;
     dragStart = null;
-    if (!start || start.termId !== term.id || !term.tmuxActive || event.button !== 0) return;
+    if (!start || start.termId !== term.id || !term.tmuxActive || !term.tmuxMouse || event.button !== 0) return;
     const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
     if (moved < 4 || event.shiftKey) return;
     if (term.terminal?.hasSelection?.()) return; // xterm handled it locally
@@ -436,7 +452,7 @@
                 {$t('splitPane.ctxCopyJoined')}
               </button>
             {/if}
-            {#if term.tmuxActive}
+            {#if term.tmuxActive && term.tmuxMouse}
               <button class="ctx-item" role="menuitem" on:click={() => ctxCopyTmuxBuffer(term)} title={$t('splitPane.ctxCopyTmuxTitle')}>
                 {$t('splitPane.ctxCopyTmux')}
               </button>

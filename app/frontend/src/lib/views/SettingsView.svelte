@@ -4,6 +4,17 @@
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled } from '../stores/agentStore.js';
+  import { tmuxIntegrationMode } from '../stores/uiStore.js';
+
+  async function changeTmuxMode(event) {
+    const mode = event.target.value;
+    try {
+      const saved = await window['go']['main']['App']['SetTmuxIntegrationMode'](mode);
+      tmuxIntegrationMode.set(saved || mode);
+    } catch (error) {
+      console.error('Could not save tmux integration mode:', error);
+    }
+  }
 
   export let notesPanelOpen = false;
   export let showFolderManager = false;     // bind
@@ -48,6 +59,19 @@
   </div>
 
   <div class="ai-hub-grid">
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x2261;</span>
+        <select value={$tmuxIntegrationMode} on:change={changeTmuxMode}>
+          <option value="invisible">{$t('settings.cards.tmuxMode.invisible')}</option>
+          <option value="classic">{$t('settings.cards.tmuxMode.classic')}</option>
+          <option value="off">{$t('settings.cards.tmuxMode.off')}</option>
+        </select>
+      </div>
+      <strong>{$t('settings.cards.tmuxMode.title')}</strong>
+      <p>{$t(`settings.cards.tmuxMode.desc_${$tmuxIntegrationMode}`)}</p>
+      <p class="settings-note">{$t('settings.cards.tmuxMode.note')}</p>
+    </label>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x1F916;</span>

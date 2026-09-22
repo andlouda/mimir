@@ -82,6 +82,21 @@
     display: block;
   }
 
+  .settings-toggle-card select {
+    background: var(--bg-surface, #151928);
+    color: inherit;
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.8rem;
+  }
+
+  .settings-note {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    margin-top: 0.4rem;
+  }
+
   .settings-toggle-card input[type="checkbox"] {
     width: 16px;
     height: 16px;
