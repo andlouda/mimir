@@ -80,6 +80,11 @@ func TmuxOptionCommands(mode string) [][]string {
 	// as a stray escape sequence, so it is bound to a harmless command.
 	cmds = append(cmds,
 		[]string{"set", "mouse", "off"},
+		// The frontend writes several key codes in one burst per wheel event.
+		// tmux's paste heuristic (assume-paste-time, default 1ms) would treat
+		// such bursts as pasted text, skip the bindings and hand the raw
+		// sequences to the shell ("...;2~;2~"). 0 disables the heuristic.
+		[]string{"set", "assume-paste-time", "0"},
 		[]string{"bind-key", "-n", "S-PPage", "copy-mode", "-e"},
 		[]string{"bind-key", "-n", "S-NPage", "refresh-client"},
 		// -N must precede -X: tmux treats everything after the -X command name
@@ -160,8 +165,8 @@ func TmuxLiveUpdateCommands(mode string, session string) [][]string {
 	var cmds [][]string
 	for _, cmd := range TmuxOptionCommands(mode) {
 		switch {
-		case len(cmd) >= 3 && cmd[0] == "set" && cmd[1] == "mouse":
-			cmds = append(cmds, []string{"set", "-t", session + ":", "mouse", cmd[2]})
+		case len(cmd) >= 3 && cmd[0] == "set" && (cmd[1] == "mouse" || cmd[1] == "assume-paste-time"):
+			cmds = append(cmds, []string{"set", "-t", session + ":", cmd[1], cmd[2]})
 		case cmd[0] == "bind-key":
 			cmds = append(cmds, cmd)
 		}

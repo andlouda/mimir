@@ -13,7 +13,7 @@ func TestTmuxOptionModes(t *testing.T) {
 			t.Fatalf("classic script lacks %q: %s", want, classic)
 		}
 	}
-	for _, want := range []string{`set mouse off`, `bind-key -n S-PPage copy-mode -e`, `bind-key -n S-NPage refresh-client`, `-T copy-mode S-NPage send-keys -N3 -X scroll-down`} {
+	for _, want := range []string{`set mouse off`, `set assume-paste-time 0`, `bind-key -n S-PPage copy-mode -e`, `bind-key -n S-NPage refresh-client`, `-T copy-mode S-NPage send-keys -N3 -X scroll-down`} {
 		if !strings.Contains(invisible, want) {
 			t.Fatalf("invisible script lacks %q: %s", want, invisible)
 		}
@@ -46,9 +46,12 @@ func TestTmuxLiveUpdateCommands(t *testing.T) {
 	if len(cmds) == 0 || strings.Join(cmds[0], " ") != "set -t mimir-local-3: mouse off" {
 		t.Fatalf("unexpected first live command: %v", cmds)
 	}
-	for _, cmd := range cmds[1:] {
+	if strings.Join(cmds[1], " ") != "set -t mimir-local-3: assume-paste-time 0" {
+		t.Fatalf("live update must disable the paste heuristic for the session: %v", cmds[1])
+	}
+	for _, cmd := range cmds[2:] {
 		if cmd[0] != "bind-key" {
-			t.Fatalf("live update must only carry mouse + bindings, got %v", cmd)
+			t.Fatalf("live update must only carry options + bindings, got %v", cmd)
 		}
 	}
 	if TmuxLiveUpdateCommands(TmuxModeOff, "x") != nil {
