@@ -34,3 +34,20 @@ export function consumeWheelEvent(key, event, lineHeightPx, pageRows) {
 export function resetWheelRemainder(key) {
   remainders.delete(key);
 }
+
+// Key codes tmux understands as Shift+PageUp / Shift+PageDown (xterm
+// encoding). In the "invisible" tmux integration these are bound to
+// copy-mode scrolling, so wheel events can drive tmux history without tmux
+// owning the mouse. One key scrolls three lines; scrolling up sends one
+// extra S-PPage first, which enters copy-mode (harmless when already in it).
+const TMUX_SCROLL_UP_KEY = '\x1b[5;2~';
+const TMUX_SCROLL_DOWN_KEY = '\x1b[6;2~';
+const TMUX_LINES_PER_KEY = 3;
+
+export function tmuxScrollKeys(lines) {
+  const n = Math.trunc(lines) || 0;
+  if (n === 0) return '';
+  const steps = Math.max(1, Math.ceil(Math.abs(n) / TMUX_LINES_PER_KEY));
+  if (n < 0) return TMUX_SCROLL_UP_KEY.repeat(steps + 1);
+  return TMUX_SCROLL_DOWN_KEY.repeat(steps);
+}

@@ -61,7 +61,7 @@ func TestSSHTmuxSessionNameSanitizesProfileID(t *testing.T) {
 }
 
 func TestSSHTmuxBootstrapCommand(t *testing.T) {
-	cmd := sshTmuxBootstrapCommand("prod-01", "")
+	cmd := sshTmuxBootstrapCommand("prod-01", "", terminal.TmuxModeClassic)
 
 	required := []string{
 		"command -v tmux",
@@ -72,7 +72,9 @@ func TestSSHTmuxBootstrapCommand(t *testing.T) {
 		"set history-limit 100000",
 		"set prefix None",
 		"set -s set-clipboard external",
-		`set -ga terminal-overrides ",xterm*:Ms=\E]52;%p1%s;%p2%s\007"`,
+		// The whole script is single-quoted by shellQuote, so the inner quotes
+		// around the Ms token appear as '\'' — check the capability itself.
+		`Ms=\E]52;%p1%s;%p2%s\007`,
 		"unbind-key -n MouseDown3Pane",
 		"unbind-key -n M-MouseDown3Pane",
 		"bind-key -T copy-mode WheelUpPane send-keys -N3 -X scroll-up",
@@ -83,6 +85,17 @@ func TestSSHTmuxBootstrapCommand(t *testing.T) {
 		if !strings.Contains(cmd, part) {
 			t.Fatalf("bootstrap command %q does not contain %q", cmd, part)
 		}
+	}
+
+	// Invisible mode keeps tmux's mouse off and binds the scroll keys instead.
+	invisible := sshTmuxBootstrapCommand("prod-01", "", terminal.TmuxModeInvisible)
+	for _, part := range []string{"set mouse off", "bind-key -n S-PPage copy-mode -e", "-T copy-mode S-NPage send-keys -X scroll-down -N 3"} {
+		if !strings.Contains(invisible, part) {
+			t.Fatalf("invisible bootstrap %q does not contain %q", invisible, part)
+		}
+	}
+	if strings.Contains(invisible, "WheelUpPane") {
+		t.Fatalf("invisible bootstrap must not bind wheel events: %q", invisible)
 	}
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { consumeWheelEvent, resetWheelRemainder, wheelEventToLines } from './wheelScroll.js';
+import { consumeWheelEvent, resetWheelRemainder, tmuxScrollKeys, wheelEventToLines } from './wheelScroll.js';
 
 const LINE_HEIGHT = 18;
 const ROWS = 40;
@@ -68,5 +68,17 @@ describe('consumeWheelEvent', () => {
     consumeWheelEvent(key, pixelEvent(17), LINE_HEIGHT, ROWS);
     resetWheelRemainder(key);
     expect(consumeWheelEvent(key, pixelEvent(17), LINE_HEIGHT, ROWS)).toBe(0);
+  });
+});
+
+describe('tmuxScrollKeys', () => {
+  test('maps wheel lines to Shift+PageUp/PageDown key codes', () => {
+    expect(tmuxScrollKeys(0)).toBe('');
+    // Up: one extra key enters copy-mode, then one key per three lines.
+    expect(tmuxScrollKeys(-1)).toBe('\x1b[5;2~'.repeat(2));
+    expect(tmuxScrollKeys(-7)).toBe('\x1b[5;2~'.repeat(4));
+    // Down: no entry key needed.
+    expect(tmuxScrollKeys(3)).toBe('\x1b[6;2~');
+    expect(tmuxScrollKeys(4)).toBe('\x1b[6;2~'.repeat(2));
   });
 });

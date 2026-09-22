@@ -83,6 +83,16 @@ export default {
       check: 'Prüfen',
     },
     cards: {
+      tmuxMode: {
+        title: 'tmux-Integration',
+        invisible: 'Unsichtbar (empfohlen)',
+        classic: 'Klassisch (tmux hat die Maus)',
+        off: 'Aus für lokale Terminals',
+        desc_invisible: 'tmux hält nur die Sitzungen über Neustarts und SSH-Abbrüche am Leben. Markieren, Kopieren, Links und Kontextmenü funktionieren wie in einem normalen Terminal; das Mausrad scrollt weiterhin durch die tmux-History.',
+        desc_classic: 'tmux übernimmt die Maus: Ziehen markiert im tmux-Copy-Mode und kommt per OSC 52 oder Puffer-Abgleich zurück. Markierungen können über mehrere Seiten History gehen.',
+        desc_off: 'Lokale Terminals starten ohne tmux: keine Sitzungs-Wiederherstellung nach Neustart, alles nativ. SSH-Profile behalten ihren eigenen tmux-Schalter.',
+        note: 'Gilt für Terminals, die ab jetzt geöffnet werden.',
+      },
       agentDetection: { title: 'Agent-Erkennung', desc: 'Erkennt Claude Code, Codex und andere Coding-Agenten in einer Pane, zeigt ihren Status im Pane-Header und bietet ihre Ausgabe zum exakten Kopieren an. Prüft die Prozessliste der Pane out-of-band und nur, wenn ein Terminal Aktivität meldet (Titel, Startbanner, neuer Prompt); keine Tastendrücke, kein regelmäßiges Polling.' },
       aiSettings: { title: 'AI Settings', desc: 'Provider, Tool-Filter, Approval-Policy und Prompt-Konfiguration verwalten.' },
       templates: { title: 'Templates', desc: 'Command-Templates und Favoriten bearbeiten, ohne sie dauerhaft in der Sidebar zu halten.' },
@@ -335,6 +345,8 @@ export default {
     save: 'Speichern',
   },
   splitPane: {
+    tmuxInvisible: 'unsichtbar (Maus bei Mimir)',
+    tmuxClassic: 'klassisch (Maus bei tmux)',
     ctxCopyTmux: 'Letzte tmux-Auswahl kopieren',
     ctxCopyTmuxTitle: 'Holt den Text, den tmux zuletzt kopiert hat (sein Paste-Puffer), in die Zwischenablage — auch wenn das entfernte tmux Markierungen nicht selbst weiterreichen kann',
     ctxOpenLink: 'Link im Browser öffnen',

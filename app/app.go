@@ -73,6 +73,8 @@ func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 		apiLimiter:           newRateLimiter(10*time.Second, 5),
 	}
 
+	app.TerminalManager.SetTmuxIntegrationMode(loadTmuxIntegrationMode())
+
 	// Load templates during app initialization
 	err := app.TemplateManager.LoadTemplates()
 	if err != nil {
@@ -560,6 +562,7 @@ func (a *App) GetTerminalTmuxStatus(terminalID int) map[string]any {
 			"mode":        meta.Config.TmuxMode,
 			"status":      meta.Config.TmuxStatus,
 			"error":       meta.Config.TmuxError,
+			"mouse":       meta.Config.TmuxMouse,
 		}
 	}
 	meta := a.TerminalManager.GetTerminalRuntimeMeta(terminalID)
@@ -569,6 +572,7 @@ func (a *App) GetTerminalTmuxStatus(terminalID int) map[string]any {
 		"mode":        meta.TmuxMode,
 		"status":      meta.TmuxStatus,
 		"error":       meta.TmuxError,
+		"mouse":       meta.TmuxMouse,
 		"shellPath":   meta.ShellPath,
 	}
 }

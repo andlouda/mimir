@@ -9,6 +9,9 @@ function initialNotesPanelWidth() {
 }
 
 export const currentPage = writable('terminals');
+// tmux integration for new terminals: 'invisible' | 'classic' | 'off'
+// (loaded from the backend at start-up; see terminal/tmux_options.go).
+export const tmuxIntegrationMode = writable('invisible');
 export const errorMessage = writable('');
 export const showAIMenu = writable(false);
 export const notesPanelOpen = writable(false);

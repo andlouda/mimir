@@ -1,0 +1,42 @@
+package terminal
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestTmuxOptionModes(t *testing.T) {
+	classic := TmuxOptionScript(TmuxModeClassic)
+	invisible := TmuxOptionScript(TmuxModeInvisible)
+	for _, want := range []string{`set mouse on`, `WheelUpPane`, `set-clipboard external`, `Ms=`} {
+		if !strings.Contains(classic, want) {
+			t.Fatalf("classic script lacks %q: %s", want, classic)
+		}
+	}
+	for _, want := range []string{`set mouse off`, `bind-key -n S-PPage copy-mode -e`, `bind-key -n S-NPage refresh-client`, `-T copy-mode S-NPage send-keys -X scroll-down -N 3`} {
+		if !strings.Contains(invisible, want) {
+			t.Fatalf("invisible script lacks %q: %s", want, invisible)
+		}
+	}
+	if strings.Contains(invisible, "WheelUpPane") || strings.Contains(classic, "S-PPage") {
+		t.Fatalf("modes must not share mouse/key bindings")
+	}
+	// The Ms override carries backslashes and percent signs; it must be quoted.
+	if !strings.Contains(invisible, `',xterm*:Ms=\E]52;%p1%s;%p2%s\007'`) {
+		t.Fatalf("Ms override not quoted: %s", invisible)
+	}
+	if !strings.HasPrefix(invisible, ` \; set status off`) {
+		t.Fatalf("script must start with the separator: %q", invisible[:30])
+	}
+
+	args := TmuxOptionArgs(TmuxModeInvisible)
+	if args[0] != ";" || args[1] != "set" || args[2] != "status" {
+		t.Fatalf("unexpected argv rendering: %v", args[:4])
+	}
+	if !TmuxMouseEnabled(TmuxModeClassic) || TmuxMouseEnabled(TmuxModeInvisible) || TmuxMouseEnabled("") {
+		t.Fatalf("mouse flag wrong")
+	}
+	if NormalizeTmuxMode("garbage") != TmuxModeInvisible || NormalizeTmuxMode(" OFF ") != TmuxModeOff {
+		t.Fatalf("normalisation wrong")
+	}
+}

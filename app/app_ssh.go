@@ -31,7 +31,7 @@ type pendingSSHHostKey struct {
 	key  gossh.PublicKey
 }
 
-func sshTmuxBootstrapCommand(profileID string, shellCommand string) string {
+func sshTmuxBootstrapCommand(profileID string, shellCommand string, tmuxMode string) string {
 	sessionName := sshTmuxSessionName(profileID)
 	tmuxShell := ""
 	if shellCommand != "" {
@@ -41,18 +41,10 @@ func sshTmuxBootstrapCommand(profileID string, shellCommand string) string {
 	if shellCommand != "" {
 		fallback = "exec " + shellCommand
 	}
-	// Beyond the base options: set-clipboard "external" copies tmux mouse
-	// selections to the local clipboard via OSC 52 while keeping programs
-	// inside the remote session from writing to it; the Ms override is needed
-	// because most xterm-256color terminfo entries lack that capability. The
-	// unbinds drop tmux's right-click menu (Mimir draws its own), and the
-	// wheel bindings reduce scroll steps from 5 to 3 lines per event.
-	script := fmt.Sprintf(
-		`if command -v tmux >/dev/null 2>&1; then exec tmux new-session -A -s %s%s \; set status off \; set escape-time 0 \; set mouse on \; set history-limit 100000 \; set prefix None \; set prefix2 None \; set -s set-clipboard external \; set -ga terminal-overrides ",xterm*:Ms=\E]52;%%p1%%s;%%p2%%s\007" \; unbind-key -n MouseDown3Pane \; unbind-key -n M-MouseDown3Pane \; bind-key -T copy-mode WheelUpPane send-keys -N3 -X scroll-up \; bind-key -T copy-mode WheelDownPane send-keys -N3 -X scroll-down \; bind-key -T copy-mode-vi WheelUpPane send-keys -N3 -X scroll-up \; bind-key -T copy-mode-vi WheelDownPane send-keys -N3 -X scroll-down; else %s; fi`,
-		shellQuote(sessionName),
-		tmuxShell,
-		fallback,
-	)
+	// The option chain (mouse handling, clipboard, key bindings) is shared with
+	// the local launch paths; see terminal.TmuxOptionCommands.
+	script := `if command -v tmux >/dev/null 2>&1; then exec tmux new-session -A -s ` + shellQuote(sessionName) + tmuxShell +
+		terminal.TmuxOptionScript(tmuxMode) + `; else ` + fallback + `; fi`
 	return "sh -lc " + shellQuote(script)
 }
 
@@ -342,6 +334,7 @@ func (a *App) GetSSHTerminalTmuxStatus(terminalID int) map[string]any {
 		"status":      meta.Config.TmuxStatus,
 		"error":       meta.Config.TmuxError,
 		"version":     meta.Config.TmuxVersion,
+		"mouse":       meta.Config.TmuxMouse,
 		"rcMode":      meta.Config.RCMode,
 		"rcStatus":    meta.Config.RCStatus,
 	}
@@ -350,6 +343,7 @@ func (a *App) GetSSHTerminalTmuxStatus(terminalID int) map[string]any {
 // StartSSHTerminal loads a profile, resolves credentials, establishes an SSH session
 // and registers it with the terminal manager. Returns the terminal ID.
 func (a *App) StartSSHTerminal(profileID string) (int, error) {
+	integrationMode := a.TerminalManager.TmuxIntegrationMode()
 	if a.apiLimiter != nil {
 		if err := a.apiLimiter.allow("start_ssh"); err != nil {
 			return 0, err
@@ -389,7 +383,7 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 	tmuxStatus := "disabled"
 	if tmuxEnabled {
 		tmuxSessionName = sshTmuxSessionName(profileID)
-		command = sshTmuxBootstrapCommand(profileID, command)
+		command = sshTmuxBootstrapCommand(profileID, command, integrationMode)
 		tmuxMode = "auto"
 		tmuxStatus = "pending"
 	}
@@ -415,6 +409,7 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 			cfg.TmuxActive = true
 			cfg.TmuxStatus = "active"
 			cfg.TmuxVersion = version
+			cfg.TmuxMouse = terminal.TmuxMouseEnabled(integrationMode)
 		} else {
 			cfg.TmuxActive = false
 			cfg.TmuxStatus = "missing"

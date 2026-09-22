@@ -53,6 +53,10 @@ Mimir is local-first by default.
   rejected to prevent history poisoning from terminal output.
 - SSH RC injection is opt-in per profile and does not write to remote `~/.bashrc`.
 - AI context is sanitized and can be excluded from prompts.
+- tmux integration is a setting (Settings → tmux integration): *invisible*
+  (default; tmux only keeps sessions alive, mouse/copy/links handled by
+  Mimir), *classic* (tmux owns the mouse and copy-mode) or *off* for local
+  terminals. SSH profiles keep their per-profile tmux switch.
 - Copy and links in panes: drag to select; when a program such as Claude
   Code has taken over the mouse, hold Shift while dragging. The context menu
   offers "Copy as one line" for text a program wrapped itself (URLs, long

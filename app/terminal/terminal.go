@@ -187,6 +187,9 @@ type Manager struct {
 	// recordings. Off by default: typed secrets (passwords, keys, pastes) have
 	// no detectable pattern and cannot be scrubbed reliably on export.
 	recordInput bool
+	// tmuxMode is the tmux integration mode for new terminals (see
+	// tmux_options.go); "" behaves like TmuxModeInvisible.
+	tmuxMode string
 }
 
 // SessionMeta holds metadata about a terminal session for history recording.
@@ -202,7 +205,9 @@ type TerminalRuntimeMeta struct {
 	TmuxMode        string
 	TmuxStatus      string
 	TmuxError       string
-	ShellPath       string
+	// TmuxMouse is true when tmux owns the mouse (classic integration).
+	TmuxMouse bool
+	ShellPath string
 }
 
 // NewManager creates a new terminal manager.
@@ -243,6 +248,10 @@ func (m *Manager) StartTerminal(terminalType string) (int, error) {
 
 // StartTerminalWithOptions starts a new terminal session. Windows ignores local tmux options.
 func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName string) (int, error) {
+	tmuxMode := m.TmuxIntegrationMode()
+	if tmuxMode == TmuxModeOff {
+		tmuxSessionName = ""
+	}
 	m.ptyMutex.Lock()
 	defer m.ptyMutex.Unlock()
 
@@ -277,11 +286,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 				// session write to it). The unbinds drop tmux's right-click menu
 				// (Mimir draws its own); the wheel bindings soften scroll steps.
 				inner += `if command -v tmux >/dev/null 2>&1; then exec tmux -L mimir new-session -A -s ` + name +
-					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i' \; set status off \; set escape-time 0 \; set mouse on \; set history-limit 100000 \; set prefix None \; set prefix2 None` +
-					` \; set -s set-clipboard external \; set -ga terminal-overrides ',xterm*:Ms=\E]52;%p1%s;%p2%s\007'` +
-					` \; unbind-key -n MouseDown3Pane \; unbind-key -n M-MouseDown3Pane` +
-					` \; bind-key -T copy-mode WheelUpPane send-keys -N3 -X scroll-up \; bind-key -T copy-mode WheelDownPane send-keys -N3 -X scroll-down` +
-					` \; bind-key -T copy-mode-vi WheelUpPane send-keys -N3 -X scroll-up \; bind-key -T copy-mode-vi WheelDownPane send-keys -N3 -X scroll-down; ` +
+					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i'` + TmuxOptionScript(tmuxMode) + `; ` +
 					`else exec bash --rcfile ~/.cache/mimir/shell/bashrc -i; fi`
 				usingTmux = true
 				tmuxName = name
@@ -314,6 +319,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 	if usingTmux {
 		meta.TmuxActive = true
 		meta.TmuxSessionName = tmuxName
+		meta.TmuxMouse = TmuxMouseEnabled(tmuxMode)
 		meta.TmuxMode = "auto"
 		meta.TmuxStatus = "active"
 	}
