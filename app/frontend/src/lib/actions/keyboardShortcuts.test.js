@@ -4,6 +4,7 @@ import { createKeydownHandler, isGlobalShortcut } from './keyboardShortcuts.js';
 import { notesPanelOpen } from '../stores/uiStore.js';
 import { showTemplatePicker, showWorkflowPicker } from '../stores/templateStore.js';
 import { activeTerminalId, layoutTree, terminals } from '../stores/terminalStore.js';
+import { customFolders } from '../stores/sessionStore.js';
 
 function keyEvent(overrides) {
   return {
@@ -99,14 +100,17 @@ describe('keyboard shortcuts', () => {
     expect(focus).toHaveBeenCalledTimes(4);
   });
 
-  test('jumps to the n-th pane with Ctrl+Shift+digit and opens a new terminal with Ctrl+Shift+T', () => {
+  test('jumps to the n-th sidebar terminal with Ctrl+Shift+digit and opens a new terminal with Ctrl+Shift+T', async () => {
     threePanes();
+    customFolders.set([]);
     const addTerminal = vi.fn();
     const handler = createKeydownHandler({ addTerminal });
 
     handler(keyEvent({ ctrlKey: true, shiftKey: true, key: '!', code: 'Digit3' }));
+    await Promise.resolve();
     expect(get(activeTerminalId)).toBe(3);
     handler(keyEvent({ ctrlKey: true, shiftKey: true, key: '(', code: 'Digit9' }));
+    await Promise.resolve();
     expect(get(activeTerminalId)).toBe(3); // out of range: unchanged
 
     const event = keyEvent({ ctrlKey: true, shiftKey: true, key: 'T' });
@@ -123,5 +127,41 @@ describe('keyboard shortcuts', () => {
     expect(isGlobalShortcut(keyEvent({ ctrlKey: true, key: 'c' }))).toBe(false); // Ctrl+C stays with the shell
     expect(isGlobalShortcut(keyEvent({ ctrlKey: true, shiftKey: true, key: 'C' }))).toBe(false); // copy stays with xterm
     expect(isGlobalShortcut(keyEvent({ shiftKey: true, key: 'ArrowRight' }))).toBe(false);
+  });
+
+  test('Ctrl+Shift+M minimizes the active pane, digit and Ctrl+Shift+U restore minimized ones', async () => {
+    const focus = threePanes();
+    customFolders.set([]);
+    const toggleMinimize = vi.fn(async (id) => {
+      terminals.update((list) => list.map((t) => (t.id === id ? { ...t, minimized: !t.minimized } : t)));
+      const tree = get(layoutTree);
+      layoutTree.set(id === 2
+        ? { type: 'split', direction: 'horizontal', ratio: 0.5, children: [{ type: 'leaf', terminalId: 1 }, { type: 'leaf', terminalId: 3 }] }
+        : tree);
+    });
+    const handler = createKeydownHandler({ toggleMinimize });
+    activeTerminalId.set(2);
+
+    handler(keyEvent({ ctrlKey: true, shiftKey: true, key: 'M' }));
+    await Promise.resolve(); await Promise.resolve();
+    expect(toggleMinimize).toHaveBeenCalledWith(2);
+    expect(get(terminals).find((t) => t.id === 2).minimized).toBe(true);
+    expect(get(activeTerminalId)).toBe(3); // focus moved to the pane at the same position
+    expect(focus).toHaveBeenCalled();
+
+    // Digit addresses minimized terminals too and restores them.
+    handler(keyEvent({ ctrlKey: true, shiftKey: true, key: '"', code: 'Digit2' }));
+    await Promise.resolve(); await Promise.resolve();
+    expect(toggleMinimize).toHaveBeenLastCalledWith(2);
+    expect(get(activeTerminalId)).toBe(2);
+
+    // Minimize again, then Ctrl+Shift+U brings it back.
+    activeTerminalId.set(2);
+    handler(keyEvent({ ctrlKey: true, shiftKey: true, key: 'M' }));
+    await Promise.resolve(); await Promise.resolve();
+    handler(keyEvent({ ctrlKey: true, shiftKey: true, key: 'U' }));
+    await Promise.resolve(); await Promise.resolve();
+    expect(get(terminals).find((t) => t.id === 2).minimized).toBe(false);
+    expect(get(activeTerminalId)).toBe(2);
   });
 });

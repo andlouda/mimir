@@ -46,3 +46,12 @@ export function groupedSidebarTerminals(terminalsList, folders) {
 
   return [...folderGroups.filter((g) => g.isCustom || g.terminals.length > 0), ...autoGroups.filter((g) => g.terminals.length > 0)];
 }
+
+/**
+ * Terminal ids in the order the sidebar shows them (folders first, then the
+ * automatic groups) — the order Ctrl+Shift+1…9 addresses, minimized ones
+ * included.
+ */
+export function sidebarOrderIds(terminalsList, folders) {
+  return groupedSidebarTerminals(terminalsList, folders || []).flatMap((g) => g.terminals.map((t) => t.id));
+}

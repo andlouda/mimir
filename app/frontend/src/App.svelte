@@ -292,6 +292,7 @@
     toggleWorkflowPicker,
     closeTerminalSearch,
     addTerminal: () => doAddTerminal(),
+    toggleMinimize,
   });
 
   async function openPage(page) {

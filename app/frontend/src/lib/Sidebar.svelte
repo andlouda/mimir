@@ -43,6 +43,9 @@
       refreshSSHProfiles();
     }
   });
+
+  // Sidebar position → Ctrl+Shift+digit (first nine terminals only).
+  $: shortcutIndex = new Map(groups.flatMap((g) => g.terminals.map((t) => t.id)).slice(0, 9).map((id, i) => [id, i + 1]));
 </script>
 
 <nav class="sidebar" class:collapsed={collapsed}>
@@ -130,6 +133,7 @@
                     on:dragstart={(e) => { dragTerminalId = term.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(term.id)); }}
                     on:dragend={() => { dragTerminalId = null; dragOverFolder = null; }}
                   >
+                    {#if shortcutIndex.get(term.id) != null}<kbd class="sidebar-shortcut" title={`Ctrl+Shift+${shortcutIndex.get(term.id)}`}>{shortcutIndex.get(term.id)}</kbd>{/if}
                     <span class="sidebar-terminal-name">{term.name}</span>
                     {#if term.minimized}<small>{$t('sidebar.minimized')}</small>{/if}
                   </button>
