@@ -82,10 +82,12 @@ func TmuxOptionCommands(mode string) [][]string {
 		[]string{"set", "mouse", "off"},
 		[]string{"bind-key", "-n", "S-PPage", "copy-mode", "-e"},
 		[]string{"bind-key", "-n", "S-NPage", "refresh-client"},
-		[]string{"bind-key", "-T", "copy-mode", "S-PPage", "send-keys", "-X", "scroll-up", "-N", "3"},
-		[]string{"bind-key", "-T", "copy-mode", "S-NPage", "send-keys", "-X", "scroll-down", "-N", "3"},
-		[]string{"bind-key", "-T", "copy-mode-vi", "S-PPage", "send-keys", "-X", "scroll-up", "-N", "3"},
-		[]string{"bind-key", "-T", "copy-mode-vi", "S-NPage", "send-keys", "-X", "scroll-down", "-N", "3"},
+		// -N must precede -X: tmux treats everything after the -X command name
+		// as that command's arguments, so "-X scroll-up -N 3" silently does nothing.
+		[]string{"bind-key", "-T", "copy-mode", "S-PPage", "send-keys", "-N3", "-X", "scroll-up"},
+		[]string{"bind-key", "-T", "copy-mode", "S-NPage", "send-keys", "-N3", "-X", "scroll-down"},
+		[]string{"bind-key", "-T", "copy-mode-vi", "S-PPage", "send-keys", "-N3", "-X", "scroll-up"},
+		[]string{"bind-key", "-T", "copy-mode-vi", "S-NPage", "send-keys", "-N3", "-X", "scroll-down"},
 	)
 	return cmds
 }

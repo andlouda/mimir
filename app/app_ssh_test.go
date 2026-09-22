@@ -89,7 +89,7 @@ func TestSSHTmuxBootstrapCommand(t *testing.T) {
 
 	// Invisible mode keeps tmux's mouse off and binds the scroll keys instead.
 	invisible := sshTmuxBootstrapCommand("prod-01", "", terminal.TmuxModeInvisible)
-	for _, part := range []string{"set mouse off", "bind-key -n S-PPage copy-mode -e", "-T copy-mode S-NPage send-keys -X scroll-down -N 3"} {
+	for _, part := range []string{"set mouse off", "bind-key -n S-PPage copy-mode -e", "-T copy-mode S-NPage send-keys -N3 -X scroll-down"} {
 		if !strings.Contains(invisible, part) {
 			t.Fatalf("invisible bootstrap %q does not contain %q", invisible, part)
 		}

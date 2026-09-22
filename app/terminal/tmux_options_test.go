@@ -13,7 +13,7 @@ func TestTmuxOptionModes(t *testing.T) {
 			t.Fatalf("classic script lacks %q: %s", want, classic)
 		}
 	}
-	for _, want := range []string{`set mouse off`, `bind-key -n S-PPage copy-mode -e`, `bind-key -n S-NPage refresh-client`, `-T copy-mode S-NPage send-keys -X scroll-down -N 3`} {
+	for _, want := range []string{`set mouse off`, `bind-key -n S-PPage copy-mode -e`, `bind-key -n S-NPage refresh-client`, `-T copy-mode S-NPage send-keys -N3 -X scroll-down`} {
 		if !strings.Contains(invisible, want) {
 			t.Fatalf("invisible script lacks %q: %s", want, invisible)
 		}
