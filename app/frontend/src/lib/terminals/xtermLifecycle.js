@@ -9,6 +9,17 @@ export function safelyWriteTerminal(term, data) {
   }
 }
 
+// PTY resizes are debounced per terminal. xterm itself is refitted at once
+// (so the pane never looks stale), but the backend PTY — and with it tmux
+// and the program inside — only learns the size once it has settled.
+// Full-screen programs such as Claude Code redraw everything on every
+// resize; feeding them each intermediate width of a divider drag or a
+// quick shrink-and-grow pushes narrowly redrawn rows into the scrollback
+// for good. The first size of a terminal is sent immediately.
+export const RESIZE_SETTLE_MS = 300;
+const pendingResizes = new Map(); // term.id → { timer, rows, cols }
+const sentSizes = new Map(); // term.id → 'rows x cols'
+
 export function safelyFitAndResizeTerminal(term, resizeTerminal) {
   if (!term || term.minimized || !term.terminal?.element) {
     return;
@@ -18,11 +29,40 @@ export function safelyFitAndResizeTerminal(term, resizeTerminal) {
     const rows = Math.round(Number(term.terminal.rows));
     const cols = Math.round(Number(term.terminal.cols));
     if (Number.isInteger(rows) && rows > 0 && Number.isInteger(cols) && cols > 0) {
-      resizeTerminal(term.id, String(rows), String(cols));
+      scheduleResize(term.id, rows, cols, resizeTerminal);
     }
   } catch (error) {
     console.error(`Failed to fit/resize terminal ${term.id}:`, error);
   }
+}
+
+function scheduleResize(id, rows, cols, resizeTerminal) {
+  const key = `${rows}x${cols}`;
+  const pending = pendingResizes.get(id);
+  if (pending) {
+    clearTimeout(pending.timer);
+    pendingResizes.delete(id);
+  }
+  if (!sentSizes.has(id)) {
+    sentSizes.set(id, key);
+    resizeTerminal(id, String(rows), String(cols));
+    return;
+  }
+  if (sentSizes.get(id) === key) return; // back to the size the PTY already has
+  const timer = setTimeout(() => {
+    pendingResizes.delete(id);
+    sentSizes.set(id, key);
+    resizeTerminal(id, String(rows), String(cols));
+  }, RESIZE_SETTLE_MS);
+  pendingResizes.set(id, { timer, rows, cols });
+}
+
+/** Drops any pending resize and size memory for a terminal (on close). */
+export function forgetTerminalResize(id) {
+  const pending = pendingResizes.get(id);
+  if (pending) clearTimeout(pending.timer);
+  pendingResizes.delete(id);
+  sentSizes.delete(id);
 }
 
 // observeTerminalResize refits the terminal whenever its box changes size

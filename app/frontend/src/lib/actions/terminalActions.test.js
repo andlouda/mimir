@@ -55,6 +55,7 @@ vi.mock('../terminals/xtermLifecycle.js', () => ({
   safelyDisposeTerminal: vi.fn(),
   observeTerminalResize: vi.fn(() => () => {}),
   rebindTerminalResize: vi.fn(),
+  forgetTerminalResize: vi.fn(),
 }));
 
 vi.mock('../terminals/reconnectLifecycle.js', () => ({

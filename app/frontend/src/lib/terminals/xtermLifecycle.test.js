@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { observeTerminalResize, rebindTerminalResize } from './xtermLifecycle.js';
+import { RESIZE_SETTLE_MS, forgetTerminalResize, observeTerminalResize, rebindTerminalResize, safelyFitAndResizeTerminal } from './xtermLifecycle.js';
 
 class FakeResizeObserver {
   constructor(cb) { this.cb = cb; this.targets = []; FakeResizeObserver.instances.push(this); }
@@ -60,5 +60,34 @@ describe('observeTerminalResize', () => {
     const dispose = observeTerminalResize({ id: 2, terminal: {} }, vi.fn());
     expect(FakeResizeObserver.instances).toHaveLength(0);
     dispose();
+  });
+
+  test('PTY resizes are sent immediately once, then only after the size settles', () => {
+    vi.useFakeTimers();
+    const term = fakeTerm(42, {});
+    const resize = vi.fn();
+    safelyFitAndResizeTerminal(term, resize);
+    expect(resize).toHaveBeenCalledTimes(1); // first size goes straight through
+
+    // A divider drag: many intermediate sizes, only the final one reaches the PTY.
+    for (const cols of [70, 60, 50, 40]) {
+      term.terminal.cols = cols;
+      safelyFitAndResizeTerminal(term, resize);
+    }
+    expect(resize).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(RESIZE_SETTLE_MS + 1);
+    expect(resize).toHaveBeenCalledTimes(2);
+    expect(resize).toHaveBeenLastCalledWith(42, '24', '40');
+
+    // Shrink and grow back within the settle window: the PTY never sees the shrink.
+    term.terminal.cols = 20;
+    safelyFitAndResizeTerminal(term, resize);
+    term.terminal.cols = 40;
+    safelyFitAndResizeTerminal(term, resize);
+    vi.advanceTimersByTime(RESIZE_SETTLE_MS + 1);
+    expect(resize).toHaveBeenCalledTimes(2);
+
+    forgetTerminalResize(42);
+    vi.useRealTimers();
   });
 });

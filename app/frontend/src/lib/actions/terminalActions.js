@@ -16,7 +16,7 @@ import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/la
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
-import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize } from '../terminals/xtermLifecycle.js';
+import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
 import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';
@@ -189,6 +189,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   newTerminal.cleanupHandlers.push(titleDisposable);
   newTerminal.cleanupHandlers.push(() => wiredDom.delete(id));
   newTerminal.cleanupHandlers.push(() => clearHoveredLink(id));
+  newTerminal.cleanupHandlers.push(() => forgetTerminalResize(id));
   newTerminal.cleanupHandlers.push(linkProviderDisposable);
 
   const element = document.getElementById(`terminal-${id}`);
