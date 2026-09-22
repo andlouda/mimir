@@ -5,12 +5,15 @@
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled } from '../stores/agentStore.js';
   import { tmuxIntegrationMode } from '../stores/uiStore.js';
+  import { refreshTmuxStatuses } from '../actions/terminalActions.js';
 
   async function changeTmuxMode(event) {
     const mode = event.target.value;
     try {
       const saved = await window['go']['main']['App']['SetTmuxIntegrationMode'](mode);
       tmuxIntegrationMode.set(saved || mode);
+      // The backend switched running sessions live; pick up their new state.
+      await refreshTmuxStatuses();
     } catch (error) {
       console.error('Could not save tmux integration mode:', error);
     }

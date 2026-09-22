@@ -336,6 +336,31 @@ export function wireTerminalDom(term) {
   term.cleanupHandlers.push(() => xtermElement.removeEventListener('paste', handlePaste));
 }
 
+/**
+ * Re-reads the tmux status of every terminal (after the tmux integration
+ * mode changed, which is applied to running sessions out-of-band).
+ */
+export async function refreshTmuxStatuses() {
+  for (const t of get(terminals)) {
+    try {
+      const status = await readTmuxStatus(t.id);
+      if (!status) continue;
+      terminals.update(list => list.map((x) => x.id !== t.id ? x : {
+        ...x,
+        tmuxActive: Boolean(status.active),
+        tmuxSessionName: status.sessionName || x.tmuxSessionName || '',
+        tmuxMode: status.mode || '',
+        tmuxStatus: status.status || '',
+        tmuxError: status.error || '',
+        tmuxVersion: status.version || '',
+        tmuxMouse: Boolean(status.mouse),
+      }));
+    } catch (error) {
+      console.error(`Failed to refresh tmux status for terminal ${t.id}:`, error);
+    }
+  }
+}
+
 export async function reinitializeTerminals() {
   await tick();
   for (const t of get(terminals)) {

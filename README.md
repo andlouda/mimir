@@ -56,7 +56,8 @@ Mimir is local-first by default.
 - tmux integration is a setting (Settings → tmux integration): *invisible*
   (default; tmux only keeps sessions alive, mouse/copy/links handled by
   Mimir), *classic* (tmux owns the mouse and copy-mode) or *off* for local
-  terminals. SSH profiles keep their per-profile tmux switch.
+  terminals. Switching between invisible and classic is applied to running
+  sessions immediately. SSH profiles keep their per-profile tmux switch.
 - Copy and links in panes: drag to select; when a program such as Claude
   Code has taken over the mouse, hold Shift while dragging. The context menu
   offers "Copy as one line" for text a program wrapped itself (URLs, long

@@ -40,3 +40,26 @@ func TestTmuxOptionModes(t *testing.T) {
 		t.Fatalf("normalisation wrong")
 	}
 }
+
+func TestTmuxLiveUpdateCommands(t *testing.T) {
+	cmds := TmuxLiveUpdateCommands(TmuxModeInvisible, "mimir-local-3")
+	if len(cmds) == 0 || strings.Join(cmds[0], " ") != "set -t mimir-local-3: mouse off" {
+		t.Fatalf("unexpected first live command: %v", cmds)
+	}
+	for _, cmd := range cmds[1:] {
+		if cmd[0] != "bind-key" {
+			t.Fatalf("live update must only carry mouse + bindings, got %v", cmd)
+		}
+	}
+	if TmuxLiveUpdateCommands(TmuxModeOff, "x") != nil {
+		t.Fatalf("off mode has no live update")
+	}
+	script := RenderTmuxScript("tmux", TmuxLiveUpdateCommands(TmuxModeClassic, "s"))
+	if !strings.HasPrefix(script, "tmux set -t s: mouse on \\; bind-key") {
+		t.Fatalf("unexpected script: %s", script)
+	}
+	args := RenderTmuxArgs(TmuxLiveUpdateCommands(TmuxModeClassic, "s"))
+	if args[0] != "set" || args[5] != ";" {
+		t.Fatalf("unexpected argv: %v", args[:7])
+	}
+}
