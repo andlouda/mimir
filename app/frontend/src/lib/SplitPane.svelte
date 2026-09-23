@@ -63,6 +63,7 @@
   function tmuxTitle(term) {
     const status = term.tmuxStatus || (term.tmuxActive ? 'active' : 'plain');
     const parts = [`tmux ${status}${term.tmuxVersion ? ' ' + term.tmuxVersion : ''}${term.tmuxActive ? (term.tmuxMouse ? ' · ' + $t('splitPane.tmuxClassic') : ' · ' + $t('splitPane.tmuxInvisible')) : ''}`];
+    if (term.restoreClass === 'rehydrated' || term.restoreClass === 'live-restored') parts.push($t('splitPane.restoredContinued'));
     if (term.tmuxSessionName) parts.push(term.tmuxSessionName);
     if (term.shellPath) parts.push(term.shellPath);
     if (term.tmuxError) parts.push(term.tmuxError);
@@ -298,15 +299,6 @@
     }
     dispatch('dismissrestore', term.id);
   }
-  function restoreLabel(restoreClass) {
-    switch (restoreClass) {
-      case 'live-restored': return 'Live Restored';
-      case 'rehydrated': return 'Rehydrated';
-      case 'transcript-restored': return 'Transcript';
-      default: return 'Restored';
-    }
-  }
-
   function agentBadgeTitle(agent) {
     const parts = [agent.label];
     if (agent.subject) parts.push(agent.subject);
@@ -357,11 +349,13 @@
           {#if term.type === 'ssh'}
             <span class="rc-badge {term.rcMode && term.rcMode !== 'off' ? 'rc-badge-active' : ''}" title={rcTitle(term)}>{term.rcMode && term.rcMode !== 'off' ? 'rc' : 'clean'}</span>
           {/if}
-          {#if term.restoreClass && term.restoreClass !== 'fresh'}
-            <!-- A coloured dot by default; the label unfolds on hover/focus. -->
-            <button type="button" class="restore-badge restore-{term.restoreClass}" title={restoreLabel(term.restoreClass)} on:click|stopPropagation>
+          {#if term.restoreClass === 'transcript-restored' && !term.restoreDismissed}
+            <!-- Only the case that needs attention gets a marker: the shell is
+                 new and the previous output is just a preview. Sessions that
+                 continued (tmux, SSH) show nothing; the tx tooltip says so. -->
+            <button type="button" class="restore-badge restore-transcript-restored" title={$t('splitPane.restoredNewShell')} on:click|stopPropagation>
               <span class="restore-dot"></span>
-              <span class="restore-text">{restoreLabel(term.restoreClass)}</span>
+              <span class="restore-text">{$t('splitPane.restoredNewShellShort')}</span>
             </button>
           {/if}
           {#if term.editingName}

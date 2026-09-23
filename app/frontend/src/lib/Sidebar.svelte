@@ -3,6 +3,10 @@
   // component; data and actions come from the parent via props/callbacks.
   import { onMount } from 'svelte';
   import { t } from './i18n.js';
+  // Agent overview: one row per detected coding agent across all panes.
+  // Read from the store directly — the state is pushed by the backend's
+  // session-file watcher and does not belong to any single page.
+  import { agentStates } from './stores/agentStore.js';
 
   export let currentPage = 'terminals';
   export let terminals = [];
@@ -44,6 +48,29 @@
     }
   });
 
+  const AGENT_ORDER = { attention: 0, idle: 1, working: 2, unknown: 3 };
+  function agentRank(a) {
+    if (a.attention) return AGENT_ORDER.attention;
+    return AGENT_ORDER[a.status] ?? AGENT_ORDER.unknown;
+  }
+  $: agentRows = Object.entries($agentStates)
+    .map(([id, agent]) => ({ id: Number(id), agent, term: terminals.find((t) => t.id === Number(id)) }))
+    .filter((r) => r.term)
+    .sort((a, b) => agentRank(a.agent) - agentRank(b.agent) || a.id - b.id);
+  $: agentsNeedingMe = agentRows.filter((r) => r.agent.attention || r.agent.status === 'idle').length;
+
+  function agentStateText(agent) {
+    if (agent.attention) return $t('sidebar.agentDone');
+    if (agent.status === 'working') return $t('agentPanel.working');
+    if (agent.status === 'idle') return $t('agentPanel.idle');
+    return '';
+  }
+  function agentCwd(agent) {
+    if (!agent.cwd) return '';
+    const parts = agent.cwd.split(/[\\/]/).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : agent.cwd;
+  }
+
   // Sidebar position → Ctrl+Shift+digit (first nine terminals only).
   $: shortcutIndex = new Map(groups.flatMap((g) => g.terminals.map((t) => t.id)).slice(0, 9).map((id, i) => [id, i + 1]));
 </script>
@@ -60,6 +87,14 @@
   </div>
 
   {#if collapsed}
+    {#if agentRows.length > 0}
+      <div class="sidebar-section">
+        <div class="sidebar-heading collapsed-icon" on:click={() => selectTerminal(agentRows[0].term)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectTerminal(agentRows[0].term); }} tabindex="0" role="button" title={$t('sidebar.agents')}>
+          <span class="nav-icon">&#x1F916;</span>
+          <span class="sidebar-agent-count" class:sidebar-agent-count-attention={agentsNeedingMe > 0}>{agentsNeedingMe || agentRows.length}</span>
+        </div>
+      </div>
+    {/if}
     <div class="sidebar-section">
       <div class="sidebar-heading collapsed-icon" on:click={openTerminals} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') openTerminals(); }} tabindex="0" role="button" class:active-nav={currentPage === 'terminals'} title={$t('sidebar.terminal')}>
         <span class="nav-icon">&#9656;</span>
@@ -96,6 +131,39 @@
       </div>
     </div>
   {:else}
+    {#if agentRows.length > 0}
+      <div class="sidebar-section sidebar-agents">
+        <div class="sidebar-heading sidebar-heading-static">
+          <span class="nav-icon">&#x1F916;</span> {$t('sidebar.agents')}
+          <small>{agentRows.length}</small>
+        </div>
+        <ul class="sidebar-list">
+          {#each agentRows as row (row.id)}
+            <li>
+              <button
+                class="sidebar-agent-row"
+                class:active-subnav={activeTerminalId === row.id}
+                class:sidebar-agent-attention={row.agent.attention}
+                title={[row.agent.label, row.agent.cwd, row.agent.lastText].filter(Boolean).join('\n')}
+                on:click={() => selectTerminal(row.term)}
+              >
+                <span class="sidebar-agent-dot agent-dot-{row.agent.attention ? 'attention' : (row.agent.status || 'unknown')}"></span>
+                <span class="sidebar-agent-main">
+                  <span class="sidebar-agent-head">
+                    <span class="sidebar-agent-label">{row.agent.label}</span>
+                    <span class="sidebar-agent-term">{row.term.name}{agentCwd(row.agent) ? ' · ' + agentCwd(row.agent) : ''}{row.term.minimized ? ' · ' + $t('sidebar.minimized') : ''}</span>
+                  </span>
+                  <span class="sidebar-agent-state">
+                    <span class="sidebar-agent-status">{agentStateText(row.agent)}</span>
+                    {#if row.agent.subject}<span class="sidebar-agent-text">{row.agent.subject}</span>{/if}
+                  </span>
+                </span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
     <div class="sidebar-section">
       <div class="sidebar-heading"
         on:click={() => { terminalNavOpen = !terminalNavOpen; if (currentPage !== 'terminals') openTerminals(); }}
