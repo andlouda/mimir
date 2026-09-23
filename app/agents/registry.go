@@ -14,6 +14,7 @@ const (
 	KindGemini   Kind = "gemini"
 	KindOpenCode Kind = "opencode"
 	KindAider    Kind = "aider"
+	KindHermes   Kind = "hermes"
 )
 
 // Descriptor describes one supported agent.
@@ -34,6 +35,7 @@ var registry = []Descriptor{
 	{Kind: KindGemini, Label: "Gemini CLI", Binaries: []string{"gemini"}, Transcripts: false},
 	{Kind: KindOpenCode, Label: "OpenCode", Binaries: []string{"opencode"}, Transcripts: false},
 	{Kind: KindAider, Label: "Aider", Binaries: []string{"aider"}, Transcripts: false},
+	{Kind: KindHermes, Label: "Hermes", Binaries: []string{"hermes"}, Transcripts: false},
 }
 
 // Registry returns the supported agents.

@@ -133,6 +133,19 @@ describe('minimized terminal restore', () => {
     expect(observeTerminalResize).toHaveBeenCalledTimes(1);
   });
 
+  test('global shortcuts are cancelled inside xterm so no character reaches the PTY', async () => {
+    const container = { replaceChildren: vi.fn() };
+    global.document.getElementById = vi.fn(() => container);
+    await createTerminalInstance(9, 'bash', 'BASH 3', false, '', false, '', 'resume-9', 'fresh');
+    const handler = lastTerminal.attachCustomKeyEventHandler.mock.calls[0][0];
+    const shortcut = { type: 'keydown', ctrlKey: true, shiftKey: true, key: 'M', preventDefault: vi.fn() };
+    expect(handler(shortcut)).toBe(false);
+    expect(shortcut.preventDefault).toHaveBeenCalled();
+    const plain = { type: 'keydown', ctrlKey: true, shiftKey: false, key: 'c', preventDefault: vi.fn() };
+    expect(handler(plain)).toBe(true);
+    expect(plain.preventDefault).not.toHaveBeenCalled();
+  });
+
   test('visible terminals are wired at creation as before', async () => {
     const container = { replaceChildren: vi.fn() };
     global.document.getElementById = vi.fn(() => container);
