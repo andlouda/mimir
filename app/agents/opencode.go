@@ -123,8 +123,27 @@ type openCodeBashMeta struct {
 	Exit *int `json:"exit"`
 }
 
+// ListOpenCodeSessions returns candidate sessions for the picker.
+func ListOpenCodeSessions(dbPath, cwd string) ([]SessionSummary, error) {
+	db, err := openOpenCodeDB(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	sessions, err := openCodeSessions(db, cwd)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SessionSummary, 0, len(sessions))
+	for _, s := range sessions {
+		out = append(out, SessionSummary{File: dbPath + "#" + s.ID, Modified: millisToRFC3339(s.Updated), Title: trimTitle(s.Title), Cwd: s.Directory})
+	}
+	return out, nil
+}
+
 // ReadOpenCodeTranscript builds a transcript from the OpenCode database.
-func ReadOpenCodeTranscript(dbPath, cwd string, limit int) (Transcript, error) {
+// sessionID, when set, pins a session; otherwise the newest for cwd is used.
+func ReadOpenCodeTranscript(dbPath, cwd string, limit int, sessionID ...string) (Transcript, error) {
 	if limit <= 0 {
 		limit = DefaultMessageLimit
 	}
@@ -142,6 +161,23 @@ func ReadOpenCodeTranscript(dbPath, cwd string, limit int) (Transcript, error) {
 		return Transcript{}, ErrNotFound
 	}
 	sess := sessions[0]
+	pinned := false
+	if len(sessionID) > 0 && sessionID[0] != "" {
+		found := false
+		for _, s := range sessions {
+			if s.ID == sessionID[0] {
+				sess, found = s, true
+				break
+			}
+		}
+		if !found {
+			row := db.QueryRow(`select id, directory, title, time_updated from session where id = ?`, sessionID[0])
+			if err := row.Scan(&sess.ID, &sess.Directory, &sess.Title, &sess.Updated); err != nil {
+				return Transcript{}, ErrNotFound
+			}
+		}
+		pinned = true
+	}
 
 	type msgRow struct {
 		id      string
@@ -266,6 +302,7 @@ func ReadOpenCodeTranscript(dbPath, cwd string, limit int) (Transcript, error) {
 		Commands:    capCommands(commands, maxCommands),
 		Tasks:       tasks,
 		Candidates:  len(sessions),
+		Verified:    pinned,
 	}, nil
 }
 
@@ -288,17 +325,22 @@ func openCodeTodos(db *sql.DB, sessionID string) ([]Task, error) {
 
 // OpenCodeState derives the agent state: the newest assistant message
 // without a completion time means the agent is still working.
-func OpenCodeState(dbPath, cwd string) (StateInfo, error) {
+func OpenCodeState(dbPath, cwd string, sessionID ...string) (StateInfo, error) {
 	db, err := openOpenCodeDB(dbPath)
 	if err != nil {
 		return StateInfo{State: StateUnknown}, err
 	}
 	defer db.Close()
-	sessions, err := openCodeSessions(db, cwd)
-	if err != nil || len(sessions) == 0 {
-		return StateInfo{State: StateUnknown}, errors.Join(err, ErrNotFound)
+	var sess openCodeSession
+	if len(sessionID) > 0 && sessionID[0] != "" {
+		sess.ID = sessionID[0]
+	} else {
+		sessions, err := openCodeSessions(db, cwd)
+		if err != nil || len(sessions) == 0 {
+			return StateInfo{State: StateUnknown}, errors.Join(err, ErrNotFound)
+		}
+		sess = sessions[0]
 	}
-	sess := sessions[0]
 	rows, err := db.Query(`select id, time_created, data from message where session_id = ? order by time_created desc limit 6`, sess.ID)
 	if err != nil {
 		return StateInfo{State: StateUnknown}, err

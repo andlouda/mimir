@@ -733,6 +733,11 @@ export default {
     noMatches: 'No matches',
   },
   agentPanel: {
+    unverifiedNoTmux: 'Newest session file chosen by time (no tmux here to confirm it against the pane)',
+    chooseSession: 'choose session',
+    sessionPickLabel: 'Session for this pane',
+    sessionAuto: 'automatic (newest / best match)',
+    sessionPinned: 'Session pinned for this pane.',
     tabTasks: 'Tasks',
     tasksHint: 'The agent\'s own task list, as it maintains it while working.',
     insertInto: 'Insert into the active terminal: {name}',

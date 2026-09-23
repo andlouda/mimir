@@ -45,6 +45,8 @@ type agentTerminalState struct {
 	kind   agents.Kind
 	cwd    string
 	source string
+	// sessionFile pins a session chosen by the user ("" = automatic).
+	sessionFile string
 }
 
 var tmuxSessionNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
@@ -370,6 +372,9 @@ func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (s
 	result := a.detectAgent(terminalID, terminalType)
 	if result.Detected {
 		state := agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source}
+		if prev, ok := a.rememberedAgent(terminalID); ok && prev.kind == state.kind {
+			state.sessionFile = prev.sessionFile
+		}
 		a.rememberAgent(terminalID, state)
 		a.startAgentWatcher(terminalID, terminalType, state)
 	} else {
@@ -531,7 +536,11 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 		if err != nil {
 			return agents.Transcript{}, fmt.Errorf("no OpenCode database readable for this terminal (local and WSL only)")
 		}
-		transcript, err := agents.ReadOpenCodeTranscript(dbPath, state.cwd, opts.Limit)
+		sessionID := ""
+		if i := strings.LastIndex(state.sessionFile, "#"); i >= 0 {
+			sessionID = state.sessionFile[i+1:]
+		}
+		transcript, err := agents.ReadOpenCodeTranscript(dbPath, state.cwd, opts.Limit, sessionID)
 		if err != nil {
 			if errors.Is(err, agents.ErrNotFound) {
 				return agents.Transcript{}, fmt.Errorf("no OpenCode session found for %s", state.cwd)
@@ -540,6 +549,7 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 		}
 		return transcript, nil
 	}
+	opts.File = state.sessionFile
 	transcript, err := agents.ReadTranscript(fs, state.kind, home, state.cwd, opts)
 	if err != nil {
 		if errors.Is(err, agents.ErrNotFound) {
@@ -548,6 +558,59 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 		return agents.Transcript{}, err
 	}
 	return transcript, nil
+}
+
+// ListAgentSessionsJSON lists the candidate sessions for the agent in a
+// terminal so the user can pick one when several exist for the directory.
+func (a *App) ListAgentSessionsJSON(terminalID int, terminalType string) (string, error) {
+	state, ok := a.rememberedAgent(terminalID)
+	if !ok {
+		return "", fmt.Errorf("no agent detected in this terminal")
+	}
+	fs, home, cleanup, err := a.agentFS(terminalID, state.source)
+	if err != nil {
+		return "", err
+	}
+	defer cleanup()
+	var list []agents.SessionSummary
+	if state.kind == agents.KindOpenCode {
+		dbPath, err := openCodeDBFor(state.source, fs, home)
+		if err != nil {
+			return "", fmt.Errorf("no OpenCode database readable for this terminal")
+		}
+		list, err = agents.ListOpenCodeSessions(dbPath, state.cwd)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		list, err = agents.ListSessions(fs, state.kind, home, state.cwd)
+		if err != nil && !errors.Is(err, agents.ErrNotFound) {
+			return "", err
+		}
+	}
+	if list == nil {
+		list = []agents.SessionSummary{}
+	}
+	payload, err := json.Marshal(map[string]any{"sessions": list, "selected": state.sessionFile})
+	if err != nil {
+		return "", fmt.Errorf("failed to encode sessions: %w", err)
+	}
+	return string(payload), nil
+}
+
+// SelectAgentSession pins a session for a terminal ("" returns to the
+// automatic choice). The watcher is restarted so its state follows the pin.
+func (a *App) SelectAgentSession(terminalID int, terminalType string, file string) error {
+	state, ok := a.rememberedAgent(terminalID)
+	if !ok {
+		return fmt.Errorf("no agent detected in this terminal")
+	}
+	state.sessionFile = strings.TrimSpace(file)
+	a.rememberAgent(terminalID, state)
+	a.stopAgentWatcher(terminalID)
+	a.startAgentWatcher(terminalID, terminalType, state)
+	logAgentEvent("agent_session_selected", fmt.Sprintf("%s via %s: %s", state.kind, state.source, map[bool]string{true: "automatic", false: "pinned"}[state.sessionFile == ""]))
+	return nil
 }
 
 // openCodeDBFor resolves OpenCode's SQLite database for a terminal. SQLite

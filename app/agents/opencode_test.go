@@ -83,3 +83,15 @@ func TestReadOpenCodeTranscript(t *testing.T) {
 		t.Fatalf("stamp must reflect the db file")
 	}
 }
+
+func TestOpenCodeSessionListAndPin(t *testing.T) {
+	path := seedOpenCodeDB(t)
+	list, err := ListOpenCodeSessions(path, "/home/u/proj")
+	if err != nil || len(list) != 2 || list[0].File != path+"#s_new" || list[0].Title != "New" {
+		t.Fatalf("list: %v %+v", err, list)
+	}
+	tr, err := ReadOpenCodeTranscript(path, "/home/u/proj", 0, "s_old")
+	if err != nil || tr.SessionFile != path+"#s_old" || !tr.Verified {
+		t.Fatalf("pinned: %+v (%v)", tr, err)
+	}
+}
