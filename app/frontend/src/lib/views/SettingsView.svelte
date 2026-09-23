@@ -6,24 +6,25 @@
   import { agentDetectionEnabled } from '../stores/agentStore.js';
   import { tmuxIntegrationMode } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
-  import { loadClaudeHookStatus, setClaudeHookInstalled } from '../actions/agentActions.js';
+  import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onMount } from 'svelte';
 
-  let hook = null;
-  let hookBusy = false;
-  let hookError = '';
+  // One row per host the hook can live on: this machine and, on Windows,
+  // the WSL distro (Claude Code there reads its own settings.json).
+  let hookHosts = null;
+  let hookBusy = '';
   onMount(async () => {
-    try { hook = await loadClaudeHookStatus(0); } catch (e) { hookError = String(e?.message || e); }
+    hookHosts = await loadClaudeHookHosts();
   });
-  async function toggleHook() {
-    hookBusy = true;
-    hookError = '';
+  async function toggleHook(row) {
+    hookBusy = row.host;
     try {
-      hook = await setClaudeHookInstalled(0, !(hook && hook.installed));
+      const status = await setClaudeHookInstalledOnHost(row.host, !row.installed);
+      hookHosts = hookHosts.map((h) => (h.host === row.host ? { host: row.host, ...status } : h));
     } catch (e) {
-      hookError = String(e?.message || e);
+      hookHosts = hookHosts.map((h) => (h.host === row.host ? { ...h, error: String(e?.message || e) } : h));
     } finally {
-      hookBusy = false;
+      hookBusy = '';
     }
   }
 
@@ -105,22 +106,27 @@
     </label>
     <div class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
-        <span class="ai-hub-icon">&#x1F6A6;</span>
-        <button type="button" class="settings-inline-btn" on:click={toggleHook} disabled={hookBusy || !hook}>
-          {hookBusy ? '…' : hook?.installed ? $t('settings.cards.claudeHook.remove') : $t('settings.cards.claudeHook.install')}
-        </button>
+        <span class="ai-hub-icon">&#x2731;</span>
       </div>
       <strong>{$t('settings.cards.claudeHook.title')}</strong>
       <p>{$t('settings.cards.claudeHook.desc')}</p>
-      <p class="settings-note">
-        {#if hookError || hook?.error}
-          {hookError || hook.error}
-        {:else if hook}
-          {hook.installed ? $t('settings.cards.claudeHook.installed') : $t('settings.cards.claudeHook.notInstalled')}{hook.settingsPath ? ' · ' + hook.settingsPath : ''}
-        {:else}
-          …
-        {/if}
-      </p>
+      {#if hookHosts}
+        <ul class="settings-host-list">
+          {#each hookHosts as row (row.host)}
+            <li class="settings-host-row">
+              <span class="settings-host-name">{$t(`settings.cards.claudeHook.host_${row.host}`)}</span>
+              <span class="settings-host-status" class:settings-host-ok={row.installed} class:settings-host-err={!!row.error} title={row.settingsPath || ''}>
+                {row.error ? row.error : row.installed ? $t('settings.cards.claudeHook.installed') : $t('settings.cards.claudeHook.notInstalled')}
+              </span>
+              <button type="button" class="settings-inline-btn" on:click={() => toggleHook(row)} disabled={hookBusy !== '' || !!row.error}>
+                {hookBusy === row.host ? '…' : row.installed ? $t('settings.cards.claudeHook.remove') : $t('settings.cards.claudeHook.install')}
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="settings-note">…</p>
+      {/if}
       <p class="settings-note">{$t('settings.cards.claudeHook.note')}</p>
     </div>
     <button type="button" class="ai-hub-card" on:click={onOpenAISettings}>
