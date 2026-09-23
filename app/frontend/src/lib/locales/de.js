@@ -733,6 +733,8 @@ export default {
     noMatches: 'Keine Treffer',
   },
   agentPanel: {
+    tabTasks: 'Aufgaben',
+    tasksHint: 'Die eigene Aufgabenliste des Agenten, so wie er sie beim Arbeiten führt.',
     insertInto: 'In das aktive Terminal einfügen: {name}',
     tabSnippets: 'Snippets',
     tabFiles: 'Dateien',

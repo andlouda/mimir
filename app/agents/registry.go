@@ -33,7 +33,8 @@ var registry = []Descriptor{
 	{Kind: KindClaude, Label: "Claude Code", Binaries: []string{"claude"}, Transcripts: true},
 	{Kind: KindCodex, Label: "Codex", Binaries: []string{"codex"}, Transcripts: true},
 	{Kind: KindGemini, Label: "Gemini CLI", Binaries: []string{"gemini"}, Transcripts: false},
-	{Kind: KindOpenCode, Label: "OpenCode", Binaries: []string{"opencode"}, Transcripts: false},
+	// OpenCode transcripts come from its local SQLite database (not over SSH).
+	{Kind: KindOpenCode, Label: "OpenCode", Binaries: []string{"opencode"}, Transcripts: true},
 	{Kind: KindAider, Label: "Aider", Binaries: []string{"aider"}, Transcripts: false},
 	{Kind: KindHermes, Label: "Hermes", Binaries: []string{"hermes"}, Transcripts: false},
 }

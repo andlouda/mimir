@@ -173,7 +173,7 @@ const claudeToolSession = `{"type":"assistant","timestamp":"2026-09-15T10:00:00Z
 {"type":"user","timestamp":"2026-09-15T10:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","content":"package main"}]}}
 {"type":"assistant","timestamp":"2026-09-15T10:00:03Z","message":{"id":"m2","role":"assistant","content":[{"type":"tool_use","id":"t3","name":"Edit","input":{"file_path":"/p/main.go","old_string":"a","new_string":"b"}},{"type":"tool_use","id":"t4","name":"Write","input":{"file_path":"/p/new.go","content":"x"}},{"type":"tool_use","id":"t5","name":"Bash","input":{"command":"gofmt -l ."}}]}}
 {"type":"user","timestamp":"2026-09-15T10:00:04Z","toolUseResult":{"stdout":"","stderr":"","interrupted":false},"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t5","content":""}]}}
-{"type":"assistant","timestamp":"2026-09-15T10:00:05Z","message":{"id":"m3","role":"assistant","content":[{"type":"tool_use","id":"t6","name":"Bash","input":{"command":"sleep 100","description":"still running"}}]}}
+{"type":"assistant","timestamp":"2026-09-15T10:00:05Z","message":{"id":"m3","role":"assistant","content":[{"type":"tool_use","id":"t6","name":"Bash","input":{"command":"sleep 100","description":"still running"}},{"type":"tool_use","id":"t7","name":"TodoWrite","input":{"todos":[{"content":"Fix tests","status":"in_progress","priority":"high"},{"content":"Write docs","status":"pending"}]}}]}}
 `
 
 func TestParseClaudeSessionToolActivity(t *testing.T) {
@@ -203,6 +203,9 @@ func TestParseClaudeSessionToolActivity(t *testing.T) {
 	}
 	if session.Files[1].Path != "/p/main.go" || strings.Join(session.Files[1].Ops, ",") != "read,edit" || session.Files[1].Count != 2 {
 		t.Fatalf("unexpected second file: %+v", session.Files[1])
+	}
+	if len(session.Tasks) != 2 || session.Tasks[0].Content != "Fix tests" || session.Tasks[0].Status != "in_progress" {
+		t.Fatalf("todo list not captured: %+v", session.Tasks)
 	}
 }
 

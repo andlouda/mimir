@@ -526,6 +526,20 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 		return agents.Transcript{}, err
 	}
 	defer cleanup()
+	if state.kind == agents.KindOpenCode {
+		dbPath, err := openCodeDBFor(state.source, fs, home)
+		if err != nil {
+			return agents.Transcript{}, fmt.Errorf("no OpenCode database readable for this terminal (local and WSL only)")
+		}
+		transcript, err := agents.ReadOpenCodeTranscript(dbPath, state.cwd, opts.Limit)
+		if err != nil {
+			if errors.Is(err, agents.ErrNotFound) {
+				return agents.Transcript{}, fmt.Errorf("no OpenCode session found for %s", state.cwd)
+			}
+			return agents.Transcript{}, err
+		}
+		return transcript, nil
+	}
 	transcript, err := agents.ReadTranscript(fs, state.kind, home, state.cwd, opts)
 	if err != nil {
 		if errors.Is(err, agents.ErrNotFound) {
@@ -534,6 +548,28 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 		return agents.Transcript{}, err
 	}
 	return transcript, nil
+}
+
+// openCodeDBFor resolves OpenCode's SQLite database for a terminal. SQLite
+// cannot be queried through SFTP, so only local and WSL (UNC) terminals
+// qualify.
+func openCodeDBFor(source string, fs agents.FS, home string) (string, error) {
+	switch source {
+	case "ssh":
+		return "", agents.ErrNotFound
+	case "wsl":
+		local, ok := fs.(agents.LocalFS)
+		if !ok || local.Base == "" {
+			return "", agents.ErrNotFound
+		}
+		candidate := filepath.Join(local.Base, filepath.FromSlash(home), ".local", "share", "opencode", "opencode.db")
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+		return "", agents.ErrNotFound
+	default:
+		return agents.FindOpenCodeDB(home)
+	}
 }
 
 // agentFS returns the filesystem and home directory where the agent stores

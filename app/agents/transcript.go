@@ -48,6 +48,8 @@ type Transcript struct {
 	// from the tool-call records of the session.
 	Files    []FileActivity `json:"files"`
 	Commands []CommandRun   `json:"commands"`
+	// Tasks is the agent's own todo list, newest version.
+	Tasks []Task `json:"tasks"`
 }
 
 // ReadOptions tunes ReadTranscript.
@@ -164,6 +166,9 @@ func readOne(fs FS, kind Kind, label, file, cwd string, limit int) (Transcript, 
 	if session.Commands == nil {
 		session.Commands = []CommandRun{}
 	}
+	if session.Tasks == nil {
+		session.Tasks = []Task{}
+	}
 	return Transcript{
 		Kind:        kind,
 		Label:       label,
@@ -174,6 +179,7 @@ func readOne(fs FS, kind Kind, label, file, cwd string, limit int) (Transcript, 
 		Source:      SourceFile,
 		Files:       session.Files,
 		Commands:    session.Commands,
+		Tasks:       session.Tasks,
 	}, nil
 }
 

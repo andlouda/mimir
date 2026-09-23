@@ -83,6 +83,11 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	if state.kind == agents.KindOpenCode {
+		a.watchOpenCode(ctx, terminalID, state, fs, home, ticker)
+		return
+	}
+
 	var (
 		file        string
 		lastLookup  time.Time
@@ -156,4 +161,47 @@ func (a *App) emitAgentState(terminalID int, payload agentStatePayload) {
 		return
 	}
 	wailsruntime.EventsEmit(a.ctx, fmt.Sprintf("agent-state-%d", terminalID), string(data))
+}
+
+// watchOpenCode polls the database's change stamp (main file + WAL) and
+// re-derives the state when it moves.
+func (a *App) watchOpenCode(ctx context.Context, terminalID int, state agentTerminalState, fs agents.FS, home string, ticker *time.Ticker) {
+	dbPath, err := openCodeDBFor(state.source, fs, home)
+	if err != nil {
+		return
+	}
+	lastStamp := ""
+	var lastPayload agentStatePayload
+	for {
+		alive := false
+		for _, id := range a.TerminalManager.SessionIDs() {
+			if id == terminalID {
+				alive = true
+				break
+			}
+		}
+		if !alive {
+			a.stopAgentWatcher(terminalID)
+			return
+		}
+		if stamp := agents.OpenCodeDBStamp(dbPath); stamp != lastStamp {
+			lastStamp = stamp
+			cwd := state.cwd
+			if cwd == "" {
+				cwd = a.TerminalManager.GetLastReportedCwd(terminalID)
+			}
+			if st, err := agents.OpenCodeState(dbPath, cwd); err == nil {
+				payload := agentStatePayload{State: st.State, LastText: st.LastText, LastAt: st.LastAt, SessionFile: dbPath}
+				if payload != lastPayload {
+					lastPayload = payload
+					a.emitAgentState(terminalID, payload)
+				}
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }

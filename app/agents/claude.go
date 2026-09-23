@@ -114,6 +114,7 @@ type claudeToolInput struct {
 	Description  string `json:"description"`
 	FilePath     string `json:"file_path"`
 	NotebookPath string `json:"notebook_path"`
+	Todos        []Task `json:"todos"`
 }
 
 // ParseClaudeTranscript extracts user prompts and assistant text from Claude
@@ -194,6 +195,10 @@ func ParseClaudeSession(data []byte) Session {
 					files.add(in.FilePath, "edit", rec.Timestamp)
 				case "NotebookEdit":
 					files.add(in.NotebookPath, "edit", rec.Timestamp)
+				case "TodoWrite":
+					if len(in.Todos) > 0 {
+						out.Tasks = in.Todos
+					}
 				}
 			}
 			text := claudeTextContent(rec.Message.Content, false)
