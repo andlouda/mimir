@@ -46,6 +46,15 @@ Mimir is a local desktop terminal application. It may handle sensitive terminal 
   detection therefore counts as consent for injecting that hook (it only
   reports to Mimir, and the command line it carries is stored only when
   history tracking is on).
+- The optional Claude Code approval hook is a `Notification` hook entry in
+  `~/.claude/settings.json` that Mimir adds on request and removes again on
+  request; installing and removing it is written to the activity log and the
+  file is left untouched when it is not valid JSON. Locally the entry runs
+  `mimir --agent-hook` in exec form (no shell), which validates the payload
+  and stores it under the user cache directory with mode 0600; on WSL and SSH
+  hosts it is a `cat` one-liner into `~/.cache/mimir/agent-events`. Mimir
+  reads those files only to mark the pane as waiting for approval, deletes
+  them once consumed, and never answers a prompt on the user's behalf.
 - Terminal recordings contain raw terminal data and may include secrets.
   Keystroke (input) recording is disabled by default. Scrubbing is best-effort
   and applied only when exporting; it cannot guarantee removal of free-form

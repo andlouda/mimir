@@ -721,6 +721,22 @@ func (s sftpAgentFS) ReadHead(file string, max int64) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(f, max))
 }
 
+// Remove deletes a consumed hook event on the remote host.
+func (s sftpAgentFS) Remove(file string) error { return s.client.Remove(file) }
+
+// WriteFile replaces a remote file (settings.json when installing the hook).
+func (s sftpAgentFS) WriteFile(file string, data []byte) error {
+	f, err := s.client.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
 func (s sftpAgentFS) ReadTail(file string, max int64) ([]byte, error) {
 	f, err := s.client.Open(file)
 	if err != nil {

@@ -185,6 +185,16 @@ describe('agent detection', () => {
     handleAgentStateEvent(2, JSON.stringify({ state: 'idle', lastText: 'Done. Shall I commit?', lastAt: 't2', sessionFile: '/s.jsonl' }));
     expect(get(agentStates)[2]).toMatchObject({ status: 'idle', subject: 'Done. Shall I commit?', attention: true, sessionFile: '/s.jsonl' });
 
+    // Approval hook: a permission prompt is its own state and asks for attention.
+    handleAgentStateEvent(2, JSON.stringify({ state: 'working', lastText: 'Running tests', lastAt: 't3' }));
+    activeTerminalId.set(2);
+    openAgentPanel(2);
+    expect(get(agentStates)[2].attention).toBe(false);
+    activeTerminalId.set(1);
+    handleAgentStateEvent(2, JSON.stringify({ state: 'permission', lastText: 'Claude needs your permission to use Bash', lastAt: 't4' }));
+    expect(get(agentStates)[2]).toMatchObject({ status: 'permission', subject: 'Claude needs your permission to use Bash', attention: true });
+    handleAgentStateEvent(2, JSON.stringify({ state: 'idle', lastText: 'Done. Shall I commit?', lastAt: 't5', sessionFile: '/s.jsonl' }));
+
     // A title tick must not override the file-derived state any more.
     handleTerminalTitle(2, '◐ Bash something');
     expect(get(agentStates)[2].status).toBe('idle');

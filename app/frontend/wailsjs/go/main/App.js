@@ -374,6 +374,18 @@ export function SetAgentDetectionEnabled(arg1) {
   return window['go']['main']['App']['SetAgentDetectionEnabled'](arg1);
 }
 
+export function GetClaudeHookStatusJSON(arg1) {
+  return window['go']['main']['App']['GetClaudeHookStatusJSON'](arg1);
+}
+
+export function InstallClaudeHook(arg1) {
+  return window['go']['main']['App']['InstallClaudeHook'](arg1);
+}
+
+export function RemoveClaudeHook(arg1) {
+  return window['go']['main']['App']['RemoveClaudeHook'](arg1);
+}
+
 export function ListAgentSessionsJSON(arg1, arg2) {
   return window['go']['main']['App']['ListAgentSessionsJSON'](arg1, arg2);
 }

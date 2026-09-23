@@ -48,8 +48,9 @@
     }
   });
 
-  const AGENT_ORDER = { attention: 0, idle: 1, working: 2, unknown: 3 };
+  const AGENT_ORDER = { permission: 0, attention: 1, idle: 2, working: 3, unknown: 4 };
   function agentRank(a) {
+    if (a.status === 'permission') return AGENT_ORDER.permission;
     if (a.attention) return AGENT_ORDER.attention;
     return AGENT_ORDER[a.status] ?? AGENT_ORDER.unknown;
   }
@@ -57,9 +58,10 @@
     .map(([id, agent]) => ({ id: Number(id), agent, term: terminals.find((t) => t.id === Number(id)) }))
     .filter((r) => r.term)
     .sort((a, b) => agentRank(a.agent) - agentRank(b.agent) || a.id - b.id);
-  $: agentsNeedingMe = agentRows.filter((r) => r.agent.attention || r.agent.status === 'idle').length;
+  $: agentsNeedingMe = agentRows.filter((r) => r.agent.attention || r.agent.status === 'idle' || r.agent.status === 'permission').length;
 
   function agentStateText(agent) {
+    if (agent.status === 'permission') return $t('sidebar.agentPermission');
     if (agent.attention) return $t('sidebar.agentDone');
     if (agent.status === 'working') return $t('agentPanel.working');
     if (agent.status === 'idle') return $t('agentPanel.idle');
@@ -144,10 +146,11 @@
                 class="sidebar-agent-row"
                 class:active-subnav={activeTerminalId === row.id}
                 class:sidebar-agent-attention={row.agent.attention}
+                class:sidebar-agent-permission={row.agent.status === 'permission'}
                 title={[row.agent.label, row.agent.cwd, row.agent.lastText].filter(Boolean).join('\n')}
                 on:click={() => selectTerminal(row.term)}
               >
-                <span class="sidebar-agent-dot agent-dot-{row.agent.attention ? 'attention' : (row.agent.status || 'unknown')}"></span>
+                <span class="sidebar-agent-dot agent-dot-{row.agent.status === 'permission' ? 'permission' : row.agent.attention ? 'attention' : (row.agent.status || 'unknown')}"></span>
                 <span class="sidebar-agent-main">
                   <span class="sidebar-agent-head">
                     <span class="sidebar-agent-label">{row.agent.label}</span>

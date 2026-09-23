@@ -1,0 +1,304 @@
+package agents
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"path"
+	"sort"
+	"strings"
+	"time"
+)
+
+// Claude Code notification hook. Claude Code asks for permission before
+// running tools, and Mimir cannot tell "tool running" from "waiting for
+// approval" by looking at the session file. Claude Code's Notification hook
+// is the supported channel for that: on every permission prompt (and a few
+// related events) it runs a command with a JSON payload on stdin. Mimir's
+// hook command writes that payload into a small events directory, which the
+// session watcher reads. Nothing is parsed off the screen, and installing
+// the hook is explicit and reversible.
+
+// HookMarker identifies Mimir's hook entry inside settings.json.
+const HookMarker = "mimir-agent-hook"
+
+// HookEventsDirName is the directory (below the platform cache dir) where
+// hook payloads are dropped.
+const HookEventsDirName = "agent-events"
+
+// HookMatcher lists the notification types Mimir reacts to.
+const HookMatcher = "permission_prompt|idle_prompt|agent_needs_input|elicitation_dialog"
+
+// HookEvent is the payload Claude Code writes to a Notification hook.
+type HookEvent struct {
+	SessionID        string `json:"session_id"`
+	TranscriptPath   string `json:"transcript_path"`
+	Cwd              string `json:"cwd"`
+	HookEventName    string `json:"hook_event_name"`
+	NotificationType string `json:"notification_type"`
+	Message          string `json:"message"`
+	AgentID          string `json:"agent_id"`
+}
+
+// ParseHookEvent decodes a payload and rejects anything that is not a
+// notification (the directory is only ever written by the hook, but a stray
+// file must not crash the watcher).
+func ParseHookEvent(data []byte) (HookEvent, error) {
+	var ev HookEvent
+	if err := json.Unmarshal(data, &ev); err != nil {
+		return ev, err
+	}
+	if ev.HookEventName != "Notification" || ev.NotificationType == "" {
+		return ev, errors.New("not a notification event")
+	}
+	return ev, nil
+}
+
+// StateForNotification maps a notification type to an agent state.
+// Permission prompts and elicitations block the agent on the user; idle
+// prompts and agent_needs_input mean it is waiting for input.
+func StateForNotification(notificationType string) State {
+	switch notificationType {
+	case "permission_prompt", "elicitation_dialog":
+		return StatePermission
+	case "idle_prompt", "agent_needs_input":
+		return StateIdle
+	default:
+		return StateUnknown
+	}
+}
+
+// LocalHookCommand is the exec-form hook that runs Mimir itself; no shell is
+// involved, so it works identically on Linux, macOS and Windows.
+func LocalHookCommand(executable string) (command string, args []string) {
+	return executable, []string{"--agent-hook"}
+}
+
+// RemoteHookCommand is a POSIX one-liner for hosts without a Mimir binary
+// (Claude Code over SSH). It drops the payload below ~/.cache/mimir.
+func RemoteHookCommand() string {
+	dir := `"$HOME/.cache/mimir/` + HookEventsDirName + `"`
+	return `mkdir -p ` + dir + ` && umask 077 && cat > ` + dir + `/"$(date +%s)-$$.json"`
+}
+
+// hookEntry is one element of hooks.Notification.
+type hookEntry struct {
+	Matcher string           `json:"matcher,omitempty"`
+	Hooks   []map[string]any `json:"hooks"`
+}
+
+func mimirHook(command string, args []string) map[string]any {
+	h := map[string]any{
+		"type":          "command",
+		"command":       command,
+		"statusMessage": HookMarker,
+		"timeout":       10,
+	}
+	if len(args) > 0 {
+		h["args"] = args
+	}
+	return h
+}
+
+func isMimirHook(h map[string]any) bool {
+	if s, ok := h["statusMessage"].(string); ok && s == HookMarker {
+		return true
+	}
+	if c, ok := h["command"].(string); ok && strings.Contains(c, HookEventsDirName) {
+		return true
+	}
+	if args, ok := h["args"].([]any); ok {
+		for _, a := range args {
+			if s, ok := a.(string); ok && s == "--agent-hook" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// InstallClaudeHook returns settings.json content with Mimir's Notification
+// hook added (or refreshed). Other settings are preserved; an empty or
+// missing file yields a minimal document.
+func InstallClaudeHook(settings []byte, command string, args []string) ([]byte, error) {
+	doc, err := parseSettings(settings)
+	if err != nil {
+		return nil, err
+	}
+	hooks, _ := doc["hooks"].(map[string]any)
+	if hooks == nil {
+		hooks = map[string]any{}
+	}
+	var entries []hookEntry
+	if raw, ok := hooks["Notification"]; ok {
+		b, _ := json.Marshal(raw)
+		_ = json.Unmarshal(b, &entries)
+	}
+	kept := entries[:0]
+	for _, e := range entries {
+		var rest []map[string]any
+		for _, h := range e.Hooks {
+			if !isMimirHook(h) {
+				rest = append(rest, h)
+			}
+		}
+		if len(rest) > 0 {
+			e.Hooks = rest
+			kept = append(kept, e)
+		}
+	}
+	kept = append(kept, hookEntry{Matcher: HookMatcher, Hooks: []map[string]any{mimirHook(command, args)}})
+	hooks["Notification"] = kept
+	doc["hooks"] = hooks
+	return json.MarshalIndent(doc, "", "  ")
+}
+
+// RemoveClaudeHook returns settings.json content without Mimir's hook.
+func RemoveClaudeHook(settings []byte) ([]byte, bool, error) {
+	doc, err := parseSettings(settings)
+	if err != nil {
+		return nil, false, err
+	}
+	hooks, _ := doc["hooks"].(map[string]any)
+	if hooks == nil {
+		return settings, false, nil
+	}
+	var entries []hookEntry
+	if raw, ok := hooks["Notification"]; ok {
+		b, _ := json.Marshal(raw)
+		_ = json.Unmarshal(b, &entries)
+	}
+	removed := false
+	var kept []hookEntry
+	for _, e := range entries {
+		var rest []map[string]any
+		for _, h := range e.Hooks {
+			if isMimirHook(h) {
+				removed = true
+				continue
+			}
+			rest = append(rest, h)
+		}
+		if len(rest) > 0 {
+			e.Hooks = rest
+			kept = append(kept, e)
+		}
+	}
+	if !removed {
+		return settings, false, nil
+	}
+	if len(kept) == 0 {
+		delete(hooks, "Notification")
+	} else {
+		hooks["Notification"] = kept
+	}
+	if len(hooks) == 0 {
+		delete(doc, "hooks")
+	} else {
+		doc["hooks"] = hooks
+	}
+	out, err := json.MarshalIndent(doc, "", "  ")
+	return out, true, err
+}
+
+// HasClaudeHook reports whether Mimir's hook is present in settings.json.
+func HasClaudeHook(settings []byte) bool {
+	doc, err := parseSettings(settings)
+	if err != nil {
+		return false
+	}
+	hooks, _ := doc["hooks"].(map[string]any)
+	raw, ok := hooks["Notification"]
+	if !ok {
+		return false
+	}
+	var entries []hookEntry
+	b, _ := json.Marshal(raw)
+	_ = json.Unmarshal(b, &entries)
+	for _, e := range entries {
+		for _, h := range e.Hooks {
+			if isMimirHook(h) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func parseSettings(settings []byte) (map[string]any, error) {
+	doc := map[string]any{}
+	if strings.TrimSpace(string(settings)) == "" {
+		return doc, nil
+	}
+	if err := json.Unmarshal(settings, &doc); err != nil {
+		return nil, fmt.Errorf("settings.json is not valid JSON: %w", err)
+	}
+	return doc, nil
+}
+
+// Remover is implemented by filesystems that can delete processed hook
+// events. FS itself stays read-only for the transcript lookup.
+type Remover interface {
+	Remove(file string) error
+}
+
+// HookEventFile is one payload found in the events directory.
+type HookEventFile struct {
+	Path    string
+	ModTime time.Time
+	Event   HookEvent
+}
+
+// hookEventMaxAge: events nobody consumed (Claude Code outside Mimir, a
+// closed pane) are garbage-collected after this.
+const hookEventMaxAge = 10 * time.Minute
+
+// ScanHookEvents reads all payloads in dir, oldest first. Unparseable or
+// stale files are removed when fs can delete; a missing directory is not an
+// error.
+func ScanHookEvents(fs FS, dir string) []HookEventFile {
+	entries, err := fs.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	remover, _ := fs.(Remover)
+	var out []HookEventFile
+	for _, e := range entries {
+		if e.IsDir || !strings.HasSuffix(e.Name, ".json") {
+			continue
+		}
+		p := fs.Join(dir, e.Name)
+		stale := time.Since(e.ModTime) > hookEventMaxAge
+		data, err := fs.ReadHead(p, 64*1024)
+		if err != nil {
+			continue
+		}
+		ev, perr := ParseHookEvent(data)
+		if perr != nil || stale {
+			if remover != nil {
+				_ = remover.Remove(p)
+			}
+			continue
+		}
+		out = append(out, HookEventFile{Path: p, ModTime: e.ModTime, Event: ev})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ModTime.Before(out[j].ModTime) })
+	return out
+}
+
+// MatchesHookEvent reports whether an event belongs to the session file a
+// watcher follows (by session id in the file name, so path styles do not
+// matter) or, when no file is known yet, to its working directory.
+func MatchesHookEvent(ev HookEvent, sessionFile, cwd string) bool {
+	if sessionFile != "" {
+		base := path.Base(strings.ReplaceAll(sessionFile, `\`, "/"))
+		if ev.SessionID != "" && base == ev.SessionID+".jsonl" {
+			return true
+		}
+		if ev.TranscriptPath != "" && path.Base(strings.ReplaceAll(ev.TranscriptPath, `\`, "/")) == base {
+			return true
+		}
+		return false
+	}
+	return cwd != "" && ev.Cwd != "" && strings.TrimRight(ev.Cwd, "/\\") == strings.TrimRight(cwd, "/\\")
+}
