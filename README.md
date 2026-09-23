@@ -32,7 +32,8 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
 - Keyboard: Ctrl+Tab / Ctrl+Shift+Tab or Ctrl+Shift+←/→ switch panes,
   Ctrl+Shift+1…9 jump to the n-th terminal in the sidebar (restoring it if
   minimized; the sidebar shows the digit), Ctrl+Shift+M minimizes the active
-  pane, Ctrl+Shift+U restores the last minimized one, Ctrl+Shift+T opens a
+  pane, Ctrl+Shift+O restores the last minimized one (Ctrl+Shift+U also
+  works outside Linux, where GTK reserves it), Ctrl+Shift+T opens a
   new terminal, Ctrl+Shift+N toggles notes, Ctrl+Shift+P templates
 - Terminal scrollback search (Ctrl+Shift+F)
 - 58 built-in command templates with discovery-driven variables

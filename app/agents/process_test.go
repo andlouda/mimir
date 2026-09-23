@@ -44,6 +44,7 @@ func TestMatchArgs(t *testing.T) {
 		"bash":                                   "",
 		"vim claude-notes.md":                    "",
 		"node /x/gemini":                         KindGemini,
+		"/usr/local/bin/hermes chat":             KindHermes,
 	}
 	for args, want := range cases {
 		d, ok := MatchArgs(args)

@@ -23,7 +23,7 @@ export function parseAgentTitle(title) {
 
 // Banner fragments the supported agents print on startup. Seeing one in the
 // output stream is a cheap trigger to (re)run process detection.
-const BANNER_PATTERN = /OpenAI Codex|Claude Code|Gemini CLI|opencode|Aider v\d/i;
+const BANNER_PATTERN = /OpenAI Codex|Claude Code|Gemini CLI|opencode|Aider v\d|Hermes/i;
 
 /** True when a chunk of terminal output looks like an agent starting up. */
 export function outputMentionsAgent(chunk) {

@@ -128,8 +128,16 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   terminal.loadAddon(new ClipboardAddon(undefined, createWriteOnlyClipboardProvider()));
   const linkProviderDisposable = terminal.registerLinkProvider(createLinkProvider(id, terminal));
   // Keep Mimir's global shortcuts out of the shell; the window handler still
-  // receives them because xterm does not stop propagation.
-  terminal.attachCustomKeyEventHandler((event) => !isGlobalShortcut(event));
+  // receives them because xterm does not stop propagation. The default action
+  // is cancelled here as well: when xterm skips a key it leaves the browser's
+  // default in place, and WebKitGTK then inserts the character into xterm's
+  // textarea, whose input event xterm forwards to the PTY — Ctrl+Shift+M
+  // ended up typing "M" into Claude Code on Linux.
+  terminal.attachCustomKeyEventHandler((event) => {
+    if (!isGlobalShortcut(event)) return true;
+    event.preventDefault?.();
+    return false;
+  });
 
   const newTerminal = {
     id,
