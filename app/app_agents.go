@@ -369,9 +369,12 @@ func (a *App) rememberedAgent(terminalID int) (agentTerminalState, bool) {
 func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (string, error) {
 	result := a.detectAgent(terminalID, terminalType)
 	if result.Detected {
-		a.rememberAgent(terminalID, agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source})
+		state := agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source}
+		a.rememberAgent(terminalID, state)
+		a.startAgentWatcher(terminalID, terminalType, state)
 	} else {
 		a.forgetAgent(terminalID)
+		a.stopAgentWatcher(terminalID)
 	}
 	payload, err := json.Marshal(result)
 	if err != nil {
@@ -600,6 +603,14 @@ func (s sftpAgentFS) ReadDir(dir string) ([]agents.FileInfo, error) {
 		out = append(out, agents.FileInfo{Name: e.Name(), IsDir: e.IsDir(), ModTime: e.ModTime(), Size: e.Size()})
 	}
 	return out, nil
+}
+
+func (s sftpAgentFS) Stat(file string) (agents.FileInfo, error) {
+	info, err := s.client.Stat(file)
+	if err != nil {
+		return agents.FileInfo{}, err
+	}
+	return agents.FileInfo{Name: info.Name(), IsDir: info.IsDir(), ModTime: info.ModTime(), Size: info.Size()}, nil
 }
 
 func (s sftpAgentFS) ReadHead(file string, max int64) ([]byte, error) {

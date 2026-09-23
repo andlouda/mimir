@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { agentDetectionEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
+vi.mock('../../../wailsjs/runtime', () => ({
+  EventsOn: vi.fn(() => vi.fn()),
+}));
+
+import { EventsOn } from '../../../wailsjs/runtime';
 import {
+  handleAgentStateEvent,
   handleTerminalPrompt,
   handleTerminalTitle,
   loadAgentPaneText,
@@ -162,5 +168,30 @@ describe('agent detection', () => {
     const transcript = await loadAgentTranscript(2, 5);
     expect(window.go.main.App.GetAgentTranscriptJSON).toHaveBeenCalledWith(2, 'ssh', 5);
     expect(transcript.messages[0].text).toBe('hi');
+  });
+
+  test('session-file state events drive status and silence title parsing', async () => {
+    window.go.main.App.DetectAgentForTerminalJSON.mockResolvedValue(JSON.stringify({
+      detected: true, kind: 'claude', label: 'Claude Code', pid: 1, cwd: '/p', source: 'local', transcripts: true, tmux: true,
+    }));
+    startAgentWatch(2, 'bash');
+    await runAgentDetection(2);
+    expect(EventsOn).toHaveBeenCalledWith('agent-state-2', expect.any(Function));
+
+    activeTerminalId.set(1);
+    handleAgentStateEvent(2, JSON.stringify({ state: 'working', lastText: 'Looking at the tests.\nmore', lastAt: 't1' }));
+    expect(get(agentStates)[2]).toMatchObject({ status: 'working', subject: 'Looking at the tests.', fileState: true, attention: false });
+
+    handleAgentStateEvent(2, JSON.stringify({ state: 'idle', lastText: 'Done. Shall I commit?', lastAt: 't2', sessionFile: '/s.jsonl' }));
+    expect(get(agentStates)[2]).toMatchObject({ status: 'idle', subject: 'Done. Shall I commit?', attention: true, sessionFile: '/s.jsonl' });
+
+    // A title tick must not override the file-derived state any more.
+    handleTerminalTitle(2, '◐ Bash something');
+    expect(get(agentStates)[2].status).toBe('idle');
+
+    // Garbage payloads are ignored.
+    handleAgentStateEvent(2, 'not json');
+    expect(get(agentStates)[2].status).toBe('idle');
+    stopAgentWatch(2);
   });
 });

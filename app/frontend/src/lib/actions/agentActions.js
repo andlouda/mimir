@@ -2,6 +2,7 @@ import { get } from 'svelte/store';
 import { agentDetectionEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import { outputMentionsAgent, parseAgentTitle } from '../agents/agentSignals.js';
+import { EventsOn } from '../../../wailsjs/runtime';
 
 function app() {
   return window['go']['main']['App'];
@@ -17,7 +18,7 @@ const LIVENESS_MS = 3 * 60 * 1000;
 const DEBOUNCE_MS = 1500;
 const INITIAL_DELAY_MS = 2500;
 
-const watches = new Map(); // terminalId → { type, timer, pending, lastRun }
+const watches = new Map(); // terminalId → { type, timer, pending, lastRun, offState }
 
 function terminalType(id) {
   const watch = watches.get(id);
@@ -68,9 +69,11 @@ export async function runAgentDetection(id) {
       if (get(agentPanelTerminalId) === id) agentPanelTerminalId.set(null);
     }
     setLiveness(id, false);
+    unsubscribeState(id);
     return result;
   }
   setLiveness(id, true);
+  if (result.transcripts) subscribeState(id);
   const previous = get(agentStates)[id];
   const unchanged = previous
     && previous.kind === result.kind
@@ -93,6 +96,41 @@ export async function runAgentDetection(id) {
     detectedAt: previous?.kind === result.kind ? previous.detectedAt : Date.now(),
   });
   return result;
+}
+
+// The backend follows the agent's session file and emits
+// "agent-state-<id>" whenever the derived state changes. That is the
+// source of truth for working / waiting; window titles only fill in while
+// no file event has arrived yet.
+function subscribeState(id) {
+  const watch = watches.get(id);
+  if (!watch || watch.offState) return;
+  watch.offState = EventsOn(`agent-state-${id}`, (raw) => handleAgentStateEvent(id, raw));
+}
+
+function unsubscribeState(id) {
+  const watch = watches.get(id);
+  if (watch?.offState) {
+    try { watch.offState(); } catch { /* already gone */ }
+    watch.offState = null;
+  }
+}
+
+export function handleAgentStateEvent(id, raw) {
+  let payload = raw;
+  if (typeof raw === 'string') {
+    try { payload = JSON.parse(raw); } catch { return; }
+  }
+  if (!payload || typeof payload !== 'object') return;
+  const current = get(agentStates)[id];
+  if (!current) return;
+  const status = payload.state === 'working' || payload.state === 'idle' ? payload.state : 'unknown';
+  const lastText = String(payload.lastText || '');
+  const subject = lastText.split('\n').find((l) => l.trim()) || current.subject || '';
+  const finished = current.status === 'working' && status === 'idle';
+  const attention = finished && get(activeTerminalId) !== id ? true : (current.attention || false);
+  if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention) return;
+  setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, fileState: true, lastChange: Date.now() });
 }
 
 function setLiveness(id, on) {
@@ -128,6 +166,8 @@ export function handleTerminalTitle(id, title) {
     // the badge can show state as soon as detection confirms the kind.
     scheduleAgentDetection(id, { immediate: true });
   }
+  // Once the session file drives the state, titles are only noise.
+  if (current?.fileState) return;
   const finished = current?.status === 'working' && parsed.status === 'idle';
   const attention = finished && get(activeTerminalId) !== id ? true : (current?.attention || false);
   // Claude Code re-sets its title about once a second while working (the
@@ -160,6 +200,7 @@ export function stopAgentWatch(id) {
   if (!watch) return;
   if (watch.timer) clearInterval(watch.timer);
   if (watch.pending) clearTimeout(watch.pending);
+  unsubscribeState(id);
   watches.delete(id);
   setState(id, null);
   if (get(agentPanelTerminalId) === id) agentPanelTerminalId.set(null);
