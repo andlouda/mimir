@@ -365,3 +365,11 @@ export function GetTmuxIntegrationMode() {
 export function SetTmuxIntegrationMode(arg1) {
   return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
 }
+
+export function IsAgentDetectionEnabled() {
+  return window['go']['main']['App']['IsAgentDetectionEnabled']();
+}
+
+export function SetAgentDetectionEnabled(arg1) {
+  return window['go']['main']['App']['SetAgentDetectionEnabled'](arg1);
+}

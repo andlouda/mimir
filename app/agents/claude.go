@@ -39,6 +39,12 @@ func FindClaudeTranscripts(fs FS, home, cwd string) ([]string, error) {
 	projects := fs.Join(home, ".claude", "projects")
 	now := time.Now()
 
+	if strings.TrimSpace(cwd) == "" {
+		// Working directory unknown (no tmux, no prompt beacon yet): fall back
+		// to the most recently written sessions across all projects.
+		return newestSessions(fs, projects, now)
+	}
+
 	direct := fs.Join(projects, ClaudeProjectDirName(cwd))
 	if files, err := fs.ReadDir(direct); err == nil {
 		newestFirst(files)
@@ -276,4 +282,36 @@ func cleanUserText(text string, user bool) string {
 		}
 	}
 	return text
+}
+
+// newestSessions lists recent session files of every project directory,
+// newest first.
+func newestSessions(fs FS, projects string, now time.Time) ([]string, error) {
+	dirs, err := fs.ReadDir(projects)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	var infos []FileInfo
+	var paths []string
+	for _, d := range dirs {
+		if !d.IsDir {
+			continue
+		}
+		dir := fs.Join(projects, d.Name)
+		files, err := fs.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, f := range files {
+			if f.IsDir || !strings.HasSuffix(f.Name, ".jsonl") || now.Sub(f.ModTime) > candidateMaxAge {
+				continue
+			}
+			infos = append(infos, f)
+			paths = append(paths, fs.Join(dir, f.Name))
+		}
+	}
+	if len(paths) == 0 {
+		return nil, ErrNotFound
+	}
+	return sortPathsNewest(paths, infos), nil
 }

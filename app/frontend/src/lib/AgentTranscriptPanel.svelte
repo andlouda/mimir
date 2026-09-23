@@ -19,7 +19,7 @@
 
   const REFRESH_WORKING_MS = 6000;
   const MESSAGE_LIMIT = 24;
-  const TABS = ['snippets', 'files', 'commands', 'history', 'screen'];
+  const ALL_TABS = ['snippets', 'files', 'commands', 'history', 'screen'];
 
   let transcript = null;
   let view = 'snippets';
@@ -40,6 +40,10 @@
 
   $: agent = $agentStates[terminalId] || null;
   $: term = $terminalMap.get(terminalId) || null;
+  // The screen view needs tmux (capture-pane); PowerShell/cmd and tmux mode
+  // "off" have none.
+  $: TABS = agent && agent.tmux === false ? ALL_TABS.filter((t) => t !== 'screen') : ALL_TABS;
+  $: if (view === 'screen' && !TABS.includes('screen')) view = 'snippets';
   // "Insert" targets the pane the user last clicked (the active terminal),
   // not the agent's own pane: snippets are meant for the other terminals.
   // Falls back to the agent's pane when nothing else is active.

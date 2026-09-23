@@ -235,3 +235,24 @@ func TestParseCodexSessionToolActivity(t *testing.T) {
 		t.Fatalf("unexpected file ops: %v", ops)
 	}
 }
+
+// TestReadTranscriptWithoutCwd covers terminals where the working directory
+// is unknown (PowerShell/cmd without a prompt beacon): the newest recent
+// session wins.
+func TestReadTranscriptWithoutCwd(t *testing.T) {
+	home := t.TempDir()
+	now := time.Now()
+	writeFile(t, filepath.Join(home, ".claude", "projects", "C--Users-me-old", "a.jsonl"), claudeSession, now.Add(-2*time.Hour))
+	newest := filepath.Join(home, ".claude", "projects", "C--Users-me-proj", "b.jsonl")
+	writeFile(t, newest, claudeSession, now)
+	tr, err := ReadTranscript(LocalFS{}, KindClaude, home, "", ReadOptions{})
+	if err != nil || tr.SessionFile != newest {
+		t.Fatalf("expected newest session without cwd, got %+v (err %v)", tr, err)
+	}
+	p := filepath.Join(home, ".codex", "sessions", "2026", "06", "21", "rollout-x.jsonl")
+	writeFile(t, p, codexSession, now)
+	tr, err = ReadTranscript(LocalFS{}, KindCodex, home, "", ReadOptions{})
+	if err != nil || tr.SessionFile != p {
+		t.Fatalf("expected newest codex session without cwd, got %+v (err %v)", tr, err)
+	}
+}

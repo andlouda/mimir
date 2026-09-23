@@ -76,7 +76,8 @@ export async function runAgentDetection(id) {
     && previous.kind === result.kind
     && previous.pid === result.pid
     && previous.cwd === result.cwd
-    && previous.source === result.source;
+    && previous.source === result.source
+    && previous.tmux === !!result.tmux;
   if (unchanged) return result;
   setState(id, {
     kind: result.kind,
@@ -85,6 +86,7 @@ export async function runAgentDetection(id) {
     cwd: result.cwd,
     source: result.source,
     transcripts: !!result.transcripts,
+    tmux: !!result.tmux,
     status: previous?.status || 'unknown',
     subject: previous?.subject || '',
     attention: previous?.attention || false,
