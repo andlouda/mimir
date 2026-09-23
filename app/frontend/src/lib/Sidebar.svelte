@@ -32,6 +32,7 @@
   let terminalNavOpen = false;
   let sshNavOpen = true;
   let auditNavOpen = false;
+  let agentsNavOpen = true;
   let dragOverFolder = null;
   let dragTerminalId = null;
 
@@ -89,14 +90,6 @@
   </div>
 
   {#if collapsed}
-    {#if agentRows.length > 0}
-      <div class="sidebar-section">
-        <div class="sidebar-heading collapsed-icon" on:click={() => selectTerminal(agentRows[0].term)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectTerminal(agentRows[0].term); }} tabindex="0" role="button" title={$t('sidebar.agents')}>
-          <span class="nav-icon">&#x1F916;</span>
-          <span class="sidebar-agent-count" class:sidebar-agent-count-attention={agentsNeedingMe > 0}>{agentsNeedingMe || agentRows.length}</span>
-        </div>
-      </div>
-    {/if}
     <div class="sidebar-section">
       <div class="sidebar-heading collapsed-icon" on:click={openTerminals} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') openTerminals(); }} tabindex="0" role="button" class:active-nav={currentPage === 'terminals'} title={$t('sidebar.terminal')}>
         <span class="nav-icon">&#9656;</span>
@@ -107,6 +100,14 @@
         <span class="nav-icon">&#x2192;</span>
       </div>
     </div>
+    {#if agentRows.length > 0}
+      <div class="sidebar-section">
+        <div class="sidebar-heading collapsed-icon" on:click={() => selectTerminal(agentRows[0].term)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectTerminal(agentRows[0].term); }} tabindex="0" role="button" title={$t('sidebar.agents')}>
+          <span class="nav-icon">&#x2731;</span>
+          <span class="sidebar-agent-count" class:sidebar-agent-count-attention={agentsNeedingMe > 0}>{agentsNeedingMe || agentRows.length}</span>
+        </div>
+      </div>
+    {/if}
     <div class="sidebar-section">
       <div class="sidebar-heading collapsed-icon" on:click={() => { openPage("fileBrowser"); }} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { openPage("fileBrowser"); }}} tabindex="0" role="button" class:active-nav={currentPage === 'fileBrowser'} title={$t('sidebar.files')}>
         <span class="nav-icon">&#x2302;</span>
@@ -124,7 +125,7 @@
     </div>
     <div class="sidebar-section">
       <div class="sidebar-heading collapsed-icon" on:click={() => { openPage("activityLogs"); }} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { openPage("activityLogs"); }}} tabindex="0" role="button" class:active-nav={isAuditPage()} title={$t('sidebar.audit')}>
-        <span class="nav-icon">&#x1F4DC;</span>
+        <span class="nav-icon">&#x2261;</span>
       </div>
     </div>
     <div class="sidebar-section">
@@ -133,40 +134,6 @@
       </div>
     </div>
   {:else}
-    {#if agentRows.length > 0}
-      <div class="sidebar-section sidebar-agents">
-        <div class="sidebar-heading sidebar-heading-static">
-          <span class="nav-icon">&#x1F916;</span> {$t('sidebar.agents')}
-          <small>{agentRows.length}</small>
-        </div>
-        <ul class="sidebar-list">
-          {#each agentRows as row (row.id)}
-            <li>
-              <button
-                class="sidebar-agent-row"
-                class:active-subnav={activeTerminalId === row.id}
-                class:sidebar-agent-attention={row.agent.attention}
-                class:sidebar-agent-permission={row.agent.status === 'permission'}
-                title={[row.agent.label, row.agent.cwd, row.agent.lastText].filter(Boolean).join('\n')}
-                on:click={() => selectTerminal(row.term)}
-              >
-                <span class="sidebar-agent-dot agent-dot-{row.agent.status === 'permission' ? 'permission' : row.agent.attention ? 'attention' : (row.agent.status || 'unknown')}"></span>
-                <span class="sidebar-agent-main">
-                  <span class="sidebar-agent-head">
-                    <span class="sidebar-agent-label">{row.agent.label}</span>
-                    <span class="sidebar-agent-term">{row.term.name}{agentCwd(row.agent) ? ' · ' + agentCwd(row.agent) : ''}{row.term.minimized ? ' · ' + $t('sidebar.minimized') : ''}</span>
-                  </span>
-                  <span class="sidebar-agent-state">
-                    <span class="sidebar-agent-status">{agentStateText(row.agent)}</span>
-                    {#if row.agent.subject}<span class="sidebar-agent-text">{row.agent.subject}</span>{/if}
-                  </span>
-                </span>
-              </button>
-            </li>
-          {/each}
-        </ul>
-      </div>
-    {/if}
     <div class="sidebar-section">
       <div class="sidebar-heading"
         on:click={() => { terminalNavOpen = !terminalNavOpen; if (currentPage !== 'terminals') openTerminals(); }}
@@ -263,6 +230,49 @@
       {/if}
     </div>
 
+    {#if agentRows.length > 0}
+      <div class="sidebar-section sidebar-agents">
+        <div class="sidebar-heading"
+          on:click={() => { agentsNavOpen = !agentsNavOpen; }}
+          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { agentsNavOpen = !agentsNavOpen; } }}
+          tabindex="0" role="button"
+          aria-expanded={agentsNavOpen}
+        >
+          <span class="nav-icon">&#x2731;</span> {$t('sidebar.agents')}
+          <span class="sidebar-agent-count" class:sidebar-agent-count-attention={agentsNeedingMe > 0}>{agentsNeedingMe || agentRows.length}</span>
+          <span class="sidebar-disclosure">{agentsNavOpen ? '▾' : '▸'}</span>
+        </div>
+        {#if agentsNavOpen}
+        <ul class="sidebar-list">
+          {#each agentRows as row (row.id)}
+            <li>
+              <button
+                class="sidebar-agent-row"
+                class:active-subnav={activeTerminalId === row.id}
+                class:sidebar-agent-attention={row.agent.attention}
+                class:sidebar-agent-permission={row.agent.status === 'permission'}
+                title={[row.agent.label, row.agent.cwd, row.agent.lastText].filter(Boolean).join('\n')}
+                on:click={() => selectTerminal(row.term)}
+              >
+                <span class="sidebar-agent-dot agent-dot-{row.agent.status === 'permission' ? 'permission' : row.agent.attention ? 'attention' : (row.agent.status || 'unknown')}"></span>
+                <span class="sidebar-agent-main">
+                  <span class="sidebar-agent-head">
+                    <span class="sidebar-agent-label">{row.agent.label}</span>
+                    <span class="sidebar-agent-term">{row.term.name}{agentCwd(row.agent) ? ' · ' + agentCwd(row.agent) : ''}{row.term.minimized ? ' · ' + $t('sidebar.minimized') : ''}</span>
+                  </span>
+                  <span class="sidebar-agent-state">
+                    <span class="sidebar-agent-status">{agentStateText(row.agent)}</span>
+                    {#if row.agent.subject}<span class="sidebar-agent-text">{row.agent.subject}</span>{/if}
+                  </span>
+                </span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+        {/if}
+      </div>
+    {/if}
+
     <div class="sidebar-section">
       <div class="sidebar-heading"
         on:click={() => { openPage("fileBrowser"); }}
@@ -304,7 +314,7 @@
         class:active-nav={isAuditPage()}
         aria-expanded={auditNavOpen || isAuditPage()}
       >
-        <span class="nav-icon">&#x1F4DC;</span> {$t('sidebar.audit')}
+        <span class="nav-icon">&#x2261;</span> {$t('sidebar.audit')}
         <span class="sidebar-disclosure">{(auditNavOpen || isAuditPage()) ? '▾' : '▸'}</span>
       </div>
       {#if auditNavOpen || isAuditPage()}

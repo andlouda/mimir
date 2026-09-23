@@ -211,8 +211,8 @@
   }
 
   /* ─── Agents overview ─── */
-  .sidebar-heading-static { cursor: default; }
-  .sidebar-heading-static small { margin-left: auto; opacity: 0.7; }
+  .sidebar-agents .sidebar-heading .sidebar-agent-count { position: static; margin-left: auto; }
+  .sidebar-agents .sidebar-heading .sidebar-disclosure { margin-left: 0; }
   .sidebar-agents .sidebar-list li button.sidebar-agent-row {
     padding: 0.35rem 0.8rem 0.35rem 1rem;
     align-items: flex-start;
