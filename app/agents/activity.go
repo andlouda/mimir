@@ -30,11 +30,20 @@ type CommandRun struct {
 	At      string `json:"at,omitempty"`
 }
 
+// Task is one entry of the agent's own todo list (Claude Code TodoWrite,
+// OpenCode todo table).
+type Task struct {
+	Content  string `json:"content"`
+	Status   string `json:"status"`             // pending | in_progress | completed | cancelled
+	Priority string `json:"priority,omitempty"` // high | medium | low
+}
+
 // Session is the full parse result of a transcript file.
 type Session struct {
 	Messages []Message
 	Files    []FileActivity
 	Commands []CommandRun
+	Tasks    []Task
 }
 
 // fileTracker aggregates per-file operations preserving recency order.

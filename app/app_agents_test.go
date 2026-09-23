@@ -46,3 +46,14 @@ func TestParseAgentCaptureJoinsFullWidthRows(t *testing.T) {
 		t.Fatalf("missing separator must yield empty capture")
 	}
 }
+
+func TestParsePSAcceptsWindowsProcessTable(t *testing.T) {
+	out := "4\t0\t\n1234\t800\tC:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo\n" +
+		"2222\t1234\t\"C:\\Program Files\\nodejs\\node.exe\"  \"C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js\"\n" +
+		"3333\t1234\tC:\\Users\\me\\.local\\bin\\claude.exe --resume\n"
+	procs := agents.ParsePS(out)
+	det, ok := agents.FindAgent(procs, 1234)
+	if !ok || det.Kind != agents.KindClaude || det.PID != 3333 {
+		t.Fatalf("expected the native claude.exe child to be detected, got %+v %v", det, ok)
+	}
+}

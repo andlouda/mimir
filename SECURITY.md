@@ -40,7 +40,12 @@ Mimir is a local desktop terminal application. It may handle sensitive terminal 
   anything the agent saw, including secrets; they are rendered through the
   same sanitizer as notes, never uploaded, and only metadata (agent kind,
   message count) is written to the activity log. Detection is on by default
-  and can be disabled in Settings.
+  and can be disabled in Settings. On terminals without tmux (PowerShell,
+  cmd, tmux mode off) the process tree is read from the terminal's own child
+  process and the working directory from Mimir's prompt hook; enabling
+  detection therefore counts as consent for injecting that hook (it only
+  reports to Mimir, and the command line it carries is stored only when
+  history tracking is on).
 - Terminal recordings contain raw terminal data and may include secrets.
   Keystroke (input) recording is disabled by default. Scrubbing is best-effort
   and applied only when exporting; it cannot guarantee removal of free-form

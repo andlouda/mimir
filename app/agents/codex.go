@@ -23,6 +23,7 @@ func FindCodexTranscripts(fs FS, home, cwd string) ([]string, error) {
 	probe := cwdProbe(cwd)
 	now := time.Now()
 
+	unknownCwd := strings.TrimSpace(cwd) == ""
 	var matches []FileInfo
 	var paths []string
 	var walk func(dir string, depth int)
@@ -42,6 +43,15 @@ func FindCodexTranscripts(fs FS, home, cwd string) ([]string, error) {
 			if strings.HasPrefix(e.Name, "rollout-") && strings.HasSuffix(e.Name, ".jsonl") {
 				files = append(files, e)
 			}
+		}
+		if unknownCwd {
+			for _, f := range files {
+				if now.Sub(f.ModTime) <= candidateMaxAge {
+					matches = append(matches, f)
+					paths = append(paths, fs.Join(dir, f.Name))
+				}
+			}
+			return
 		}
 		for _, f := range allMatching(fs, dir, files, probe, now) {
 			matches = append(matches, f)

@@ -124,6 +124,21 @@ func (m *Manager) SetHistoryStore(store *history.Store) {
 }
 
 // SetSessionMeta records the session type and SSH profile for a terminal.
+// SessionPID returns the pid of the process at the root of a local
+// terminal's process tree (the shell or tmux client), or 0 for SSH sessions.
+func (m *Manager) SessionPID(id int) int {
+	m.ptyMutex.Lock()
+	session, ok := m.sessions[id]
+	m.ptyMutex.Unlock()
+	if !ok {
+		return 0
+	}
+	if ls, ok := session.(*localSession); ok && ls.cmd != nil && ls.cmd.Process != nil {
+		return ls.cmd.Process.Pid
+	}
+	return 0
+}
+
 func (m *Manager) SetSessionMeta(id int, sessionType string, sshProfile string) {
 	m.ptyMutex.Lock()
 	defer m.ptyMutex.Unlock()

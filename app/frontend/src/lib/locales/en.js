@@ -93,7 +93,7 @@ export default {
         desc_off: 'Local terminals start without tmux: no session persistence after a restart, everything native. SSH profiles keep their own tmux switch.',
         note: 'Invisible and classic are applied to running tmux terminals immediately; off takes effect for terminals opened from now on.',
       },
-      agentDetection: { title: 'Agent detection', desc: 'Detects Claude Code, Codex and other coding agents running in a pane, shows their state in the pane header and offers their output for exact copying. Probes the pane process list out-of-band only when a terminal signals activity (title, startup banner, new prompt); no keystrokes are sent, no periodic polling.' },
+      agentDetection: { title: 'Agent detection', desc: 'Detects Claude Code, Codex and other coding agents running in a pane, shows their state in the pane header and offers their output for exact copying. Probes the pane process list out-of-band only when a terminal signals activity (title, startup banner, new prompt); no keystrokes are sent, no periodic polling. Works in tmux panes, PowerShell and cmd; enabling it also injects the lightweight prompt hook that reports the working directory.' },
       aiSettings: { title: 'AI Settings', desc: 'Manage provider, tool filter, approval policy and prompt configuration.' },
       templates: { title: 'Templates', desc: 'Edit command templates and favorites without keeping them permanently in the sidebar.' },
       notes: { title: 'Notes', desc: 'Show or hide notes as the right-hand terminal panel.' },
@@ -733,6 +733,8 @@ export default {
     noMatches: 'No matches',
   },
   agentPanel: {
+    tabTasks: 'Tasks',
+    tasksHint: 'The agent\'s own task list, as it maintains it while working.',
     insertInto: 'Insert into the active terminal: {name}',
     tabSnippets: 'Snippets',
     tabFiles: 'Files',

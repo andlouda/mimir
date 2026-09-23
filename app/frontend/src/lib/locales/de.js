@@ -93,7 +93,7 @@ export default {
         desc_off: 'Lokale Terminals starten ohne tmux: keine Sitzungs-Wiederherstellung nach Neustart, alles nativ. SSH-Profile behalten ihren eigenen tmux-Schalter.',
         note: 'Unsichtbar und Klassisch werden sofort auf laufende tmux-Terminals angewendet; Aus gilt für Terminals, die ab jetzt geöffnet werden.',
       },
-      agentDetection: { title: 'Agent-Erkennung', desc: 'Erkennt Claude Code, Codex und andere Coding-Agenten in einer Pane, zeigt ihren Status im Pane-Header und bietet ihre Ausgabe zum exakten Kopieren an. Prüft die Prozessliste der Pane out-of-band und nur, wenn ein Terminal Aktivität meldet (Titel, Startbanner, neuer Prompt); keine Tastendrücke, kein regelmäßiges Polling.' },
+      agentDetection: { title: 'Agent-Erkennung', desc: 'Erkennt Claude Code, Codex und andere Coding-Agenten in einer Pane, zeigt ihren Status im Pane-Header und bietet ihre Ausgabe zum exakten Kopieren an. Prüft die Prozessliste der Pane out-of-band und nur, wenn ein Terminal Aktivität meldet (Titel, Startbanner, neuer Prompt); keine Tastendrücke, kein regelmäßiges Polling. Funktioniert in tmux-Panes, PowerShell und cmd; die Aktivierung fügt außerdem den leichtgewichtigen Prompt-Hook ein, der das Arbeitsverzeichnis meldet.' },
       aiSettings: { title: 'AI Settings', desc: 'Provider, Tool-Filter, Approval-Policy und Prompt-Konfiguration verwalten.' },
       templates: { title: 'Templates', desc: 'Command-Templates und Favoriten bearbeiten, ohne sie dauerhaft in der Sidebar zu halten.' },
       notes: { title: 'Notes', desc: 'Notes als rechtes Terminal-Panel ein- oder ausblenden.' },
@@ -733,6 +733,8 @@ export default {
     noMatches: 'Keine Treffer',
   },
   agentPanel: {
+    tabTasks: 'Aufgaben',
+    tasksHint: 'Die eigene Aufgabenliste des Agenten, so wie er sie beim Arbeiten führt.',
     insertInto: 'In das aktive Terminal einfügen: {name}',
     tabSnippets: 'Snippets',
     tabFiles: 'Dateien',

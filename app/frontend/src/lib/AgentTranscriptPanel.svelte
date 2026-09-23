@@ -19,7 +19,7 @@
 
   const REFRESH_WORKING_MS = 6000;
   const MESSAGE_LIMIT = 24;
-  const TABS = ['snippets', 'files', 'commands', 'history', 'screen'];
+  const ALL_TABS = ['snippets', 'tasks', 'files', 'commands', 'history', 'screen'];
 
   let transcript = null;
   let view = 'snippets';
@@ -40,6 +40,12 @@
 
   $: agent = $agentStates[terminalId] || null;
   $: term = $terminalMap.get(terminalId) || null;
+  // The screen view needs tmux (capture-pane); PowerShell/cmd and tmux mode
+  // "off" have none.
+  $: TABS = ALL_TABS.filter((t) => (t !== 'screen' || !(agent && agent.tmux === false)) && (t !== 'tasks' || (transcript?.tasks || []).length > 0));
+  $: openTasks = (transcript?.tasks || []).filter((t) => t.status !== 'completed' && t.status !== 'cancelled').length;
+  $: if (view === 'tasks' && !TABS.includes('tasks')) view = 'snippets';
+  $: if (view === 'screen' && !TABS.includes('screen')) view = 'snippets';
   // "Insert" targets the pane the user last clicked (the active terminal),
   // not the agent's own pane: snippets are meant for the other terminals.
   // Falls back to the agent's pane when nothing else is active.
@@ -225,6 +231,7 @@
   function tabLabel(tab) {
     switch (tab) {
       case 'snippets': return $t('agentPanel.tabSnippets');
+      case 'tasks': return $t('agentPanel.tabTasks') + (openTasks ? ` (${openTasks})` : '');
       case 'files': return $t('agentPanel.tabFiles') + (changedFiles.length ? ` (${changedFiles.length})` : '');
       case 'commands': return $t('agentPanel.tabCommands') + (failedCommands ? ` (${failedCommands}✗)` : '');
       case 'history': return $t('agentPanel.tabHistory');
@@ -348,6 +355,17 @@
           <button type="button" class="agent-link agent-more" on:click={() => (showOlderSnippets = !showOlderSnippets)}>{showOlderSnippets ? $t('agentPanel.olderHide') : $t('agentPanel.olderShow')}</button>
         {/if}
 
+      {:else if view === 'tasks'}
+        <p class="agent-panel-hint">{$t('agentPanel.tasksHint')}</p>
+        <ul class="agent-tasks">
+          {#each transcript.tasks as task, i (i)}
+            <li class="agent-task agent-task-{task.status}">
+              <span class="agent-task-mark">{task.status === 'completed' ? '✔' : task.status === 'in_progress' ? '●' : task.status === 'cancelled' ? '✕' : '○'}</span>
+              <span class="agent-task-text">{task.content}</span>
+              {#if task.priority === 'high'}<span class="agent-task-prio">!</span>{/if}
+            </li>
+          {/each}
+        </ul>
       {:else if view === 'files'}
         <div class="agent-section-head">
           <span>{$t('agentPanel.gitTitle')}</span>
@@ -495,6 +513,15 @@
   .agent-op { font-size: 9px; text-transform: uppercase; border-radius: 3px; padding: 0 4px; border: 1px solid var(--border-subtle); color: var(--text-secondary); }
   .agent-op-write, .agent-op-edit { color: #e3b341; border-color: rgba(227, 179, 65, 0.4); }
   .agent-op-delete { color: #f85149; border-color: rgba(248, 81, 73, 0.4); }
+  .agent-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .agent-task { display: flex; align-items: flex-start; gap: 8px; padding: 4px 8px; border: 1px solid var(--border-subtle); border-radius: 6px; }
+  .agent-task-mark { font-family: var(--font-mono); width: 1em; flex-shrink: 0; }
+  .agent-task-completed { opacity: 0.55; }
+  .agent-task-completed .agent-task-text { text-decoration: line-through; }
+  .agent-task-in_progress { border-color: rgba(227, 179, 65, 0.5); }
+  .agent-task-in_progress .agent-task-mark { color: #e3b341; }
+  .agent-task-completed .agent-task-mark { color: #7ee787; }
+  .agent-task-prio { color: #f85149; font-weight: 700; margin-left: auto; }
   .agent-cmd { border: 1px solid var(--border-subtle); border-radius: 6px; padding: 4px 8px 0; }
   .agent-cmd-failed { border-color: rgba(248, 81, 73, 0.4); }
   .agent-exit { font-family: var(--font-mono); }

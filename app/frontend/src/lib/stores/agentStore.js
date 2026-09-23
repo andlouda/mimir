@@ -29,10 +29,34 @@ function readDetectionSetting() {
 // probe only inspects the pane's process list out-of-band).
 export const agentDetectionEnabled = writable(readDetectionSetting());
 
+let syncingFromBackend = false;
+
 agentDetectionEnabled.subscribe((enabled) => {
   try {
     localStorage.setItem(DETECTION_KEY, enabled ? 'on' : 'off');
   } catch {
     /* localStorage unavailable */
   }
+  // The backend keeps the authoritative copy: it also gates the prompt hook
+  // that reports the working directory of terminals without tmux.
+  if (syncingFromBackend) return;
+  const setter = globalThis.window?.['go']?.['main']?.['App']?.['SetAgentDetectionEnabled'];
+  if (typeof setter === 'function') {
+    Promise.resolve(setter(enabled)).catch((error) => console.error('Could not save agent detection setting:', error));
+  }
 });
+
+/** Loads the persisted setting from the backend (call once at start-up). */
+export async function loadAgentDetectionSetting() {
+  const getter = globalThis.window?.['go']?.['main']?.['App']?.['IsAgentDetectionEnabled'];
+  if (typeof getter !== 'function') return;
+  try {
+    const enabled = await getter();
+    syncingFromBackend = true;
+    agentDetectionEnabled.set(Boolean(enabled));
+  } catch (error) {
+    console.warn('Could not load agent detection setting:', error);
+  } finally {
+    syncingFromBackend = false;
+  }
+}

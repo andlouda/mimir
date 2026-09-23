@@ -23,6 +23,9 @@ type FileInfo struct {
 type FS interface {
 	Join(elem ...string) string
 	ReadDir(dir string) ([]FileInfo, error)
+	// Stat returns size and modification time of a file (used by the
+	// state watcher to notice changes cheaply).
+	Stat(file string) (FileInfo, error)
 	// ReadHead returns at most max bytes from the start of the file.
 	ReadHead(file string, max int64) ([]byte, error)
 	// ReadTail returns at most max bytes from the end of the file. Callers
@@ -67,6 +70,14 @@ func (l LocalFS) ReadDir(dir string) ([]FileInfo, error) {
 		out = append(out, FileInfo{Name: e.Name(), IsDir: e.IsDir(), ModTime: info.ModTime(), Size: info.Size()})
 	}
 	return out, nil
+}
+
+func (l LocalFS) Stat(file string) (FileInfo, error) {
+	info, err := os.Stat(l.resolve(file))
+	if err != nil {
+		return FileInfo{}, err
+	}
+	return FileInfo{Name: info.Name(), IsDir: info.IsDir(), ModTime: info.ModTime(), Size: info.Size()}, nil
 }
 
 func (l LocalFS) ReadHead(file string, max int64) ([]byte, error) {

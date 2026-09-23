@@ -30,9 +30,14 @@ func (m *Manager) GetLastReportedCwd(id int) string {
 }
 
 // shellHookConsent reports whether the shell hook (OSC 7337) should be injected
-// for reasons other than command history. The secure .env viewer relies on the
-// hook to learn the terminal's working directory when there is no tmux session.
+// for reasons other than command history. The secure .env viewer and the
+// coding-agent detection rely on the hook to learn the terminal's working
+// directory when there is no tmux session. The hook only talks to Mimir
+// itself; its command field is stored only when history is enabled.
 func shellHookConsent() bool {
+	if agentDetectionEnabled() {
+		return true
+	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return false

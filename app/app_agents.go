@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"io"
 	"mimir/executil"
+	"mimir/terminal"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +31,9 @@ type agentDetectionResult struct {
 	Cwd         string      `json:"cwd,omitempty"`
 	Source      string      `json:"source,omitempty"` // local | wsl | ssh
 	Transcripts bool        `json:"transcripts"`
+	// Tmux reports whether the terminal is tmux-backed (screen capture and
+	// verification available). PowerShell/cmd and tmux mode "off" are not.
+	Tmux bool `json:"tmux"`
 	// Reason explains why nothing could be detected (no tmux, unsupported
 	// terminal type); it is informational, not an error.
 	Reason string `json:"reason,omitempty"`
@@ -125,6 +131,51 @@ func (a *App) capturePane(terminalID int, terminalType string) (string, int) {
 		return "", 0
 	}
 	return parseAgentCapture(output)
+}
+
+func agentDetectionDisabledPath() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("agent detection config dir: %w", err)
+	}
+	return filepath.Join(configDir, "mimir", terminal.AgentDetectionDisabledFile), nil
+}
+
+// IsAgentDetectionEnabled reports the persisted setting (default on).
+func (a *App) IsAgentDetectionEnabled() bool {
+	path, err := agentDetectionDisabledPath()
+	if err != nil {
+		return true
+	}
+	_, err = os.Stat(path)
+	return err != nil
+}
+
+// SetAgentDetectionEnabled persists the setting. Besides gating the probes,
+// it counts as consent for the prompt hook that reports the working
+// directory of terminals without tmux (see terminal.shellHookConsent); the
+// hook is injected into terminals opened from now on.
+func (a *App) SetAgentDetectionEnabled(enabled bool) error {
+	path, err := agentDetectionDisabledPath()
+	if err != nil {
+		return err
+	}
+	if enabled {
+		err := os.Remove(path)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		logAgentEvent("agent_detection_enabled", "user opted in")
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, []byte("disabled\n"), 0600); err != nil {
+		return err
+	}
+	logAgentEvent("agent_detection_disabled", "user opted out")
+	return nil
 }
 
 // tmuxBufferScript prints the newest tmux paste buffer of the pane's server.
@@ -318,9 +369,12 @@ func (a *App) rememberedAgent(terminalID int) (agentTerminalState, bool) {
 func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (string, error) {
 	result := a.detectAgent(terminalID, terminalType)
 	if result.Detected {
-		a.rememberAgent(terminalID, agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source})
+		state := agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source}
+		a.rememberAgent(terminalID, state)
+		a.startAgentWatcher(terminalID, terminalType, state)
 	} else {
 		a.forgetAgent(terminalID)
+		a.stopAgentWatcher(terminalID)
 	}
 	payload, err := json.Marshal(result)
 	if err != nil {
@@ -336,11 +390,70 @@ func (a *App) detectAgent(terminalID int, terminalType string) agentDetectionRes
 	} else if strings.EqualFold(strings.TrimSpace(terminalType), "wsl") {
 		source = "wsl"
 	}
+	if source != "ssh" && !a.TerminalManager.GetTerminalRuntimeMeta(terminalID).TmuxActive {
+		return a.detectWithoutTmux(terminalID, source)
+	}
 	output, err := a.runPaneScript(terminalID, terminalType, agentProbeScript)
 	if err != nil {
 		return agentDetectionResult{Reason: err.Error()}
 	}
-	return finishDetection(output, source)
+	res := finishDetection(output, source)
+	res.Tmux = true
+	return res
+}
+
+// detectWithoutTmux covers local terminals that have no tmux session:
+// PowerShell and cmd on Windows, and tmux mode "off" elsewhere. The root of
+// the process tree is the terminal's own child process; the working
+// directory comes from the prompt hook's cwd beacon (empty until the first
+// prompt was shown, in which case the newest session file is used).
+func (a *App) detectWithoutTmux(terminalID int, source string) agentDetectionResult {
+	rootPID := a.TerminalManager.SessionPID(terminalID)
+	if rootPID <= 0 {
+		return agentDetectionResult{Reason: "terminal process unknown"}
+	}
+	procs, err := listLocalProcesses()
+	if err != nil {
+		return agentDetectionResult{Reason: "process list unavailable: " + err.Error()}
+	}
+	cwd := a.TerminalManager.GetLastReportedCwd(terminalID)
+	det, ok := agents.FindAgent(procs, rootPID)
+	if !ok {
+		return agentDetectionResult{Cwd: cwd, Source: source}
+	}
+	return agentDetectionResult{
+		Detected:    true,
+		Kind:        det.Kind,
+		Label:       det.Label,
+		PID:         det.PID,
+		Cwd:         cwd,
+		Source:      source,
+		Transcripts: det.Transcripts,
+	}
+}
+
+// listLocalProcesses returns the local process table. On Windows the
+// command line is needed to tell "node.exe" running claude from any other
+// node process, which only WMI provides; the query runs hidden and only on
+// demand (title change, startup banner, prompt).
+func listLocalProcesses() ([]agents.Process, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
+	defer cancel()
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		// [char]9 is a tab; a literal backtick-t would be a PowerShell escape
+		// and cannot appear inside a Go raw string anyway.
+		cmd = exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+			"Get-CimInstance Win32_Process | ForEach-Object { \"$($_.ProcessId)\" + [char]9 + \"$($_.ParentProcessId)\" + [char]9 + \"$($_.CommandLine)\" }")
+	} else {
+		cmd = exec.CommandContext(ctx, "sh", "-c", agents.PSCommand)
+	}
+	executil.HideConsoleWindow(cmd)
+	out, err := cmd.Output()
+	if err != nil && len(out) == 0 {
+		return nil, err
+	}
+	return agents.ParsePS(string(out)), nil
 }
 
 func finishDetection(output, source string) agentDetectionResult {
@@ -378,10 +491,8 @@ func (a *App) GetAgentTranscriptJSON(terminalID int, terminalType string, limit 
 		state = agentTerminalState{kind: res.Kind, cwd: res.Cwd, source: res.Source}
 		a.rememberAgent(terminalID, state)
 	}
-	if state.cwd == "" {
-		return "", fmt.Errorf("could not resolve the agent's working directory")
-	}
-
+	// state.cwd may be empty for terminals without tmux before the first
+	// prompt beacon; the lookup then falls back to the newest session.
 	paneText, _ := a.capturePane(terminalID, terminalType)
 
 	transcript, err := a.readAgentTranscriptFile(terminalID, state, agents.ReadOptions{Limit: limit, PaneText: paneText})
@@ -415,6 +526,20 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 		return agents.Transcript{}, err
 	}
 	defer cleanup()
+	if state.kind == agents.KindOpenCode {
+		dbPath, err := openCodeDBFor(state.source, fs, home)
+		if err != nil {
+			return agents.Transcript{}, fmt.Errorf("no OpenCode database readable for this terminal (local and WSL only)")
+		}
+		transcript, err := agents.ReadOpenCodeTranscript(dbPath, state.cwd, opts.Limit)
+		if err != nil {
+			if errors.Is(err, agents.ErrNotFound) {
+				return agents.Transcript{}, fmt.Errorf("no OpenCode session found for %s", state.cwd)
+			}
+			return agents.Transcript{}, err
+		}
+		return transcript, nil
+	}
 	transcript, err := agents.ReadTranscript(fs, state.kind, home, state.cwd, opts)
 	if err != nil {
 		if errors.Is(err, agents.ErrNotFound) {
@@ -423,6 +548,28 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 		return agents.Transcript{}, err
 	}
 	return transcript, nil
+}
+
+// openCodeDBFor resolves OpenCode's SQLite database for a terminal. SQLite
+// cannot be queried through SFTP, so only local and WSL (UNC) terminals
+// qualify.
+func openCodeDBFor(source string, fs agents.FS, home string) (string, error) {
+	switch source {
+	case "ssh":
+		return "", agents.ErrNotFound
+	case "wsl":
+		local, ok := fs.(agents.LocalFS)
+		if !ok || local.Base == "" {
+			return "", agents.ErrNotFound
+		}
+		candidate := filepath.Join(local.Base, filepath.FromSlash(home), ".local", "share", "opencode", "opencode.db")
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+		return "", agents.ErrNotFound
+	default:
+		return agents.FindOpenCodeDB(home)
+	}
 }
 
 // agentFS returns the filesystem and home directory where the agent stores
@@ -492,6 +639,14 @@ func (s sftpAgentFS) ReadDir(dir string) ([]agents.FileInfo, error) {
 		out = append(out, agents.FileInfo{Name: e.Name(), IsDir: e.IsDir(), ModTime: e.ModTime(), Size: e.Size()})
 	}
 	return out, nil
+}
+
+func (s sftpAgentFS) Stat(file string) (agents.FileInfo, error) {
+	info, err := s.client.Stat(file)
+	if err != nil {
+		return agents.FileInfo{}, err
+	}
+	return agents.FileInfo{Name: info.Name(), IsDir: info.IsDir(), ModTime: info.ModTime(), Size: info.Size()}, nil
 }
 
 func (s sftpAgentFS) ReadHead(file string, max int64) ([]byte, error) {

@@ -23,6 +23,7 @@
   import { recordingList, aggAvailable, aggStatus, downloadingAgg, aggDownloadInfo, terminalSessionFoldersOpen, customFolders, newFolderName } from './lib/stores/sessionStore.js';
   import { sshProfiles, showSSHProfileModal, sshSecretBackend, sshConnecting, hostKeyVerifyState, fileBrowserRemoteTerminalId, fileBrowserRemoteLabel } from './lib/stores/sshStore.js';
   import { aiPanelState, showFunctionCatalog, functionCatalog, showAISettings, aiProviders, aiSettings, aiToolFlowConfig, aiToolFlowLists } from './lib/stores/aiStore.js';
+  import { loadAgentDetectionSetting } from './lib/stores/agentStore.js';
   import { groupedSidebarTerminals } from './lib/terminals/sidebarGroups';
   import { dedupeSavedSessionTerminals } from './lib/util';
   import { generateTmuxSessionName } from './lib/terminals/tmuxLifecycle';
@@ -418,6 +419,7 @@
       await loadTemplatesFromBackend();
       await loadCustomFolders();
       $historyTrackingEnabled = await IsHistoryTrackingEnabled();
+      await loadAgentDetectionSetting();
       try {
         $tmuxIntegrationMode = await window['go']['main']['App']['GetTmuxIntegrationMode']();
       } catch (error) {
