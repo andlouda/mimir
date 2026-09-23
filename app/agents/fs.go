@@ -72,6 +72,39 @@ func (l LocalFS) ReadDir(dir string) ([]FileInfo, error) {
 	return out, nil
 }
 
+// Remove deletes a file (used for consumed hook events).
+func (l LocalFS) Remove(file string) error { return os.Remove(l.resolve(file)) }
+
+// WriteFile replaces file atomically (temp file + rename) with mode 0600,
+// creating the parent directory. Used for settings.json when a hook is
+// installed; the rename keeps a crash from leaving a truncated file.
+func (l LocalFS) WriteFile(file string, data []byte) error {
+	target := l.resolve(file)
+	if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(target), ".mimir-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	_ = os.Chmod(tmpName, 0600)
+	if err := os.Rename(tmpName, target); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	return nil
+}
+
 func (l LocalFS) Stat(file string) (FileInfo, error) {
 	info, err := os.Stat(l.resolve(file))
 	if err != nil {

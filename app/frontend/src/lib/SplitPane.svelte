@@ -339,11 +339,11 @@
             {@const agent = $agentStates[term.id]}
             <button
               type="button"
-              class="agent-badge agent-badge-{agent.status || 'unknown'} {agent.attention ? 'agent-badge-attention' : ''}"
+              class="agent-badge agent-badge-{agent.status || 'unknown'} {agent.attention && agent.status !== 'permission' ? 'agent-badge-attention' : ''}"
               title={agentBadgeTitle(agent)}
               on:click|stopPropagation={() => dispatch('openagent', term.id)}
             >
-              <span class="agent-badge-dot"></span><span class="agent-badge-text">{agent.label}{#if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}</span>
+              <span class="agent-badge-dot"></span><span class="agent-badge-text">{agent.label}{#if agent.status === 'permission'} · {$t('splitPane.agentPermission')}{:else if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}</span>
             </button>
           {/if}
           {#if term.type === 'ssh'}
@@ -772,6 +772,8 @@
   .agent-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .agent-badge-working { color: #e3b341; background: rgba(227, 179, 65, 0.12); border-color: rgba(227, 179, 65, 0.32); }
   .agent-badge-working .agent-badge-dot { animation: agent-pulse 1.2s ease-in-out infinite; }
+  .agent-badge-permission { color: #ff7b72; background: rgba(255, 123, 114, 0.14); border-color: rgba(255, 123, 114, 0.6); box-shadow: 0 0 0 2px rgba(255, 123, 114, 0.22); }
+  .agent-badge-permission .agent-badge-dot { animation: agent-pulse 0.9s ease-in-out infinite; }
   .agent-badge-attention { color: #7ee787; background: rgba(126, 231, 135, 0.14); border-color: rgba(126, 231, 135, 0.6); box-shadow: 0 0 0 2px rgba(126, 231, 135, 0.25); }
   .agent-badge-attention .agent-badge-dot { animation: agent-pulse 1.4s ease-in-out infinite; }
   @keyframes agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }

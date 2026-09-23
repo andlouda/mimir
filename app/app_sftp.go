@@ -31,6 +31,8 @@ type remoteFileClient interface {
 	ReadDir(path string) ([]os.FileInfo, error)
 	Stat(path string) (os.FileInfo, error)
 	Open(path string) (*sftp.File, error)
+	OpenFile(path string, flags int) (*sftp.File, error)
+	Remove(path string) error
 	Getwd() (string, error)
 	Close() error
 }

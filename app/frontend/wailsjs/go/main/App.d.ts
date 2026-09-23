@@ -125,6 +125,12 @@ export function IsAgentDetectionEnabled():Promise<boolean>;
 
 export function SetAgentDetectionEnabled(arg1:boolean):Promise<void>;
 
+export function GetClaudeHookStatusJSON(arg1:number):Promise<string>;
+
+export function InstallClaudeHook(arg1:number):Promise<void>;
+
+export function RemoveClaudeHook(arg1:number):Promise<void>;
+
 export function ListAgentSessionsJSON(arg1:number,arg2:string):Promise<string>;
 
 export function SelectAgentSession(arg1:number,arg2:string,arg3:string):Promise<void>;

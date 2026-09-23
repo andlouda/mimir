@@ -1,3 +1,8 @@
+<script context="module">
+  // Hook hint dismissed per terminal for this app session.
+  const hookDismissed = new Set();
+</script>
+
 <script>
   // Side panel for the coding agent running in a terminal. It does not mirror
   // the conversation (the terminal next to it already shows that); it pulls
@@ -13,7 +18,7 @@
   import { agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
-  import { closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentSessions, loadAgentTranscript, selectAgentSession } from './actions/agentActions.js';
+  import { closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, selectAgentSession, setClaudeHookInstalled } from './actions/agentActions.js';
 
   export let terminalId;
 
@@ -39,6 +44,10 @@
   let summaryExpanded = false;
   let sessions = null;       // { sessions: [...], selected: '' } once loaded
   let sessionsOpen = false;
+  // Claude Code approval hook on the agent's host: null until loaded.
+  let hook = null;
+  let hookBusy = false;
+  let hookHintFor = null;
 
   $: agent = $agentStates[terminalId] || null;
   $: term = $terminalMap.get(terminalId) || null;
@@ -54,6 +63,23 @@
   $: insertTarget = ($activeTerminalId != null && $terminalMap.get($activeTerminalId)) || term;
   $: insertTitle = insertTarget ? $t('agentPanel.insertInto', { name: insertTarget.name }) : '';
   $: if (terminalId !== loadedFor) { loadedFor = terminalId; resetFor(); refresh(); }
+  $: if (agent?.kind === 'claude' && hookHintFor !== terminalId) { hookHintFor = terminalId; hook = null; loadHook(); }
+  $: hookHintVisible = agent?.kind === 'claude' && hook && !hook.installed && !hook.error && !hookDismissed.has(terminalId);
+
+  async function loadHook() {
+    try { hook = await loadClaudeHookStatus(terminalId); } catch { hook = null; }
+  }
+  async function installHook() {
+    hookBusy = true;
+    try {
+      hook = await setClaudeHookInstalled(terminalId, true);
+      showFeedback($t('agentPanel.hookInstalled'));
+    } catch (e) {
+      showFeedback(String(e?.message || e));
+    } finally {
+      hookBusy = false;
+    }
+  }
   $: if (agent?.status === 'idle' && agent?.lastChange) refreshSoon();
   $: scheduleAutoRefresh(agent?.status);
 
@@ -285,7 +311,7 @@
     <div class="agent-panel-title">
       <span class="agent-panel-label">{agent?.label || $t('agentPanel.title')}</span>
       {#if agent?.status && agent.status !== 'unknown'}
-        <span class="agent-panel-status agent-status-{agent.status}">{agent.status === 'working' ? $t('agentPanel.working') : $t('agentPanel.idle')}</span>
+        <span class="agent-panel-status agent-status-{agent.status}">{agent.status === 'permission' ? $t('agentPanel.permission') : agent.status === 'working' ? $t('agentPanel.working') : $t('agentPanel.idle')}</span>
       {/if}
       <span class="agent-panel-sub" title={transcript?.cwd || agent?.cwd || ''}>{term?.name || ''}{agent?.cwd ? ' · ' + shortPath(agent.cwd) : ''}</span>
     </div>
@@ -294,6 +320,17 @@
       <button type="button" class="agent-btn" on:click={closeAgentPanel} title={$t('agentPanel.close')}>&#x2715;</button>
     </div>
   </div>
+
+  {#if agent?.status === 'permission' && agent.lastText}
+    <p class="agent-panel-hint agent-panel-permission">{agent.lastText}</p>
+  {/if}
+  {#if hookHintVisible}
+    <p class="agent-panel-hint agent-panel-hook">
+      <span>{$t('agentPanel.hookHint')}</span>
+      <button type="button" class="agent-btn" on:click={installHook} disabled={hookBusy}>{hookBusy ? '…' : $t('agentPanel.hookInstall')}</button>
+      <button type="button" class="agent-btn" on:click={() => { hookDismissed.add(terminalId); hookHintVisible = false; }} title={$t('agentPanel.hookDismiss')}>&#x2715;</button>
+    </p>
+  {/if}
 
   <div class="agent-tabs" role="tablist">
     {#each TABS as tab (tab)}
@@ -523,6 +560,9 @@
   .agent-panel-status { border-radius: 999px; padding: 1px 7px; font-size: 10px; font-weight: 700; text-transform: lowercase; border: 1px solid transparent; }
   .agent-status-working { background: rgba(227, 179, 65, 0.14); color: #e3b341; border-color: rgba(227, 179, 65, 0.32); }
   .agent-status-idle { background: rgba(126, 231, 135, 0.14); color: #7ee787; border-color: rgba(126, 231, 135, 0.28); }
+  .agent-status-permission { background: rgba(255, 123, 114, 0.16); color: #ff7b72; border-color: rgba(255, 123, 114, 0.5); }
+  .agent-panel-permission { color: #ff7b72; margin: 0 10px 6px; }
+  .agent-panel-hook { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 10px 6px; }
   .agent-panel-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .agent-btn { background: transparent; border: 1px solid var(--border-subtle); color: inherit; border-radius: 4px; padding: 2px 7px; cursor: pointer; }
   .agent-btn:hover { background: rgba(255, 255, 255, 0.06); }

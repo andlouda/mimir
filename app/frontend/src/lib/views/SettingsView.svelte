@@ -6,6 +6,26 @@
   import { agentDetectionEnabled } from '../stores/agentStore.js';
   import { tmuxIntegrationMode } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
+  import { loadClaudeHookStatus, setClaudeHookInstalled } from '../actions/agentActions.js';
+  import { onMount } from 'svelte';
+
+  let hook = null;
+  let hookBusy = false;
+  let hookError = '';
+  onMount(async () => {
+    try { hook = await loadClaudeHookStatus(0); } catch (e) { hookError = String(e?.message || e); }
+  });
+  async function toggleHook() {
+    hookBusy = true;
+    hookError = '';
+    try {
+      hook = await setClaudeHookInstalled(0, !(hook && hook.installed));
+    } catch (e) {
+      hookError = String(e?.message || e);
+    } finally {
+      hookBusy = false;
+    }
+  }
 
   async function changeTmuxMode(event) {
     const mode = event.target.value;
@@ -83,6 +103,26 @@
       <strong>{$t('settings.cards.agentDetection.title')}</strong>
       <p>{$t('settings.cards.agentDetection.desc')}</p>
     </label>
+    <div class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x1F6A6;</span>
+        <button type="button" class="settings-inline-btn" on:click={toggleHook} disabled={hookBusy || !hook}>
+          {hookBusy ? '…' : hook?.installed ? $t('settings.cards.claudeHook.remove') : $t('settings.cards.claudeHook.install')}
+        </button>
+      </div>
+      <strong>{$t('settings.cards.claudeHook.title')}</strong>
+      <p>{$t('settings.cards.claudeHook.desc')}</p>
+      <p class="settings-note">
+        {#if hookError || hook?.error}
+          {hookError || hook.error}
+        {:else if hook}
+          {hook.installed ? $t('settings.cards.claudeHook.installed') : $t('settings.cards.claudeHook.notInstalled')}{hook.settingsPath ? ' · ' + hook.settingsPath : ''}
+        {:else}
+          …
+        {/if}
+      </p>
+      <p class="settings-note">{$t('settings.cards.claudeHook.note')}</p>
+    </div>
     <button type="button" class="ai-hub-card" on:click={onOpenAISettings}>
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x269B;</span>

@@ -21,6 +21,10 @@ func (fakeRemoteFileClient) Stat(string) (os.FileInfo, error) {
 func (fakeRemoteFileClient) Open(string) (*sftp.File, error) {
 	return nil, errors.New("not implemented")
 }
+func (fakeRemoteFileClient) OpenFile(string, int) (*sftp.File, error) {
+	return nil, errors.New("not implemented")
+}
+func (fakeRemoteFileClient) Remove(string) error    { return errors.New("not implemented") }
 func (fakeRemoteFileClient) Getwd() (string, error) { return "/home/mimir", nil }
 func (fakeRemoteFileClient) Close() error           { return nil }
 

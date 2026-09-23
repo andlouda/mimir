@@ -124,11 +124,14 @@ export function handleAgentStateEvent(id, raw) {
   if (!payload || typeof payload !== 'object') return;
   const current = get(agentStates)[id];
   if (!current) return;
-  const status = payload.state === 'working' || payload.state === 'idle' ? payload.state : 'unknown';
+  const status = payload.state === 'working' || payload.state === 'idle' || payload.state === 'permission' ? payload.state : 'unknown';
   const lastText = String(payload.lastText || '');
   const subject = lastText.split('\n').find((l) => l.trim()) || current.subject || '';
+  // Attention: the agent finished, or (via the approval hook) is blocked on
+  // a permission prompt — both while the user looks at another pane.
   const finished = current.status === 'working' && status === 'idle';
-  const attention = finished && get(activeTerminalId) !== id ? true : (current.attention || false);
+  const blocked = status === 'permission' && current.status !== 'permission';
+  const attention = (finished || blocked) && get(activeTerminalId) !== id ? true : (current.attention || false);
   if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention) return;
   setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, fileState: true, lastChange: Date.now() });
 }
@@ -267,6 +270,20 @@ export async function selectAgentSession(id, file) {
 export async function loadAgentGitStatus(id) {
   const raw = await app()['GetAgentGitStatusJSON'](id, terminalType(id));
   return JSON.parse(raw);
+}
+
+/**
+ * Claude Code approval hook (Notification hook in ~/.claude/settings.json).
+ * terminalId 0 = this machine; otherwise the host of that terminal's agent.
+ */
+export async function loadClaudeHookStatus(terminalId = 0) {
+  const raw = await app()['GetClaudeHookStatusJSON'](terminalId);
+  try { return JSON.parse(raw); } catch { return { installed: false, error: 'invalid status' }; }
+}
+
+export async function setClaudeHookInstalled(terminalId, installed) {
+  await app()[installed ? 'InstallClaudeHook' : 'RemoveClaudeHook'](terminalId);
+  return loadClaudeHookStatus(terminalId);
 }
 
 /** Test hook: number of active watches. */

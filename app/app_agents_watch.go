@@ -32,6 +32,12 @@ const (
 	agentWatchRemoteInterval = 4 * time.Second
 	agentWatchRelookup       = 30 * time.Second
 	agentWatchTailBytes      = 64 * 1024
+	// agentHookSettle: how long after a hook event a session-file change
+	// still counts as "the record the prompt belongs to".
+	agentHookSettle = 3 * time.Second
+	// agentHookMaxAge drops a prompt nobody answered (pane closed, Claude
+	// Code cancelled) so the badge does not stay red forever.
+	agentHookMaxAge = 30 * time.Minute
 )
 
 // startAgentWatcher follows the agent's session file and pushes state
@@ -91,20 +97,32 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 
 	var (
 		file        string
+		cwd         string
 		lastLookup  time.Time
 		lastSize    int64 = -1
 		lastMod     time.Time
 		lastPayload agentStatePayload
+		filePayload agentStatePayload
+		// Approval hook: the newest notification for this session, kept
+		// until the session file moves on (the user answered) or it ages
+		// out. Only Claude Code has the hook.
+		pending   *agents.HookEvent
+		pendingAt time.Time
 	)
+	eventsDir := ""
+	if state.kind == agents.KindClaude {
+		eventsDir = hookEventsDir(state.source, fs, home)
+	}
+	remover, _ := fs.(agents.Remover)
 	locate := func() {
+		cwd = state.cwd
+		if cwd == "" {
+			cwd = a.TerminalManager.GetLastReportedCwd(terminalID)
+		}
 		if state.sessionFile != "" {
 			file, lastSize, lastMod = state.sessionFile, -1, time.Time{}
 			lastLookup = time.Now()
 			return
-		}
-		cwd := state.cwd
-		if cwd == "" {
-			cwd = a.TerminalManager.GetLastReportedCwd(terminalID)
 		}
 		var files []string
 		switch state.kind {
@@ -137,18 +155,52 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		}
 		if file != "" {
 			if info, err := fs.Stat(file); err == nil && (info.Size != lastSize || !info.ModTime.Equal(lastMod)) {
+				first := lastSize < 0
 				lastSize, lastMod = info.Size, info.ModTime
 				if tail, err := fs.ReadTail(file, agentWatchTailBytes); err == nil {
 					st := agents.DeriveState(state.kind, tail)
-					payload := agentStatePayload{State: st.State, LastText: st.LastText, LastAt: st.LastAt, SessionFile: file}
-					if payload != lastPayload {
-						lastPayload = payload
-						a.emitAgentState(terminalID, payload)
-					}
+					filePayload = agentStatePayload{State: st.State, LastText: st.LastText, LastAt: st.LastAt, SessionFile: file}
+				}
+				// The transcript moved on after the prompt: answered. A
+				// change right after the event is the tool_use record the
+				// prompt belongs to, so give it a moment.
+				if !first && pending != nil && time.Since(pendingAt) > agentHookSettle {
+					pending = nil
 				}
 			} else if err != nil {
 				file = "" // rotated or deleted: look again on the next tick
 			}
+		}
+		if eventsDir != "" {
+			for _, ev := range agents.ScanHookEvents(fs, eventsDir) {
+				if !agents.MatchesHookEvent(ev.Event, file, cwd) {
+					continue
+				}
+				if remover != nil {
+					_ = remover.Remove(ev.Path)
+				}
+				if agents.StateForNotification(ev.Event.NotificationType) == agents.StateUnknown {
+					continue
+				}
+				e := ev.Event
+				pending, pendingAt = &e, time.Now()
+			}
+		}
+		if pending != nil && time.Since(pendingAt) > agentHookMaxAge {
+			pending = nil
+		}
+		payload := filePayload
+		if pending != nil {
+			payload.State = agents.StateForNotification(pending.NotificationType)
+			payload.LastText = pending.Message
+			payload.LastAt = pendingAt.Format(time.RFC3339)
+			if payload.SessionFile == "" {
+				payload.SessionFile = pending.TranscriptPath
+			}
+		}
+		if payload != lastPayload && payload.State != "" {
+			lastPayload = payload
+			a.emitAgentState(terminalID, payload)
 		}
 		select {
 		case <-ctx.Done():

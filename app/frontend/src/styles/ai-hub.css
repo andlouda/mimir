@@ -91,6 +91,17 @@
     font-size: 0.8rem;
   }
 
+  .settings-inline-btn {
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    color: inherit;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 0.75rem;
+  }
+  .settings-inline-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); }
+  .settings-inline-btn:disabled { opacity: 0.6; cursor: default; }
   .settings-note {
     color: var(--text-muted);
     font-size: 0.72rem;

@@ -14,6 +14,9 @@ const (
 	StateWorking State = "working"
 	// StateIdle means the agent finished its turn and waits for the user.
 	StateIdle State = "idle"
+	// StatePermission means the agent is blocked on a permission prompt
+	// (known only through the notification hook).
+	StatePermission State = "permission"
 )
 
 // StateInfo is the derived state plus the text the user most likely wants

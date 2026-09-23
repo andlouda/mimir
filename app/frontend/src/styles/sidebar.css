@@ -223,6 +223,8 @@
   .agent-dot-working { background: #e3b341; animation: sidebar-agent-pulse 1.2s ease-in-out infinite; }
   .agent-dot-idle { background: #63b3ed; }
   .agent-dot-attention { background: #7ee787; box-shadow: 0 0 0 3px rgba(126, 231, 135, 0.25); }
+  .agent-dot-permission { background: #ff7b72; box-shadow: 0 0 0 3px rgba(255, 123, 114, 0.25); animation: sidebar-agent-pulse 0.9s ease-in-out infinite; }
+  .sidebar-agents .sidebar-list li button.sidebar-agent-permission .sidebar-agent-status { color: #ff7b72; font-weight: 600; }
   .sidebar-agent-main { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
   .sidebar-agent-head { display: flex; gap: 0.4rem; align-items: baseline; min-width: 0; }
   .sidebar-agent-label { font-weight: 600; color: var(--text-primary); white-space: nowrap; }

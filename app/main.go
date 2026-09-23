@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"log"
+	"os"
 
 	"mimir/desktop"
 
@@ -23,6 +24,13 @@ var templates embed.FS
 var appIconPNG []byte
 
 func main() {
+	// "mimir --agent-hook" is what Claude Code runs as Notification hook: it
+	// stores the payload from stdin for the running Mimir and exits. No
+	// window, no GTK, no desktop integration.
+	if runAgentHookMode(os.Args[1:], os.Stdin) {
+		return
+	}
+
 	// Fix dropped/doubled umlaut and dead-key input in the WebKitGTK webview.
 	// Must run before GTK initializes (i.e. before wails.Run). No-op off Linux.
 	configureInputMethod()
