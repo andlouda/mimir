@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -104,6 +105,16 @@ func (a *App) hookTarget(terminalID int) (source string, fs hookFS, home string,
 			source = "ssh"
 		}
 	}
+	return a.hookTargetSource(terminalID, source)
+}
+
+// hookTargetSource resolves the hook location for a known host: "local",
+// "wsl" (the default distro, reached over \\wsl$ from Windows) or "ssh"
+// (needs the terminal's SSH client).
+func (a *App) hookTargetSource(terminalID int, source string) (string, hookFS, string, func(), error) {
+	if source == "ssh" && terminalID <= 0 {
+		return source, nil, "", func() {}, fmt.Errorf("SSH hosts get the hook from the agent panel of a connected terminal")
+	}
 	rfs, home, cleanup, err := a.agentFS(terminalID, source)
 	if err != nil {
 		return source, nil, "", func() {}, err
@@ -151,9 +162,40 @@ func readSettings(fs agents.FS, file string) ([]byte, error) {
 // GetClaudeHookStatusJSON reports whether Mimir's Notification hook is in
 // Claude Code's settings on the host of the given terminal (0 = local).
 func (a *App) GetClaudeHookStatusJSON(terminalID int) string {
-	status := claudeHookStatus{Host: "local"}
 	source, fs, home, cleanup, err := a.hookTarget(terminalID)
-	status.Host = source
+	return a.hookStatusFrom(source, fs, home, cleanup, err)
+}
+
+// GetClaudeHookStatusForHostJSON is the settings-view variant: host is
+// "local" or "wsl". Claude Code inside WSL reads the distro's own
+// ~/.claude/settings.json, so it needs its own hook entry.
+func (a *App) GetClaudeHookStatusForHostJSON(host string) string {
+	source, fs, home, cleanup, err := a.hookTargetSource(0, hookHost(host))
+	return a.hookStatusFrom(source, fs, home, cleanup, err)
+}
+
+// ListClaudeHookHostsJSON lists the hosts the settings view can install the
+// hook on: this machine, plus the default WSL distro when one answers.
+func (a *App) ListClaudeHookHostsJSON() string {
+	hosts := []string{"local"}
+	if runtime.GOOS == "windows" {
+		if _, _, err := wslHomeUNC(); err == nil {
+			hosts = append(hosts, "wsl")
+		}
+	}
+	b, _ := json.Marshal(hosts)
+	return string(b)
+}
+
+func hookHost(host string) string {
+	if host == "wsl" {
+		return "wsl"
+	}
+	return "local"
+}
+
+func (a *App) hookStatusFrom(source string, fs hookFS, home string, cleanup func(), err error) string {
+	status := claudeHookStatus{Host: source}
 	if err != nil {
 		status.Error = err.Error()
 		return marshalHookStatus(status)
@@ -182,7 +224,15 @@ func marshalHookStatus(s claudeHookStatus) string {
 // foreign hooks are preserved; the file is rejected, not overwritten, when
 // it is not valid JSON.
 func (a *App) InstallClaudeHook(terminalID int) error {
-	source, fs, home, cleanup, err := a.hookTarget(terminalID)
+	return a.installClaudeHook(a.hookTarget(terminalID))
+}
+
+// InstallClaudeHookOnHost installs on "local" or "wsl" (settings view).
+func (a *App) InstallClaudeHookOnHost(host string) error {
+	return a.installClaudeHook(a.hookTargetSource(0, hookHost(host)))
+}
+
+func (a *App) installClaudeHook(source string, fs hookFS, home string, cleanup func(), err error) error {
 	if err != nil {
 		return err
 	}
@@ -214,7 +264,15 @@ func (a *App) InstallClaudeHook(terminalID int) error {
 
 // RemoveClaudeHook takes Mimir's hook out of settings.json again.
 func (a *App) RemoveClaudeHook(terminalID int) error {
-	source, fs, home, cleanup, err := a.hookTarget(terminalID)
+	return a.removeClaudeHook(a.hookTarget(terminalID))
+}
+
+// RemoveClaudeHookOnHost removes from "local" or "wsl" (settings view).
+func (a *App) RemoveClaudeHookOnHost(host string) error {
+	return a.removeClaudeHook(a.hookTargetSource(0, hookHost(host)))
+}
+
+func (a *App) removeClaudeHook(source string, fs hookFS, home string, cleanup func(), err error) error {
 	if err != nil {
 		return err
 	}

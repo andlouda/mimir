@@ -378,6 +378,22 @@ export function GetClaudeHookStatusJSON(arg1) {
   return window['go']['main']['App']['GetClaudeHookStatusJSON'](arg1);
 }
 
+export function ListClaudeHookHostsJSON() {
+  return window['go']['main']['App']['ListClaudeHookHostsJSON']();
+}
+
+export function GetClaudeHookStatusForHostJSON(arg1) {
+  return window['go']['main']['App']['GetClaudeHookStatusForHostJSON'](arg1);
+}
+
+export function InstallClaudeHookOnHost(arg1) {
+  return window['go']['main']['App']['InstallClaudeHookOnHost'](arg1);
+}
+
+export function RemoveClaudeHookOnHost(arg1) {
+  return window['go']['main']['App']['RemoveClaudeHookOnHost'](arg1);
+}
+
 export function InstallClaudeHook(arg1) {
   return window['go']['main']['App']['InstallClaudeHook'](arg1);
 }

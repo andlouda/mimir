@@ -286,6 +286,29 @@ export async function setClaudeHookInstalled(terminalId, installed) {
   return loadClaudeHookStatus(terminalId);
 }
 
+/**
+ * Settings view: hosts the hook can be installed on from here ("local", and
+ * "wsl" on Windows with a distro), each with its status. Claude Code inside
+ * WSL reads the distro's own settings.json, so it is a separate host.
+ */
+export async function loadClaudeHookHosts() {
+  let hosts = ['local'];
+  try { hosts = JSON.parse(await app()['ListClaudeHookHostsJSON']()) || hosts; } catch { /* keep local */ }
+  return Promise.all(hosts.map(async (host) => {
+    try {
+      const status = JSON.parse(await app()['GetClaudeHookStatusForHostJSON'](host));
+      return { host, ...status };
+    } catch (e) {
+      return { host, installed: false, error: String(e?.message || e) };
+    }
+  }));
+}
+
+export async function setClaudeHookInstalledOnHost(host, installed) {
+  await app()[installed ? 'InstallClaudeHookOnHost' : 'RemoveClaudeHookOnHost'](host);
+  return JSON.parse(await app()['GetClaudeHookStatusForHostJSON'](host));
+}
+
 /** Test hook: number of active watches. */
 export function _activeWatchCount() {
   return watches.size;

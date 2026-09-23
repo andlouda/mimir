@@ -17,7 +17,7 @@ func TestFindAgentInProcessTree(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected claude to be detected")
 	}
-	if det.Kind != KindClaude || det.PID != 300 || det.Label != "Claude Code" || !det.Transcripts {
+	if det.Kind != KindClaude || det.PID != 300 || det.Label != "Claude" || !det.Transcripts {
 		t.Fatalf("unexpected detection: %+v", det)
 	}
 	// A process outside the pane's subtree must not count.

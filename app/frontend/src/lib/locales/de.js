@@ -98,8 +98,10 @@ export default {
       },
       claudeHook: {
         title: 'Claude-Code-Freigaben',
-        desc: 'Trägt einen Notification-Hook in ~/.claude/settings.json auf diesem Rechner ein, damit Claude Code Mimir meldet, wenn es auf eine Freigabe oder Eingabe wartet. Mimir zeigt dann „Freigabe“ im Pane-Badge und in der Agenten-Übersicht, statt es vom Bildschirm zu raten.',
-        note: 'Der Hook ruft „mimir --agent-hook“ auf, das die Meldung nur ablegt (keine Shell, keine Argumente vom Agenten). Andere Hooks und Einstellungen bleiben erhalten; die Änderung steht im Aktivitätsprotokoll und lässt sich hier wieder entfernen. Hosts per SSH bekommen den Hook über das Agent-Panel.',
+        desc: 'Trägt einen Notification-Hook in ~/.claude/settings.json ein, damit Claude Code Mimir meldet, wenn es auf eine Freigabe oder Eingabe wartet. Mimir zeigt dann „Freigabe“ im Pane-Badge und in der Agenten-Übersicht, statt es vom Bildschirm zu raten. Claude Code in WSL liest seine eigene settings.json und steht deshalb als eigener Host in der Liste.',
+        note: 'Auf diesem Rechner ruft der Hook „mimir --agent-hook“ auf, das die Meldung nur ablegt (keine Shell, keine Argumente vom Agenten); in WSL ist es ein Einzeiler, der nach ~/.cache/mimir schreibt. Andere Hooks und Einstellungen bleiben erhalten; Änderungen stehen im Aktivitätsprotokoll und lassen sich hier wieder entfernen. Hosts per SSH bekommen den Hook über das Agent-Panel.',
+        host_local: 'Dieser Rechner',
+        host_wsl: 'WSL',
         install: 'Einrichten',
         remove: 'Entfernen',
         installed: 'Eingerichtet',

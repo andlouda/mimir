@@ -98,8 +98,10 @@ export default {
       },
       claudeHook: {
         title: 'Claude Code approvals',
-        desc: 'Adds a Notification hook to ~/.claude/settings.json on this machine so Claude Code tells Mimir when it waits for a permission or for input. Mimir then shows "approval" in the pane badge and the agents overview instead of guessing from the screen.',
-        note: 'The hook runs "mimir --agent-hook", which only stores the notification (no shell, no arguments from the agent). Other hooks and settings are kept; the change is logged in the activity log and can be removed here. Hosts reached over SSH get the hook from the agent panel.',
+        desc: 'Adds a Notification hook to ~/.claude/settings.json so Claude Code tells Mimir when it waits for a permission or for input. Mimir then shows "approval" in the pane badge and the agents overview instead of guessing from the screen. Claude Code inside WSL reads its own settings.json, so it is listed as a separate host.',
+        note: 'On this machine the hook runs "mimir --agent-hook", which only stores the notification (no shell, no arguments from the agent); in WSL it is a one-liner writing to ~/.cache/mimir. Other hooks and settings are kept; changes are logged in the activity log and can be removed here. Hosts reached over SSH get the hook from the agent panel.',
+        host_local: 'This machine',
+        host_wsl: 'WSL',
         install: 'Install',
         remove: 'Remove',
         installed: 'Installed',
