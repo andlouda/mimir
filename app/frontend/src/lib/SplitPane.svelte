@@ -298,6 +298,15 @@
     }
     dispatch('dismissrestore', term.id);
   }
+  function restoreLabel(restoreClass) {
+    switch (restoreClass) {
+      case 'live-restored': return 'Live Restored';
+      case 'rehydrated': return 'Rehydrated';
+      case 'transcript-restored': return 'Transcript';
+      default: return 'Restored';
+    }
+  }
+
   function agentBadgeTitle(agent) {
     const parts = [agent.label];
     if (agent.subject) parts.push(agent.subject);
@@ -349,17 +358,11 @@
             <span class="rc-badge {term.rcMode && term.rcMode !== 'off' ? 'rc-badge-active' : ''}" title={rcTitle(term)}>{term.rcMode && term.rcMode !== 'off' ? 'rc' : 'clean'}</span>
           {/if}
           {#if term.restoreClass && term.restoreClass !== 'fresh'}
-            <span class="restore-badge restore-{term.restoreClass}">
-              {#if term.restoreClass === 'live-restored'}
-                Live Restored
-              {:else if term.restoreClass === 'rehydrated'}
-                Rehydrated
-              {:else if term.restoreClass === 'transcript-restored'}
-                Transcript
-              {:else}
-                Restored
-              {/if}
-            </span>
+            <!-- A coloured dot by default; the label unfolds on hover/focus. -->
+            <button type="button" class="restore-badge restore-{term.restoreClass}" title={restoreLabel(term.restoreClass)} on:click|stopPropagation>
+              <span class="restore-dot"></span>
+              <span class="restore-text">{restoreLabel(term.restoreClass)}</span>
+            </button>
           {/if}
           {#if term.editingName}
             <input
@@ -699,12 +702,35 @@
   .restore-badge {
     display: inline-flex;
     align-items: center;
+    gap: 0;
+    border: 0;
+    font-family: inherit;
+    line-height: 1;
     border-radius: 999px;
-    padding: 2px 8px;
+    padding: 3px;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.01em;
-    margin-left: 8px;
+    margin-left: 6px;
+    cursor: default;
+    outline: none;
+    transition: padding 120ms ease, gap 120ms ease;
+  }
+  .restore-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .restore-text {
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    transition: max-width 160ms ease, opacity 120ms ease;
+  }
+  .restore-badge:hover, .restore-badge:focus-visible {
+    padding: 2px 8px 2px 5px;
+    gap: 6px;
+  }
+  .restore-badge:hover .restore-text, .restore-badge:focus-visible .restore-text {
+    max-width: 120px;
+    opacity: 1;
   }
 
   .tmux-badge {
@@ -784,19 +810,21 @@
     border-color: rgba(99, 179, 237, 0.3);
   }
 
+  /* Restore states use hues that no agent state uses: amber means "agent
+     working", green means "agent finished / attention". */
   .restore-live-restored {
-    background: rgba(126, 231, 135, 0.14);
-    color: #7ee787;
+    background: rgba(118, 228, 247, 0.14);
+    color: #76e4f7;
   }
 
   .restore-rehydrated {
-    background: rgba(227, 179, 65, 0.14);
-    color: #e3b341;
+    background: rgba(210, 168, 255, 0.16);
+    color: #d2a8ff;
   }
 
   .restore-transcript-restored {
-    background: rgba(99, 179, 237, 0.14);
-    color: #63b3ed;
+    background: rgba(139, 148, 158, 0.18);
+    color: #8b949e;
   }
 
   .restore-summary {
