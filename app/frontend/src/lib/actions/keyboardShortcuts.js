@@ -9,8 +9,8 @@ import { sidebarOrderIds } from '../terminals/sidebarGroups.js';
 // Pane navigation: Ctrl+Shift+Left/Right or Ctrl(+Shift)+Tab cycles through
 // the visible panes in layout order; Ctrl+Shift+1…9 jumps to the n-th
 // terminal as listed in the sidebar (minimized ones are restored first);
-// Ctrl+Shift+M minimizes the active pane, Ctrl+Shift+U brings the most
-// recently minimized one back; Ctrl+Shift+T opens a new terminal of the
+// Ctrl+Shift+M minimizes the active pane, Ctrl+Shift+O (or U) brings the
+// most recently minimized one back; Ctrl+Shift+T opens a new terminal of the
 // default type. Digits use event.code so the binding works on every
 // keyboard layout.
 const DIGIT_CODE = /^Digit([1-9])$/;
@@ -27,7 +27,7 @@ export function isGlobalShortcut(event) {
   if (!event.shiftKey) return false;
   if (['ArrowLeft', 'ArrowRight'].includes(event.key)) return true;
   if (DIGIT_CODE.test(event.code || '')) return true;
-  return ['N', 'n', 'F', 'f', 'P', 'p', 'W', 'w', 'T', 't', 'M', 'm', 'U', 'u'].includes(event.key);
+  return ['N', 'n', 'F', 'f', 'P', 'p', 'W', 'w', 'T', 't', 'M', 'm', 'U', 'u', 'O', 'o'].includes(event.key);
 }
 
 // Terminals minimized through the shortcut, most recent last, so Ctrl+Shift+U
@@ -139,7 +139,10 @@ export function createKeydownHandler({
       return;
     }
 
-    if (event.ctrlKey && event.shiftKey && (event.key === 'U' || event.key === 'u')) {
+    // Ctrl+Shift+O is the primary restore key: Ctrl+Shift+U is GTK's
+    // Unicode-input chord on Linux and never reaches the page there. U stays
+    // as an alias for platforms where it works.
+    if (event.ctrlKey && event.shiftKey && ['O', 'o', 'U', 'u'].includes(event.key)) {
       event.preventDefault();
       restoreMinimizedTerminal(toggleMinimize);
       return;

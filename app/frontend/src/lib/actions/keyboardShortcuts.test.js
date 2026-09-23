@@ -124,6 +124,7 @@ describe('keyboard shortcuts', () => {
     expect(isGlobalShortcut(keyEvent({ ctrlKey: true, shiftKey: true, key: 'ArrowRight' }))).toBe(true);
     expect(isGlobalShortcut(keyEvent({ ctrlKey: true, shiftKey: true, key: '!', code: 'Digit1' }))).toBe(true);
     expect(isGlobalShortcut(keyEvent({ ctrlKey: true, shiftKey: true, key: 'F' }))).toBe(true);
+    expect(isGlobalShortcut(keyEvent({ ctrlKey: true, shiftKey: true, key: 'O' }))).toBe(true);
     expect(isGlobalShortcut(keyEvent({ ctrlKey: true, key: 'c' }))).toBe(false); // Ctrl+C stays with the shell
     expect(isGlobalShortcut(keyEvent({ ctrlKey: true, shiftKey: true, key: 'C' }))).toBe(false); // copy stays with xterm
     expect(isGlobalShortcut(keyEvent({ shiftKey: true, key: 'ArrowRight' }))).toBe(false);
@@ -159,9 +160,17 @@ describe('keyboard shortcuts', () => {
     activeTerminalId.set(2);
     handler(keyEvent({ ctrlKey: true, shiftKey: true, key: 'M' }));
     await Promise.resolve(); await Promise.resolve();
-    handler(keyEvent({ ctrlKey: true, shiftKey: true, key: 'U' }));
+    handler(keyEvent({ ctrlKey: true, shiftKey: true, key: 'O' }));
     await Promise.resolve(); await Promise.resolve();
     expect(get(terminals).find((t) => t.id === 2).minimized).toBe(false);
     expect(get(activeTerminalId)).toBe(2);
+
+    // U remains an alias where the platform delivers it.
+    activeTerminalId.set(2);
+    handler(keyEvent({ ctrlKey: true, shiftKey: true, key: 'M' }));
+    await Promise.resolve(); await Promise.resolve();
+    handler(keyEvent({ ctrlKey: true, shiftKey: true, key: 'U' }));
+    await Promise.resolve(); await Promise.resolve();
+    expect(get(terminals).find((t) => t.id === 2).minimized).toBe(false);
   });
 });
