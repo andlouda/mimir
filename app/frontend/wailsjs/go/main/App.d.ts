@@ -124,3 +124,7 @@ export function SetTmuxIntegrationMode(arg1:string):Promise<string>;
 export function IsAgentDetectionEnabled():Promise<boolean>;
 
 export function SetAgentDetectionEnabled(arg1:boolean):Promise<void>;
+
+export function ListAgentSessionsJSON(arg1:number,arg2:string):Promise<string>;
+
+export function SelectAgentSession(arg1:number,arg2:string,arg3:string):Promise<void>;

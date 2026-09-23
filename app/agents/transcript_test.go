@@ -259,3 +259,30 @@ func TestReadTranscriptWithoutCwd(t *testing.T) {
 		t.Fatalf("expected newest codex session without cwd, got %+v (err %v)", tr, err)
 	}
 }
+
+func TestListSessionsAndPin(t *testing.T) {
+	home := t.TempDir()
+	now := time.Now()
+	cwd := "/home/u/proj"
+	dir := filepath.Join(home, ".claude", "projects", ClaudeProjectDirName(cwd))
+	older := filepath.Join(dir, "older.jsonl")
+	newer := filepath.Join(dir, "newer.jsonl")
+	writeFile(t, older, claudeSession, now.Add(-time.Hour))
+	writeFile(t, newer, strings.Replace(claudeSession, "write me a script", "second session prompt", 1), now)
+
+	list, err := ListSessions(LocalFS{}, KindClaude, home, cwd)
+	if err != nil || len(list) != 2 {
+		t.Fatalf("list: %v %+v", err, list)
+	}
+	if list[0].File != newer || list[0].Title != "second session prompt" || list[0].Cwd != cwd || list[0].Modified == "" {
+		t.Fatalf("unexpected first summary: %+v", list[0])
+	}
+	if list[1].Title != "write me a script" {
+		t.Fatalf("unexpected second summary: %+v", list[1])
+	}
+
+	tr, err := ReadTranscript(LocalFS{}, KindClaude, home, cwd, ReadOptions{File: older})
+	if err != nil || tr.SessionFile != older || !tr.Verified || tr.Candidates != 2 {
+		t.Fatalf("pinned read: %+v (%v)", tr, err)
+	}
+}

@@ -733,6 +733,11 @@ export default {
     noMatches: 'Keine Treffer',
   },
   agentPanel: {
+    unverifiedNoTmux: 'Jüngste Sitzungsdatei nach Zeit gewählt (ohne tmux keine Bestätigung über die Pane möglich)',
+    chooseSession: 'Sitzung wählen',
+    sessionPickLabel: 'Sitzung für diese Pane',
+    sessionAuto: 'automatisch (neueste / beste Übereinstimmung)',
+    sessionPinned: 'Sitzung für diese Pane festgelegt.',
     tabTasks: 'Aufgaben',
     tasksHint: 'Die eigene Aufgabenliste des Agenten, so wie er sie beim Arbeiten führt.',
     insertInto: 'In das aktive Terminal einfügen: {name}',

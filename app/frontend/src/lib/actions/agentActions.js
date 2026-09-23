@@ -252,6 +252,17 @@ export async function loadAgentPaneText(id, { full = false } = {}) {
   return JSON.parse(raw);
 }
 
+/** Lists candidate sessions for the agent in a terminal (+ current pin). */
+export async function loadAgentSessions(id) {
+  const raw = await app()['ListAgentSessionsJSON'](id, terminalType(id));
+  return JSON.parse(raw || '{}');
+}
+
+/** Pins a session for a terminal ('' = automatic). */
+export async function selectAgentSession(id, file) {
+  await app()['SelectAgentSession'](id, terminalType(id), file || '');
+}
+
 /** Loads git status / diff stat of the agent's working directory. */
 export async function loadAgentGitStatus(id) {
   const raw = await app()['GetAgentGitStatusJSON'](id, terminalType(id));

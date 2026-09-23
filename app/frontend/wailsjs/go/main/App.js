@@ -373,3 +373,11 @@ export function IsAgentDetectionEnabled() {
 export function SetAgentDetectionEnabled(arg1) {
   return window['go']['main']['App']['SetAgentDetectionEnabled'](arg1);
 }
+
+export function ListAgentSessionsJSON(arg1, arg2) {
+  return window['go']['main']['App']['ListAgentSessionsJSON'](arg1, arg2);
+}
+
+export function SelectAgentSession(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SelectAgentSession'](arg1, arg2, arg3);
+}

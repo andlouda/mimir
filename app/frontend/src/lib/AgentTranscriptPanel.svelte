@@ -13,7 +13,7 @@
   import { agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
-  import { closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentTranscript } from './actions/agentActions.js';
+  import { closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentSessions, loadAgentTranscript, selectAgentSession } from './actions/agentActions.js';
 
   export let terminalId;
 
@@ -37,6 +37,8 @@
   let loadedFor = null;
   let showOlderSnippets = false;
   let summaryExpanded = false;
+  let sessions = null;       // { sessions: [...], selected: '' } once loaded
+  let sessionsOpen = false;
 
   $: agent = $agentStates[terminalId] || null;
   $: term = $terminalMap.get(terminalId) || null;
@@ -71,7 +73,39 @@
 
   function resetFor() {
     transcript = null; pane = null; paneFull = false; git = null; view = 'snippets';
-    error = ''; showOlderSnippets = false; summaryExpanded = false;
+    error = ''; showOlderSnippets = false; summaryExpanded = false; sessions = null; sessionsOpen = false;
+  }
+
+  async function toggleSessions() {
+    sessionsOpen = !sessionsOpen;
+    if (sessionsOpen && !sessions) {
+      try {
+        sessions = await loadAgentSessions(terminalId);
+      } catch (e) {
+        error = String(e?.message || e);
+        sessionsOpen = false;
+      }
+    }
+  }
+
+  async function chooseSession(event) {
+    const file = event.target.value;
+    try {
+      await selectAgentSession(terminalId, file);
+      if (sessions) sessions = { ...sessions, selected: file };
+      sessionsOpen = false;
+      transcript = null;
+      await refresh();
+      flash($t('agentPanel.sessionPinned'));
+    } catch (e) {
+      error = String(e?.message || e);
+    }
+  }
+
+  function sessionLabel(s) {
+    const when = shortTime(s.modified);
+    const title = s.title || s.file.split(/[\\/#]/).pop();
+    return `${when ? when + ' · ' : ''}${title}`;
   }
 
   function buildSnippetGroups(allTurns, includeOlder) {
@@ -301,10 +335,30 @@
     {:else}
       {#if transcript.source === 'tmux'}
         <p class="agent-panel-hint agent-panel-warn">{$t('agentPanel.fallbackHint')}</p>
-      {:else if !transcript.verified}
-        <p class="agent-panel-hint agent-panel-warn" title={transcript.sessionFile}>
-          {$t('agentPanel.unverified')}{#if transcript.candidates > 1} · {$t('agentPanel.candidates', { n: transcript.candidates })}{/if}
+      {:else if !transcript.verified || transcript.candidates > 1}
+        <p class="agent-panel-hint {transcript.verified ? '' : 'agent-panel-warn'}" title={transcript.sessionFile}>
+          {#if transcript.verified}
+            {$t('agentPanel.candidates', { n: transcript.candidates })}
+          {:else if agent && agent.tmux === false}
+            {$t('agentPanel.unverifiedNoTmux')}{#if transcript.candidates > 1} · {$t('agentPanel.candidates', { n: transcript.candidates })}{/if}
+          {:else}
+            {$t('agentPanel.unverified')}{#if transcript.candidates > 1} · {$t('agentPanel.candidates', { n: transcript.candidates })}{/if}
+          {/if}
+          {#if transcript.candidates > 1 || sessions}
+            <button type="button" class="agent-link" on:click={toggleSessions}>{$t('agentPanel.chooseSession')}</button>
+          {/if}
         </p>
+        {#if sessionsOpen && sessions}
+          <label class="agent-session-pick">
+            <span>{$t('agentPanel.sessionPickLabel')}</span>
+            <select value={sessions.selected || ''} on:change={chooseSession}>
+              <option value="">{$t('agentPanel.sessionAuto')}</option>
+              {#each sessions.sessions as s (s.file)}
+                <option value={s.file}>{sessionLabel(s)}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
       {/if}
 
       {#if view === 'snippets'}
@@ -481,6 +535,8 @@
   .agent-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
   .agent-panel-hint { color: var(--text-secondary); margin: 0; }
   .agent-panel-warn { color: #e3b341; }
+  .agent-session-pick { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-secondary); }
+  .agent-session-pick select { background: var(--bg-surface, #151928); color: inherit; border: 1px solid var(--border-subtle); border-radius: 4px; padding: 3px 6px; font-size: 11px; max-width: 100%; }
   .agent-summary { border: 1px solid rgba(99, 179, 237, 0.3); background: rgba(99, 179, 237, 0.06); border-radius: 6px; padding: 6px 8px; }
   .agent-summary-prompt { color: var(--text-secondary); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
   .agent-summary-text { white-space: pre-wrap; word-break: break-word; }

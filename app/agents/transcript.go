@@ -63,6 +63,9 @@ type ReadOptions struct {
 	// MaxCandidates bounds how many session files are parsed for
 	// verification (3 if 0).
 	MaxCandidates int
+	// File pins a specific session (as returned by ListSessions); the
+	// lookup and ranking are skipped.
+	File string
 }
 
 // ReadTranscript finds the session for kind in cwd and returns its last
@@ -94,8 +97,22 @@ func ReadTranscript(fs FS, kind Kind, home, cwd string, opts ReadOptions) (Trans
 	default:
 		return Transcript{}, ErrNotFound
 	}
-	if err != nil {
+	if err != nil && opts.File == "" {
 		return Transcript{}, err
+	}
+	if opts.File != "" {
+		// Pinned by the user: read exactly this file, keep the candidate
+		// count so the picker stays available.
+		tr, err := readOne(fs, kind, desc.Label, opts.File, cwd, limit)
+		if err != nil {
+			return Transcript{}, err
+		}
+		tr.Verified = true
+		tr.Candidates = len(files)
+		if tr.Candidates == 0 {
+			tr.Candidates = 1
+		}
+		return tr, nil
 	}
 	if len(files) == 0 {
 		return Transcript{}, ErrNotFound

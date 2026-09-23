@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"mimir/agents"
@@ -96,6 +97,11 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		lastPayload agentStatePayload
 	)
 	locate := func() {
+		if state.sessionFile != "" {
+			file, lastSize, lastMod = state.sessionFile, -1, time.Time{}
+			lastLookup = time.Now()
+			return
+		}
 		cwd := state.cwd
 		if cwd == "" {
 			cwd = a.TerminalManager.GetLastReportedCwd(terminalID)
@@ -190,7 +196,11 @@ func (a *App) watchOpenCode(ctx context.Context, terminalID int, state agentTerm
 			if cwd == "" {
 				cwd = a.TerminalManager.GetLastReportedCwd(terminalID)
 			}
-			if st, err := agents.OpenCodeState(dbPath, cwd); err == nil {
+			sessionID := ""
+			if i := strings.LastIndex(state.sessionFile, "#"); i >= 0 {
+				sessionID = state.sessionFile[i+1:]
+			}
+			if st, err := agents.OpenCodeState(dbPath, cwd, sessionID); err == nil {
 				payload := agentStatePayload{State: st.State, LastText: st.LastText, LastAt: st.LastAt, SessionFile: dbPath}
 				if payload != lastPayload {
 					lastPayload = payload
