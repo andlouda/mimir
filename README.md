@@ -74,6 +74,10 @@ Mimir is local-first by default.
   git working-tree status, the commands it ran with their exit codes, the
   tool call running right now with its elapsed time (also in the sidebar
   row), and a Processes tab with what actually runs under the agent.
+  The sidebar groups agents by project (host plus git root, branch or
+  worktree shown per row); sessions and projects can be named, annotated
+  and archived from the panel, and those notes survive restarts (kept in
+  Mimir's config directory, keyed by host and session file).
   Detection can be turned off in Settings. A desktop notification (system
   notifier, metadata only) tells you when an agent finishes or waits for an
   approval while its pane is not in front; also switchable in Settings.

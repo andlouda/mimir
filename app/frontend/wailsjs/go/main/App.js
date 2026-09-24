@@ -378,6 +378,22 @@ export function GetClaudeHookStatusJSON(arg1) {
   return window['go']['main']['App']['GetClaudeHookStatusJSON'](arg1);
 }
 
+export function GetAgentProjectJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentProjectJSON'](arg1, arg2);
+}
+
+export function GetAgentAnnotationsJSON() {
+  return window['go']['main']['App']['GetAgentAnnotationsJSON']();
+}
+
+export function SetAgentSessionAnnotation(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SetAgentSessionAnnotation'](arg1, arg2, arg3, arg4);
+}
+
+export function SetAgentProjectName(arg1, arg2) {
+  return window['go']['main']['App']['SetAgentProjectName'](arg1, arg2);
+}
+
 export function GetAgentProcessesJSON(arg1, arg2) {
   return window['go']['main']['App']['GetAgentProcessesJSON'](arg1, arg2);
 }

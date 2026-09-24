@@ -68,6 +68,22 @@ agentNotificationsEnabled.subscribe((enabled) => {
   }
 });
 
+// Persistent notes on agent sessions and projects, keyed by host + session
+// file / host + git root (see agentActions.sessionKey / projectKey). Loaded
+// from the backend once; writes go through agentActions.
+export const agentAnnotations = writable({ sessions: {}, projects: {} });
+
+export async function loadAgentAnnotations() {
+  const getter = globalThis.window?.['go']?.['main']?.['App']?.['GetAgentAnnotationsJSON'];
+  if (typeof getter !== 'function') return;
+  try {
+    const parsed = JSON.parse(await getter());
+    agentAnnotations.set({ sessions: parsed?.sessions || {}, projects: parsed?.projects || {} });
+  } catch (error) {
+    console.warn('Could not load agent annotations:', error);
+  }
+}
+
 /** Loads the persisted setting from the backend (call once at start-up). */
 export async function loadAgentDetectionSetting() {
   const getter = globalThis.window?.['go']?.['main']?.['App']?.['IsAgentDetectionEnabled'];

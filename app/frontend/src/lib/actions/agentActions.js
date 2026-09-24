@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { agentDetectionEnabled, agentNotificationsEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
+import { agentAnnotations, agentDetectionEnabled, agentNotificationsEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { t } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import { outputMentionsAgent, parseAgentTitle } from '../agents/agentSignals.js';
@@ -83,8 +83,10 @@ export async function runAgentDetection(id) {
     && previous.source === result.source
     && previous.tmux === !!result.tmux;
   if (unchanged) return result;
+  const keepProject = previous?.project && previous.cwd === result.cwd && previous.source === result.source;
   setState(id, {
     kind: result.kind,
+    project: keepProject ? previous.project : null,
     label: result.label,
     pid: result.pid,
     cwd: result.cwd,
@@ -96,7 +98,77 @@ export async function runAgentDetection(id) {
     attention: previous?.attention || false,
     detectedAt: previous?.kind === result.kind ? previous.detectedAt : Date.now(),
   });
+  if (!keepProject && result.cwd) loadAgentProject(id);
   return result;
+}
+
+/**
+ * Project of an agent: host plus git root (and branch / worktree) of its
+ * working directory. Looked up once per detection with a new directory.
+ */
+export async function loadAgentProject(id) {
+  try {
+    const raw = await app()['GetAgentProjectJSON'](id, terminalType(id));
+    const project = JSON.parse(raw);
+    if (get(agentStates)[id]) setState(id, { project });
+    return project;
+  } catch (error) {
+    console.warn('Could not resolve agent project:', error);
+    return null;
+  }
+}
+
+/** Host part of the annotation keys: "local", "wsl" or the SSH host. */
+function agentHost(agent) {
+  return agent?.project?.host || agent?.source || 'local';
+}
+
+export function sessionKey(agent) {
+  if (!agent?.sessionFile) return '';
+  return `${agentHost(agent)}|${agent.sessionFile}`;
+}
+
+export function projectKey(agent) {
+  const root = agent?.project?.root || agent?.cwd || '';
+  if (!root) return '';
+  return `${agentHost(agent)}|${root}`;
+}
+
+/** Name / note / archived flag of a session, persisted by the backend. */
+export async function setSessionAnnotation(id, { name = '', note = '', archived = false } = {}) {
+  const agent = get(agentStates)[id];
+  const key = sessionKey(agent);
+  if (!key) return false;
+  await app()['SetAgentSessionAnnotation'](key, name, note, Boolean(archived));
+  agentAnnotations.update((all) => {
+    const sessions = { ...all.sessions };
+    if (!name && !note && !archived) delete sessions[key];
+    else sessions[key] = { name, note, archived: Boolean(archived) };
+    return { ...all, sessions };
+  });
+  return true;
+}
+
+/** Display name of a project (persisted by the backend). */
+export async function setProjectName(id, name) {
+  const agent = get(agentStates)[id];
+  const key = projectKey(agent);
+  if (!key) return false;
+  await app()['SetAgentProjectName'](key, name || '');
+  agentAnnotations.update((all) => {
+    const projects = { ...all.projects };
+    if (!name) delete projects[key];
+    else projects[key] = { name };
+    return { ...all, projects };
+  });
+  return true;
+}
+
+/** Fallback project label: the git root's (or cwd's) last path segment. */
+export function projectFolderName(agent) {
+  const root = agent?.project?.root || agent?.cwd || '';
+  const parts = root.split(/[\\/]/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : '';
 }
 
 // The backend follows the agent's session file and emits

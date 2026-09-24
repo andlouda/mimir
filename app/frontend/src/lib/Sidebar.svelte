@@ -1,5 +1,7 @@
 <script>
-  import { answerAgentPermission, elapsedSince } from './actions/agentActions.js';
+  import { answerAgentPermission, elapsedSince, projectFolderName, projectKey, sessionKey } from './actions/agentActions.js';
+  import { agentAnnotations } from './stores/agentStore.js';
+  let showArchived = false;
   import { onDestroy } from 'svelte';
 
   // Elapsed time next to the running tool call; ticks only while an agent
@@ -71,10 +73,38 @@
     if (a.attention) return AGENT_ORDER.attention;
     return AGENT_ORDER[a.status] ?? AGENT_ORDER.unknown;
   }
-  $: agentRows = Object.entries($agentStates)
-    .map(([id, agent]) => ({ id: Number(id), agent, term: terminals.find((t) => t.id === Number(id)) }))
+  $: allAgentRows = Object.entries($agentStates)
+    .map(([id, agent]) => ({ id: Number(id), agent, term: terminals.find((t) => t.id === Number(id)), note: $agentAnnotations.sessions[sessionKey(agent)] || null }))
     .filter((r) => r.term)
     .sort((a, b) => agentRank(a.agent) - agentRank(b.agent) || a.id - b.id);
+  $: archivedCount = allAgentRows.filter((r) => r.note?.archived).length;
+  $: agentRows = showArchived ? allAgentRows : allAgentRows.filter((r) => !r.note?.archived);
+  // Rows grouped by project (host + git root), groups ordered by their most
+  // urgent row so approvals still float to the top.
+  $: agentGroups = (() => {
+    const groups = new Map();
+    for (const row of agentRows) {
+      const key = projectKey(row.agent) || `#${row.id}`;
+      if (!groups.has(key)) {
+        const p = row.agent.project;
+        const name = $agentAnnotations.projects[key]?.name || projectFolderName(row.agent) || row.term.name;
+        const host = p?.host && p.host !== 'local' ? p.host : (row.agent.source && row.agent.source !== 'local' ? row.agent.source : '');
+        groups.set(key, { key, name, host, rows: [] });
+      }
+      groups.get(key).rows.push(row);
+    }
+    return [...groups.values()];
+  })();
+  function rowLabel(row) {
+    return row.note?.name ? `${row.note.name} · ${row.agent.label}` : row.agent.label;
+  }
+  function rowMeta(row) {
+    const parts = [row.term.name];
+    if (row.agent.project?.branch) parts.push((row.agent.project.worktree ? '⎇ ' : '') + row.agent.project.branch);
+    else if (agentCwd(row.agent)) parts.push(agentCwd(row.agent));
+    if (row.term.minimized) parts.push($t('sidebar.minimized'));
+    return parts.join(' · ');
+  }
   $: agentsNeedingMe = agentRows.filter((r) => r.agent.attention || r.agent.status === 'idle' || r.agent.status === 'permission').length;
 
   function agentStateText(agent) {
@@ -246,7 +276,7 @@
       {/if}
     </div>
 
-    {#if agentRows.length > 0}
+    {#if allAgentRows.length > 0}
       <div class="sidebar-section sidebar-agents">
         <div class="sidebar-heading"
           on:click={() => { agentsNavOpen = !agentsNavOpen; }}
@@ -260,21 +290,27 @@
         </div>
         {#if agentsNavOpen}
         <ul class="sidebar-list">
-          {#each agentRows as row (row.id)}
+          {#each agentGroups as group (group.key)}
+            {#if agentGroups.length > 1 || group.host}
+              <li class="sidebar-agent-group" title={group.key}>
+                <span class="sidebar-agent-group-name">{group.name}</span>{#if group.host}<span class="sidebar-agent-group-host">{group.host}</span>{/if}
+              </li>
+            {/if}
+          {#each group.rows as row (row.id)}
             <li>
               <button
                 class="sidebar-agent-row"
                 class:active-subnav={activeTerminalId === row.id}
                 class:sidebar-agent-attention={row.agent.attention}
                 class:sidebar-agent-permission={row.agent.status === 'permission'}
-                title={[row.agent.label, row.agent.cwd, row.agent.lastText].filter(Boolean).join('\n')}
+                title={[rowLabel(row), row.note?.note, row.agent.cwd, row.agent.lastText].filter(Boolean).join('\n')}
                 on:click={() => selectTerminal(row.term)}
               >
                 <span class="sidebar-agent-dot agent-dot-{row.agent.status === 'permission' ? 'permission' : row.agent.attention ? 'attention' : (row.agent.status || 'unknown')}"></span>
                 <span class="sidebar-agent-main">
                   <span class="sidebar-agent-head">
-                    <span class="sidebar-agent-label">{row.agent.label}</span>
-                    <span class="sidebar-agent-term">{row.term.name}{agentCwd(row.agent) ? ' · ' + agentCwd(row.agent) : ''}{row.term.minimized ? ' · ' + $t('sidebar.minimized') : ''}</span>
+                    <span class="sidebar-agent-label">{rowLabel(row)}</span>
+                    <span class="sidebar-agent-term">{rowMeta(row)}</span>
                   </span>
                   <span class="sidebar-agent-state">
                     <span class="sidebar-agent-status">{agentStateText(row.agent)}</span>
@@ -290,6 +326,12 @@
               {/if}
             </li>
           {/each}
+          {/each}
+          {#if archivedCount > 0}
+            <li class="sidebar-agent-archived">
+              <button type="button" class="sidebar-agent-archived-btn" on:click={() => { showArchived = !showArchived; }}>{showArchived ? $t('sidebar.agentsHideArchived') : $t('sidebar.agentsShowArchived', { n: archivedCount })}</button>
+            </li>
+          {/if}
         </ul>
         {/if}
       </div>

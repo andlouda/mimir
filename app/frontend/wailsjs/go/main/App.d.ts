@@ -127,6 +127,14 @@ export function SetAgentDetectionEnabled(arg1:boolean):Promise<void>;
 
 export function GetClaudeHookStatusJSON(arg1:number):Promise<string>;
 
+export function GetAgentProjectJSON(arg1:number,arg2:string):Promise<string>;
+
+export function GetAgentAnnotationsJSON():Promise<string>;
+
+export function SetAgentSessionAnnotation(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
+
+export function SetAgentProjectName(arg1:string,arg2:string):Promise<void>;
+
 export function GetAgentProcessesJSON(arg1:number,arg2:string):Promise<string>;
 
 export function AnswerAgentPermission(arg1:number,arg2:boolean):Promise<void>;

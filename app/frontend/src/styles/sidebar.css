@@ -225,6 +225,12 @@
   .agent-dot-attention { background: #7ee787; box-shadow: 0 0 0 3px rgba(126, 231, 135, 0.25); }
   .agent-dot-permission { background: #ff7b72; box-shadow: 0 0 0 3px rgba(255, 123, 114, 0.25); animation: sidebar-agent-pulse 0.9s ease-in-out infinite; }
   .sidebar-agents .sidebar-list li button.sidebar-agent-permission .sidebar-agent-status { color: #ff7b72; font-weight: 600; }
+  .sidebar-agents .sidebar-list li.sidebar-agent-group { display: flex; gap: 0.4rem; align-items: baseline; padding: 0.35rem 0.8rem 0.1rem 1rem; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .sidebar-agent-group-name { font-weight: 700; color: var(--text-secondary); }
+  .sidebar-agent-group-host { opacity: 0.8; }
+  .sidebar-agents .sidebar-list li.sidebar-agent-archived { padding: 0.2rem 0.8rem 0.4rem 1rem; }
+  .sidebar-agent-archived-btn { background: transparent; border: 0; color: var(--text-muted); font-size: 0.66rem; cursor: pointer; padding: 0; }
+  .sidebar-agent-archived-btn:hover { color: var(--text-secondary); }
   .sidebar-agent-activity { font-family: var(--font-mono, monospace); font-size: 0.66rem; }
   .sidebar-agent-answer { display: flex; gap: 0.3rem; padding: 0 0.8rem 0.4rem 1.9rem; }
   .sidebar-answer-btn { border-radius: 4px; padding: 1px 7px; font-size: 0.68rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; }

@@ -10,6 +10,9 @@ import { EventsOn } from '../../../wailsjs/runtime';
 import {
   answerAgentPermission,
   handleAgentStateEvent,
+  projectFolderName,
+  projectKey,
+  sessionKey,
   handleTerminalPrompt,
   handleTerminalTitle,
   loadAgentPaneText,
@@ -219,6 +222,19 @@ describe('agent detection', () => {
     handleAgentStateEvent(2, 'not json');
     expect(get(agentStates)[2].status).toBe('idle');
     stopAgentWatch(2);
+  });
+
+  test('annotation keys combine host with session file or git root', () => {
+    const local = { source: 'local', cwd: '/home/u/proj/sub', sessionFile: '/home/u/.claude/projects/x/abc.jsonl', project: { host: 'local', root: '/home/u/proj' } };
+    expect(sessionKey(local)).toBe('local|/home/u/.claude/projects/x/abc.jsonl');
+    expect(projectKey(local)).toBe('local|/home/u/proj');
+    expect(projectFolderName(local)).toBe('proj');
+    const ssh = { source: 'ssh', cwd: '/srv/app', sessionFile: '/root/.claude/projects/y/def.jsonl', project: { host: 'build01', root: '/srv/app' } };
+    expect(sessionKey(ssh)).toBe('build01|/root/.claude/projects/y/def.jsonl');
+    // Without a resolved project the cwd stands in, and the source is the host.
+    expect(projectKey({ source: 'wsl', cwd: '/home/u/x' })).toBe('wsl|/home/u/x');
+    expect(sessionKey({ source: 'wsl' })).toBe('');
+    expect(projectFolderName({ cwd: 'C:\\Users\\t3\\repo' })).toBe('repo');
   });
 
   test('answers a pending permission prompt through the backend, once', async () => {
