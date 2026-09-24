@@ -38,12 +38,44 @@ type Task struct {
 	Priority string `json:"priority,omitempty"` // high | medium | low
 }
 
+// PRLink is a pull request the agent opened or linked during the session.
+type PRLink struct {
+	Number int    `json:"number"`
+	URL    string `json:"url"`
+}
+
+// ModelUsage is the token usage of one model in a session.
+type ModelUsage struct {
+	Model       string `json:"model"`
+	Input       int64  `json:"input"`
+	Output      int64  `json:"output"`
+	CacheRead   int64  `json:"cacheRead"`
+	CacheCreate int64  `json:"cacheCreate"`
+}
+
+// SessionMeta is what the agent itself recorded about the session as a
+// whole: its title, the last prompt, linked PRs, the newest context
+// summary (written when the context was compacted — the "state of the
+// session" that otherwise gets lost from view) and cost/token totals.
+type SessionMeta struct {
+	Title       string       `json:"title,omitempty"`
+	FirstPrompt string       `json:"firstPrompt,omitempty"`
+	LastPrompt  string       `json:"lastPrompt,omitempty"`
+	PRLinks     []PRLink     `json:"prLinks,omitempty"`
+	Summary     string       `json:"summary,omitempty"`
+	SummaryAt   string       `json:"summaryAt,omitempty"`
+	CostUSD     float64      `json:"costUSD,omitempty"`
+	DurationMs  int64        `json:"durationMs,omitempty"`
+	ModelUsage  []ModelUsage `json:"modelUsage,omitempty"`
+}
+
 // Session is the full parse result of a transcript file.
 type Session struct {
 	Messages []Message
 	Files    []FileActivity
 	Commands []CommandRun
 	Tasks    []Task
+	Meta     SessionMeta
 }
 
 // fileTracker aggregates per-file operations preserving recency order.

@@ -96,7 +96,8 @@
     return [...groups.values()];
   })();
   function rowLabel(row) {
-    return row.note?.name ? `${row.note.name} · ${row.agent.label}` : row.agent.label;
+    const name = row.note?.name || row.agent.title || '';
+    return name ? `${name} · ${row.agent.label}` : row.agent.label;
   }
   function rowMeta(row) {
     const parts = [row.term.name];

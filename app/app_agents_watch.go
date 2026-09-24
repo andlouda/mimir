@@ -24,6 +24,9 @@ type agentStatePayload struct {
 	// agents.StateInfo).
 	Activity   string `json:"activity,omitempty"`
 	ActivityAt string `json:"activityAt,omitempty"`
+	// Title is the session's own title (Claude Code's AI title, else the
+	// first prompt), read once from the head of the file.
+	Title string `json:"title,omitempty"`
 	// Prompt is the hook's notification type while one is pending
 	// (permission_prompt, idle_prompt, ...); the frontend offers answer
 	// buttons only for permission_prompt.
@@ -41,6 +44,7 @@ const (
 	agentWatchRemoteInterval = 4 * time.Second
 	agentWatchRelookup       = 30 * time.Second
 	agentWatchTailBytes      = 64 * 1024
+	agentWatchHeadBytes      = 48 * 1024
 	// agentHookSettle: how long after a hook event a session-file change
 	// still counts as "the record the prompt belongs to".
 	agentHookSettle = 3 * time.Second
@@ -115,6 +119,7 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		lastMod     time.Time
 		lastPayload agentStatePayload
 		filePayload agentStatePayload
+		title       string
 		// Approval hook: the newest notification for this session, kept
 		// until the session file moves on (the user answered) or it ages
 		// out. Only Claude Code has the hook.
@@ -173,9 +178,14 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 			if info, err := fs.Stat(file); err == nil && (info.Size != lastSize || !info.ModTime.Equal(lastMod)) {
 				first := lastSize < 0
 				lastSize, lastMod = info.Size, info.ModTime
+				if state.kind == agents.KindClaude && (first || title == "") {
+					if head, err := fs.ReadHead(file, agentWatchHeadBytes); err == nil {
+						title = agents.ClaudeSessionTitle(head)
+					}
+				}
 				if tail, err := fs.ReadTail(file, agentWatchTailBytes); err == nil {
 					st := agents.DeriveState(state.kind, tail)
-					filePayload = agentStatePayload{State: st.State, LastText: st.LastText, LastAt: st.LastAt, SessionFile: file, Activity: st.Activity, ActivityAt: st.ActivityAt}
+					filePayload = agentStatePayload{State: st.State, LastText: st.LastText, LastAt: st.LastAt, SessionFile: file, Activity: st.Activity, ActivityAt: st.ActivityAt, Title: title}
 				}
 				// The transcript moved on after the prompt: answered. A
 				// change right after the event is the tool_use record the
