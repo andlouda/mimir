@@ -1,5 +1,6 @@
 import { get } from 'svelte/store';
-import { agentDetectionEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
+import { agentDetectionEnabled, agentNotificationsEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
+import { t } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import { outputMentionsAgent, parseAgentTitle } from '../agents/agentSignals.js';
 import { EventsOn } from '../../../wailsjs/runtime';
@@ -132,6 +133,8 @@ export function handleAgentStateEvent(id, raw) {
   const finished = current.status === 'working' && status === 'idle';
   const blocked = status === 'permission' && current.status !== 'permission';
   const attention = (finished || blocked) && get(activeTerminalId) !== id ? true : (current.attention || false);
+  if (blocked) notifyAgentEvent(id, 'permission', lastText);
+  else if (finished) notifyAgentEvent(id, 'done', '');
   const prompt = status === 'permission' || status === 'idle' ? String(payload.prompt || '') : '';
   if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention && current.prompt === prompt) return;
   setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, prompt, answering: false, fileState: true, lastChange: Date.now() });
@@ -174,6 +177,7 @@ export function handleTerminalTitle(id, title) {
   if (current?.fileState) return;
   const finished = current?.status === 'working' && parsed.status === 'idle';
   const attention = finished && get(activeTerminalId) !== id ? true : (current?.attention || false);
+  if (finished) notifyAgentEvent(id, 'done', '');
   // Claude Code re-sets its title about once a second while working (the
   // spinner glyph rotates). Only write to the store when the visible state
   // actually changes; every store write re-renders all pane headers.
@@ -208,6 +212,37 @@ export function stopAgentWatch(id) {
   watches.delete(id);
   setState(id, null);
   if (get(agentPanelTerminalId) === id) agentPanelTerminalId.set(null);
+}
+
+function windowInFront() {
+  try {
+    return typeof document !== 'undefined' && typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Desktop notification for an agent event when the user is not looking at
+ * that pane: another pane is active, or the Mimir window is not focused.
+ * Text is metadata only (agent label, terminal name, the hook's one-line
+ * message); the backend collapses bursts per terminal.
+ */
+export function notifyAgentEvent(id, kind, message) {
+  if (!get(agentNotificationsEnabled)) return false;
+  if (get(activeTerminalId) === id && windowInFront()) return false;
+  const agent = get(agentStates)[id];
+  if (!agent) return false;
+  const fn = globalThis.window?.['go']?.['main']?.['App']?.['NotifyDesktop'];
+  if (typeof fn !== 'function') return false;
+  const translate = get(t);
+  const termName = get(terminals).find((x) => x.id === id)?.name || `#${id}`;
+  const title = `${agent.label} · ${termName}`;
+  const body = kind === 'permission'
+    ? (message || translate('agentPanel.notifyPermission'))
+    : translate('agentPanel.notifyDone');
+  Promise.resolve(fn(id, title, body)).catch((error) => console.warn('Desktop notification failed:', error));
+  return true;
 }
 
 export function markAgentAttentionSeen(id) {

@@ -3,7 +3,7 @@
   // logic stay in the parent and are passed as callbacks. Strings via i18n;
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
-  import { agentDetectionEnabled } from '../stores/agentStore.js';
+  import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
   import { tmuxIntegrationMode } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
@@ -103,6 +103,14 @@
       </div>
       <strong>{$t('settings.cards.agentDetection.title')}</strong>
       <p>{$t('settings.cards.agentDetection.desc')}</p>
+    </label>
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x266A;</span>
+        <input type="checkbox" bind:checked={$agentNotificationsEnabled} />
+      </div>
+      <strong>{$t('settings.cards.agentNotify.title')}</strong>
+      <p>{$t('settings.cards.agentNotify.desc')}</p>
     </label>
     <div class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">

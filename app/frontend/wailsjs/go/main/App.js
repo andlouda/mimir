@@ -382,6 +382,10 @@ export function AnswerAgentPermission(arg1, arg2) {
   return window['go']['main']['App']['AnswerAgentPermission'](arg1, arg2);
 }
 
+export function NotifyDesktop(arg1, arg2, arg3) {
+  return window['go']['main']['App']['NotifyDesktop'](arg1, arg2, arg3);
+}
+
 export function ListClaudeHookHostsJSON() {
   return window['go']['main']['App']['ListClaudeHookHostsJSON']();
 }
