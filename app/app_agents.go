@@ -27,6 +27,7 @@ type agentDetectionResult struct {
 	Detected    bool        `json:"detected"`
 	Kind        agents.Kind `json:"kind,omitempty"`
 	Label       string      `json:"label,omitempty"`
+	Short       string      `json:"short,omitempty"`
 	PID         int         `json:"pid,omitempty"`
 	Cwd         string      `json:"cwd,omitempty"`
 	Source      string      `json:"source,omitempty"` // local | wsl | ssh
@@ -433,6 +434,7 @@ func (a *App) detectWithoutTmux(terminalID int, source string) agentDetectionRes
 		Detected:    true,
 		Kind:        det.Kind,
 		Label:       det.Label,
+		Short:       det.Short,
 		PID:         det.PID,
 		Cwd:         cwd,
 		Source:      source,
@@ -477,6 +479,7 @@ func finishDetection(output, source string) agentDetectionResult {
 		Detected:    true,
 		Kind:        det.Kind,
 		Label:       det.Label,
+		Short:       det.Short,
 		PID:         det.PID,
 		Cwd:         cwd,
 		Source:      source,

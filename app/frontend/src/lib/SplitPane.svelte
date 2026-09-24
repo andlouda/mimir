@@ -344,7 +344,7 @@
               title={agentBadgeTitle(agent)}
               on:click|stopPropagation={() => dispatch('openagent', term.id)}
             >
-              <span class="agent-badge-dot"></span><span class="agent-badge-text">{agent.label}{#if agent.status === 'permission'} · {$t('splitPane.agentPermission')}{:else if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}</span>
+              <span class="agent-badge-dot"></span><span class="agent-badge-text">{agent.short || agent.label}{#if agent.status === 'permission'} · {$t('splitPane.agentPermission')}{:else if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}</span>
             </button>
           {/if}
           {#if term.type === 'ssh'}
