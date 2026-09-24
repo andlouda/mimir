@@ -111,12 +111,15 @@ Mimir is local-first by default.
   Detection can be turned off in Settings. A desktop notification (system
   notifier, metadata only) tells you when an agent finishes or waits for an
   approval while its pane is not in front; also switchable in Settings.
-  Optionally Mimir installs a
-  Claude Code Notification hook (`~/.claude/settings.json`, on this machine
-  from Settings, on SSH hosts from the agent panel) so that a pending
-  permission prompt shows up as "approval" in the badge and the sidebar
-  instead of being guessed from the screen, with Allow / Deny buttons that
-  type the answer into the pane for you.
+  Optionally Mimir installs
+  Claude Code hooks (`~/.claude/settings.json`, on this machine from
+  Settings, on SSH hosts from the agent panel): a Notification hook so that
+  a pending permission prompt shows up as "approval" in the badge and the
+  sidebar instead of being guessed from the screen, with Allow / Deny
+  buttons that type the answer into the pane for you, and a SessionStart
+  hook that tells Mimir which session file belongs to which pane the moment
+  a session starts, so panes in the same directory are never mixed up. The
+  agent panel follows the terminal you select; pin it to keep it on one.
 - Credentials (SSH passwords, AI API key) are stored in the OS keyring when
   available. Without a keyring, they are kept in an encrypted file protected by
   a master password (Argon2id) plus a per-machine identifier where the OS

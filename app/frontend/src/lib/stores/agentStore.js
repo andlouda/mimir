@@ -13,6 +13,10 @@ export const agentStates = writable({});
 // Terminal id whose agent transcript panel is open, or null.
 export const agentPanelTerminalId = writable(null);
 
+// When false (default) the open panel follows the terminal the user
+// selects; when true it stays on the terminal it was pinned to.
+export const agentPanelPinned = writable(false);
+
 const DETECTION_KEY = 'mimir-agent-detection';
 
 function readDetectionSetting() {

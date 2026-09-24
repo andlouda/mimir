@@ -54,10 +54,28 @@ func ParseHookEvent(data []byte) (HookEvent, error) {
 	if err := json.Unmarshal(data, &ev); err != nil {
 		return ev, err
 	}
-	if ev.HookEventName != "Notification" || ev.NotificationType == "" {
-		return ev, errors.New("not a notification event")
+	switch ev.HookEventName {
+	case "Notification":
+		if ev.NotificationType == "" {
+			return ev, errors.New("notification without a type")
+		}
+	case "SessionStart":
+		// Binds the pane to its session file the moment Claude starts
+		// (or resumes / clears / compacts); carries no state.
+		if ev.TranscriptPath == "" && ev.SessionID == "" {
+			return ev, errors.New("session start without a session")
+		}
+	default:
+		return ev, errors.New("unsupported hook event")
 	}
 	return ev, nil
+}
+
+// hookEvents lists the Claude Code events Mimir subscribes to, with the
+// matcher for each ("" = every occurrence).
+var hookEvents = []struct{ Event, Matcher string }{
+	{"Notification", HookMatcher},
+	{"SessionStart", ""},
 }
 
 // StateForNotification maps a notification type to an agent state.
@@ -156,26 +174,28 @@ func InstallClaudeHook(settings []byte, command string, args []string) ([]byte, 
 	if hooks == nil {
 		hooks = map[string]any{}
 	}
-	var entries []hookEntry
-	if raw, ok := hooks["Notification"]; ok {
-		b, _ := json.Marshal(raw)
-		_ = json.Unmarshal(b, &entries)
-	}
-	kept := entries[:0]
-	for _, e := range entries {
-		var rest []map[string]any
-		for _, h := range e.Hooks {
-			if !isMimirHook(h) {
-				rest = append(rest, h)
+	for _, he := range hookEvents {
+		var entries []hookEntry
+		if raw, ok := hooks[he.Event]; ok {
+			b, _ := json.Marshal(raw)
+			_ = json.Unmarshal(b, &entries)
+		}
+		kept := entries[:0]
+		for _, e := range entries {
+			var rest []map[string]any
+			for _, h := range e.Hooks {
+				if !isMimirHook(h) {
+					rest = append(rest, h)
+				}
+			}
+			if len(rest) > 0 {
+				e.Hooks = rest
+				kept = append(kept, e)
 			}
 		}
-		if len(rest) > 0 {
-			e.Hooks = rest
-			kept = append(kept, e)
-		}
+		kept = append(kept, hookEntry{Matcher: he.Matcher, Hooks: []map[string]any{mimirHook(command, args)}})
+		hooks[he.Event] = kept
 	}
-	kept = append(kept, hookEntry{Matcher: HookMatcher, Hooks: []map[string]any{mimirHook(command, args)}})
-	hooks["Notification"] = kept
 	doc["hooks"] = hooks
 	return json.MarshalIndent(doc, "", "  ")
 }
@@ -190,34 +210,43 @@ func RemoveClaudeHook(settings []byte) ([]byte, bool, error) {
 	if hooks == nil {
 		return settings, false, nil
 	}
-	var entries []hookEntry
-	if raw, ok := hooks["Notification"]; ok {
+	removed := false
+	for _, he := range hookEvents {
+		raw, ok := hooks[he.Event]
+		if !ok {
+			continue
+		}
+		var entries []hookEntry
 		b, _ := json.Marshal(raw)
 		_ = json.Unmarshal(b, &entries)
-	}
-	removed := false
-	var kept []hookEntry
-	for _, e := range entries {
-		var rest []map[string]any
-		for _, h := range e.Hooks {
-			if isMimirHook(h) {
-				removed = true
-				continue
+		var kept []hookEntry
+		changed := false
+		for _, e := range entries {
+			var rest []map[string]any
+			for _, h := range e.Hooks {
+				if isMimirHook(h) {
+					changed = true
+					continue
+				}
+				rest = append(rest, h)
 			}
-			rest = append(rest, h)
+			if len(rest) > 0 {
+				e.Hooks = rest
+				kept = append(kept, e)
+			}
 		}
-		if len(rest) > 0 {
-			e.Hooks = rest
-			kept = append(kept, e)
+		if !changed {
+			continue
+		}
+		removed = true
+		if len(kept) == 0 {
+			delete(hooks, he.Event)
+		} else {
+			hooks[he.Event] = kept
 		}
 	}
 	if !removed {
 		return settings, false, nil
-	}
-	if len(kept) == 0 {
-		delete(hooks, "Notification")
-	} else {
-		hooks["Notification"] = kept
 	}
 	if len(hooks) == 0 {
 		delete(doc, "hooks")
@@ -228,14 +257,31 @@ func RemoveClaudeHook(settings []byte) ([]byte, bool, error) {
 	return out, true, err
 }
 
-// HasClaudeHook reports whether Mimir's hook is present in settings.json.
+// HasClaudeHook reports whether Mimir's hook is present in settings.json
+// (the Notification entry, which every install has had).
 func HasClaudeHook(settings []byte) bool {
+	return hasMimirHookFor(settings, "Notification")
+}
+
+// HookUpToDate reports whether every event Mimir subscribes to has its
+// entry; an older install (Notification only) is reported as outdated so
+// the UI can offer a refresh.
+func HookUpToDate(settings []byte) bool {
+	for _, he := range hookEvents {
+		if !hasMimirHookFor(settings, he.Event) {
+			return false
+		}
+	}
+	return true
+}
+
+func hasMimirHookFor(settings []byte, event string) bool {
 	doc, err := parseSettings(settings)
 	if err != nil {
 		return false
 	}
 	hooks, _ := doc["hooks"].(map[string]any)
-	raw, ok := hooks["Notification"]
+	raw, ok := hooks[event]
 	if !ok {
 		return false
 	}

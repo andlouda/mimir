@@ -140,9 +140,10 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		if cwd == "" {
 			cwd = a.TerminalManager.GetLastReportedCwd(terminalID)
 		}
-		if state.sessionFile != "" {
-			file, lastSize, lastMod = state.sessionFile, -1, time.Time{}
+		if f := state.effectiveSessionFile(); f != "" {
+			file, lastSize, lastMod = f, -1, time.Time{}
 			lastLookup = time.Now()
+			bound = state.sessionFile == ""
 			return
 		}
 		var files []string
@@ -207,6 +208,9 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 				}
 				// The event names the session file of this very process:
 				// follow it from now on (unless the user pinned another).
+				if ev.Event.TranscriptPath != "" && ev.Event.PPID > 0 {
+					a.bindAgentSession(terminalID, state.pid, ev.Event.TranscriptPath)
+				}
 				if state.sessionFile == "" && ev.Event.TranscriptPath != "" && ev.Event.TranscriptPath != file {
 					file, lastSize, lastMod, bound = ev.Event.TranscriptPath, -1, time.Time{}, true
 				} else if ev.Event.TranscriptPath == file {
