@@ -31,6 +31,12 @@ Mimir is a local desktop terminal application. It may handle sensitive terminal 
   platforms, in which case derivation is password-only. A FIDO2 authenticator can be
   enrolled as an alternative unlock method (key *or* password). The master
   password remains as a recovery path if a hardware key is lost.
+- Clipboard: programs may *write* the clipboard through OSC 52 (in plain
+  terminals via xterm's clipboard addon, inside tmux sessions via
+  `set-clipboard on`, which also passes on a nested tmux's selections);
+  reads are denied, so no remote program can exfiltrate clipboard content.
+  Pasting always goes through bracketed paste, so multi-line clipboard text
+  is not executed line by line.
 - The agent panel detects coding agents (Claude Code, Codex, ...) by
   inspecting the process tree of a pane's tmux session out-of-band (`ps`, never
   keystrokes). tmux is the primary source: `capture-pane` provides the pane

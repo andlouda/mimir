@@ -8,7 +8,7 @@ import (
 func TestTmuxOptionModes(t *testing.T) {
 	classic := TmuxOptionScript(TmuxModeClassic)
 	invisible := TmuxOptionScript(TmuxModeInvisible)
-	for _, want := range []string{`set mouse on`, `WheelUpPane`, `set-clipboard external`, `Ms=`} {
+	for _, want := range []string{`set mouse on`, `WheelUpPane`, `set-clipboard on`, `Ms=`} {
 		if !strings.Contains(classic, want) {
 			t.Fatalf("classic script lacks %q: %s", want, classic)
 		}

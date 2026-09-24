@@ -209,7 +209,7 @@ func (a *App) dialJumpHost(profileID string, profile ssh.Profile) (*gossh.Client
 
 // probeRemoteTmux reports whether tmux exists on the host and which version
 // it is (the version is shown in the pane's tmux badge; old releases lack
-// set-clipboard external / OSC 52, which explains missing mouse copy).
+// set-clipboard / OSC 52, which explains missing mouse copy).
 func probeRemoteTmux(cfg terminal.SSHConnectConfig) (bool, string, string) {
 	hostKeyCallback := cfg.HostKeyCallback
 	if hostKeyCallback == nil {

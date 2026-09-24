@@ -10,7 +10,7 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { createWriteOnlyClipboardProvider } from '../terminals/osc52Clipboard.js';
 import { clearHoveredLink, createLinkProvider } from '../terminals/terminalLinks.js';
 import { isGlobalShortcut } from './keyboardShortcuts.js';
-import { EventsOn } from '../../../wailsjs/runtime';
+import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
@@ -134,6 +134,18 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   // textarea, whose input event xterm forwards to the PTY — Ctrl+Shift+M
   // ended up typing "M" into Claude Code on Linux.
   terminal.attachCustomKeyEventHandler((event) => {
+    if (isCopyShortcut(event) && terminal.hasSelection()) {
+      // Ctrl+Shift+C / Ctrl+Insert copy the selection (also one made with
+      // Shift+drag in a pane whose program owns the mouse). Only on keydown,
+      // and only when something is selected: otherwise the key goes to the
+      // shell as usual.
+      if (event.type === 'keydown') {
+        const text = terminal.getSelection();
+        if (text) ClipboardSetText(text).catch((error) => console.error('Copy failed:', error));
+      }
+      event.preventDefault?.();
+      return false;
+    }
     if (!isGlobalShortcut(event)) return true;
     event.preventDefault?.();
     return false;
@@ -343,6 +355,11 @@ export function wireTerminalDom(term) {
   };
   xtermElement.addEventListener('paste', handlePaste);
   term.cleanupHandlers.push(() => xtermElement.removeEventListener('paste', handlePaste));
+}
+
+function isCopyShortcut(event) {
+  if (event.ctrlKey && event.shiftKey && !event.altKey && (event.key === 'C' || event.key === 'c')) return true;
+  return event.ctrlKey && !event.shiftKey && !event.altKey && event.key === 'Insert';
 }
 
 /**
