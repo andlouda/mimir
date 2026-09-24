@@ -52,6 +52,11 @@ Mimir is a local desktop terminal application. It may handle sensitive terminal 
   detection therefore counts as consent for injecting that hook (it only
   reports to Mimir, and the command line it carries is stored only when
   history tracking is on).
+- Session names, notes and archived flags for agents are the only state Mimir
+  keeps about them across restarts: one JSON file (mode 0600) in the config
+  directory, containing what the user typed plus the host and session-file
+  path as key. Projects are derived from the git root, never created; Mimir
+  does not start agents or create worktrees.
 - The optional Claude Code approval hook is a `Notification` hook entry in
   `~/.claude/settings.json` that Mimir adds on request and removes again on
   request; installing and removing it is written to the activity log and the

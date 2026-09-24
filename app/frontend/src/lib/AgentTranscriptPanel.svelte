@@ -15,10 +15,10 @@
   import { t } from './i18n.js';
   import { sanitizeHtml } from './util.js';
   import { extractSnippets, firstProse, groupTurns, splitMarkdown } from './agents/markdownBlocks.js';
-  import { agentStates } from './stores/agentStore.js';
+  import { agentAnnotations, agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
-  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneText, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, selectAgentSession, setClaudeHookInstalled } from './actions/agentActions.js';
+  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneText, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation } from './actions/agentActions.js';
 
   export let terminalId;
 
@@ -51,6 +51,35 @@
   let hookHintFor = null;
   // Process tree (what runs under the agent right now); refreshed while the
   // tab is open, faster while the agent works.
+  // Session name / note / archived and the project name: the only state
+  // Mimir keeps about an agent across restarts.
+  $: note = $agentAnnotations.sessions[sessionKey(agent)] || null;
+  $: projectName = $agentAnnotations.projects[projectKey(agent)]?.name || projectFolderName(agent);
+  let editingName = false;
+  let nameDraft = '';
+  let editingProject = false;
+  let projectDraft = '';
+  let noteOpen = false;
+  let noteDraft = '';
+  let noteTimer = null;
+  $: if (!noteOpen) noteDraft = note?.note || '';
+  async function saveName() {
+    editingName = false;
+    try { await setSessionAnnotation(terminalId, { name: nameDraft.trim(), note: note?.note || '', archived: !!note?.archived }); } catch (e) { showFeedback(String(e?.message || e)); }
+  }
+  async function saveProject() {
+    editingProject = false;
+    try { await setProjectName(terminalId, projectDraft.trim()); } catch (e) { showFeedback(String(e?.message || e)); }
+  }
+  function noteChanged() {
+    if (noteTimer) clearTimeout(noteTimer);
+    noteTimer = setTimeout(async () => {
+      try { await setSessionAnnotation(terminalId, { name: note?.name || '', note: noteDraft.trim(), archived: !!note?.archived }); } catch (e) { showFeedback(String(e?.message || e)); }
+    }, 600);
+  }
+  async function toggleArchived() {
+    try { await setSessionAnnotation(terminalId, { name: note?.name || '', note: note?.note || '', archived: !note?.archived }); } catch (e) { showFeedback(String(e?.message || e)); }
+  }
   let procs = null;
   let procsLoading = false;
   let procsTimer = null;
@@ -331,6 +360,7 @@
   }
 
   onDestroy(() => {
+    if (noteTimer) clearTimeout(noteTimer);
     stopProcs();
     if (clock) clearInterval(clock);
     if (refreshTimer) clearInterval(refreshTimer);
@@ -342,12 +372,28 @@
 <div class="agent-panel-inner">
   <div class="agent-panel-header">
     <div class="agent-panel-title">
-      <span class="agent-panel-label">{agent?.label || $t('agentPanel.title')}</span>
+      {#if editingName}
+        <!-- svelte-ignore a11y_autofocus -->
+        <input class="agent-inline-input" type="text" bind:value={nameDraft} maxlength="120" placeholder={agent?.label || ''} autofocus on:keydown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') editingName = false; }} on:blur={saveName} />
+      {:else}
+        <button type="button" class="agent-panel-label agent-panel-label-btn" title={$t('agentPanel.renameSession')} disabled={!sessionKey(agent)} on:click={() => { nameDraft = note?.name || ''; editingName = true; }}>{note?.name ? note.name + ' · ' : ''}{agent?.label || $t('agentPanel.title')}{#if note?.archived} · {$t('agentPanel.archived')}{/if}</button>
+      {/if}
       {#if agent?.status && agent.status !== 'unknown'}
         <span class="agent-panel-status agent-status-{agent.status}">{agent.status === 'permission' ? $t('agentPanel.permission') : agent.status === 'working' ? $t('agentPanel.working') : $t('agentPanel.idle')}</span>
       {/if}
       <span class="agent-panel-sub" title={transcript?.cwd || agent?.cwd || ''}>{term?.name || ''}{agent?.cwd ? ' · ' + shortPath(agent.cwd) : ''}</span>
       {#if activityLine}<span class="agent-panel-activity" title={agent.activity}>{activityLine}</span>{/if}
+      <span class="agent-panel-project">
+        {#if editingProject}
+          <!-- svelte-ignore a11y_autofocus -->
+          <input class="agent-inline-input" type="text" bind:value={projectDraft} maxlength="120" autofocus on:keydown={(e) => { if (e.key === 'Enter') saveProject(); if (e.key === 'Escape') editingProject = false; }} on:blur={saveProject} />
+        {:else}
+          <button type="button" class="agent-link" title={$t('agentPanel.renameProject')} disabled={!projectKey(agent)} on:click={() => { projectDraft = $agentAnnotations.projects[projectKey(agent)]?.name || ''; editingProject = true; }}>{$t('agentPanel.project')}: {projectName || '—'}</button>
+        {/if}
+        {#if agent?.project?.branch}<span class="agent-row-dim" title={agent.project.worktree ? $t('agentPanel.worktree') : ''}>{agent.project.worktree ? '⎇ ' : ''}{agent.project.branch}</span>{/if}
+        <button type="button" class="agent-link" disabled={!sessionKey(agent)} on:click={() => { noteOpen = !noteOpen; }}>{$t('agentPanel.note')}{note?.note ? ' ●' : ''}</button>
+        <button type="button" class="agent-link" disabled={!sessionKey(agent)} on:click={toggleArchived}>{note?.archived ? $t('agentPanel.unarchive') : $t('agentPanel.archive')}</button>
+      </span>
     </div>
     <div class="agent-panel-actions">
       <button type="button" class="agent-btn" on:click={() => (view === 'screen' ? refreshPane() : refresh())} disabled={loading || paneLoading} title={$t('agentPanel.refresh')}>{loading || paneLoading ? '…' : '↻'}</button>
@@ -355,6 +401,9 @@
     </div>
   </div>
 
+  {#if noteOpen}
+    <textarea class="agent-note" rows="3" maxlength="4000" placeholder={$t('agentPanel.notePlaceholder')} bind:value={noteDraft} on:input={noteChanged}></textarea>
+  {/if}
   {#if agent?.status === 'permission' && agent.lastText}
     <p class="agent-panel-hint agent-panel-permission">
       <span>{agent.lastText}</span>
@@ -615,6 +664,11 @@
   .agent-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 8px 10px 4px; }
   .agent-panel-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
   .agent-panel-label { font-weight: 700; }
+  .agent-panel-label-btn { background: transparent; border: 0; color: inherit; padding: 0; cursor: text; font: inherit; font-weight: 700; }
+  .agent-panel-label-btn:disabled { cursor: default; }
+  .agent-inline-input { background: var(--bg-elevated, rgba(255,255,255,0.06)); border: 1px solid var(--border-subtle); color: inherit; border-radius: 4px; padding: 1px 6px; font: inherit; min-width: 12ch; }
+  .agent-panel-project { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; font-size: 11px; }
+  .agent-note { margin: 0 10px 6px; width: calc(100% - 20px); resize: vertical; background: var(--bg-elevated, rgba(255,255,255,0.04)); border: 1px solid var(--border-subtle); color: inherit; border-radius: 4px; padding: 4px 6px; font: inherit; font-size: 12px; }
   .agent-panel-sub { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .agent-panel-status { border-radius: 999px; padding: 1px 7px; font-size: 10px; font-weight: 700; text-transform: lowercase; border: 1px solid transparent; }
   .agent-status-working { background: rgba(227, 179, 65, 0.14); color: #e3b341; border-color: rgba(227, 179, 65, 0.32); }

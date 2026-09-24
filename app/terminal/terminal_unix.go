@@ -758,6 +758,17 @@ func (m *Manager) GetPty(id int) (io.Writer, bool) {
 }
 
 // GetSSHClient returns the SSH client for a given terminal ID, or nil if not an SSH session.
+// SSHHostFor returns the configured host of an SSH terminal ("" for local
+// terminals); used as the host part of persistent agent annotations.
+func (m *Manager) SSHHostFor(id int) string {
+	m.ptyMutex.Lock()
+	defer m.ptyMutex.Unlock()
+	if sshM, ok := m.sshMeta[id]; ok && sshM != nil {
+		return sshM.Config.Host
+	}
+	return ""
+}
+
 func (m *Manager) GetSSHClient(id int) *ssh.Client {
 	m.ptyMutex.Lock()
 	defer m.ptyMutex.Unlock()
