@@ -47,6 +47,7 @@ type App struct {
 	sshProfileStore       *ssh.ProfileStore
 	sshSecretStore        *ssh.SecretStore
 	agentStates           map[int]agentTerminalState
+	agentPrompts          map[int]agentPrompt
 	agentWatchers         map[int]*agentWatcher
 	agentMu               sync.Mutex
 	knownHostStore        *ssh.KnownHostStore

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -38,6 +39,11 @@ type HookEvent struct {
 	NotificationType string `json:"notification_type"`
 	Message          string `json:"message"`
 	AgentID          string `json:"agent_id"`
+	// PPID is the process that ran the hook command, i.e. the agent itself.
+	// It is not part of the payload; the hook command encodes it in the file
+	// name, which makes the pane assignment exact even when several panes
+	// share a working directory or a session file.
+	PPID int `json:"-"`
 }
 
 // ParseHookEvent decodes a payload and rejects anything that is not a
@@ -78,7 +84,28 @@ func LocalHookCommand(executable string) (command string, args []string) {
 // (Claude Code over SSH). It drops the payload below ~/.cache/mimir.
 func RemoteHookCommand() string {
 	dir := `"$HOME/.cache/mimir/` + HookEventsDirName + `"`
-	return `mkdir -p ` + dir + ` && umask 077 && cat > ` + dir + `/"$(date +%s)-$$.json"`
+	return `mkdir -p ` + dir + ` && umask 077 && cat > ` + dir + `/"$(date +%s)-$$-$PPID.json"`
+}
+
+// HookEventFileName names an event file: <stamp>-<pid>-<ppid>.json. The
+// remote one-liner produces the same shape with $$ and $PPID.
+func HookEventFileName(stamp int64, pid, ppid int) string {
+	return strconv.FormatInt(stamp, 10) + "-" + strconv.Itoa(pid) + "-" + strconv.Itoa(ppid) + ".json"
+}
+
+// hookEventPPID extracts the third numeric field of an event file name; 0
+// when absent (older hook installs wrote <stamp>-<pid>.json).
+func hookEventPPID(name string) int {
+	name = strings.TrimSuffix(name, ".json")
+	parts := strings.Split(name, "-")
+	if len(parts) < 3 {
+		return 0
+	}
+	n, err := strconv.Atoi(parts[2])
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
 }
 
 // hookEntry is one element of hooks.Notification.
@@ -280,16 +307,21 @@ func ScanHookEvents(fs FS, dir string) []HookEventFile {
 			}
 			continue
 		}
+		ev.PPID = hookEventPPID(e.Name)
 		out = append(out, HookEventFile{Path: p, ModTime: e.ModTime, Event: ev})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ModTime.Before(out[j].ModTime) })
 	return out
 }
 
-// MatchesHookEvent reports whether an event belongs to the session file a
-// watcher follows (by session id in the file name, so path styles do not
-// matter) or, when no file is known yet, to its working directory.
-func MatchesHookEvent(ev HookEvent, sessionFile, cwd string) bool {
+// MatchesHookEvent reports whether an event belongs to a pane. The agent's
+// pid decides when both sides know it (the hook runs as the agent's child);
+// otherwise the session file (by session id in the file name, so path styles
+// do not matter) and, when no file is known yet, the working directory.
+func MatchesHookEvent(ev HookEvent, agentPID int, sessionFile, cwd string) bool {
+	if ev.PPID > 0 && agentPID > 0 {
+		return ev.PPID == agentPID
+	}
 	if sessionFile != "" {
 		base := path.Base(strings.ReplaceAll(sessionFile, `\`, "/"))
 		if ev.SessionID != "" && base == ev.SessionID+".jsonl" {

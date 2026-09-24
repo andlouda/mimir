@@ -69,7 +69,7 @@ func TestParseHookEventAndState(t *testing.T) {
 func TestScanHookEventsAndMatch(t *testing.T) {
 	dir := t.TempDir()
 	good := `{"session_id":"abc","transcript_path":"/h/.claude/projects/-p/abc.jsonl","cwd":"/p","hook_event_name":"Notification","notification_type":"permission_prompt","message":"needs Bash"}`
-	if err := os.WriteFile(filepath.Join(dir, "1.json"), []byte(good), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "1700000000-77-4242.json"), []byte(good), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_ = os.WriteFile(filepath.Join(dir, "2.json"), []byte("garbage"), 0o600)
@@ -79,8 +79,8 @@ func TestScanHookEventsAndMatch(t *testing.T) {
 	_ = os.Chtimes(old, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour))
 
 	events := ScanHookEvents(LocalFS{}, dir)
-	if len(events) != 1 || events[0].Event.SessionID != "abc" {
-		t.Fatalf("expected the one fresh valid event, got %+v", events)
+	if len(events) != 1 || events[0].Event.SessionID != "abc" || events[0].Event.PPID != 4242 {
+		t.Fatalf("expected the one fresh valid event with ppid, got %+v", events)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "2.json")); !os.IsNotExist(err) {
 		t.Fatalf("garbage file should be removed")
@@ -96,13 +96,25 @@ func TestScanHookEventsAndMatch(t *testing.T) {
 	}
 
 	ev := events[0].Event
-	if !MatchesHookEvent(ev, `C:\Users\x\.claude\projects\-p\abc.jsonl`, "") {
+	// The agent pid decides when known on both sides: two panes in the same
+	// directory (even on the same session file) must not both light up.
+	if !MatchesHookEvent(ev, 4242, "/h/.claude/projects/-p/other.jsonl", "/q") {
+		t.Fatalf("pid match must win over file/cwd")
+	}
+	if MatchesHookEvent(ev, 4243, "/h/.claude/projects/-p/abc.jsonl", "/p") {
+		t.Fatalf("a different agent pid must not match even with the same file")
+	}
+	ev.PPID = 0
+	if !MatchesHookEvent(ev, 4242, `C:\Users\x\.claude\projects\-p\abc.jsonl`, "") {
 		t.Fatalf("session id match across path styles failed")
 	}
-	if MatchesHookEvent(ev, "/h/.claude/projects/-p/other.jsonl", "/p") {
+	if MatchesHookEvent(ev, 0, "/h/.claude/projects/-p/other.jsonl", "/p") {
 		t.Fatalf("a known file must not fall back to cwd matching")
 	}
-	if !MatchesHookEvent(ev, "", "/p/") || MatchesHookEvent(ev, "", "/q") {
+	if !MatchesHookEvent(ev, 0, "", "/p/") || MatchesHookEvent(ev, 0, "", "/q") {
 		t.Fatalf("cwd fallback wrong")
+	}
+	if hookEventPPID("1-2.json") != 0 || hookEventPPID("1-2-3.json") != 3 || hookEventPPID("x-y-z.json") != 0 {
+		t.Fatalf("ppid parsing wrong")
 	}
 }

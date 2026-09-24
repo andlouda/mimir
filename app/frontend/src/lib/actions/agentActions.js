@@ -132,8 +132,9 @@ export function handleAgentStateEvent(id, raw) {
   const finished = current.status === 'working' && status === 'idle';
   const blocked = status === 'permission' && current.status !== 'permission';
   const attention = (finished || blocked) && get(activeTerminalId) !== id ? true : (current.attention || false);
-  if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention) return;
-  setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, fileState: true, lastChange: Date.now() });
+  const prompt = status === 'permission' || status === 'idle' ? String(payload.prompt || '') : '';
+  if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention && current.prompt === prompt) return;
+  setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, prompt, answering: false, fileState: true, lastChange: Date.now() });
 }
 
 function setLiveness(id, on) {
@@ -270,6 +271,24 @@ export async function selectAgentSession(id, file) {
 export async function loadAgentGitStatus(id) {
   const raw = await app()['GetAgentGitStatusJSON'](id, terminalType(id));
   return JSON.parse(raw);
+}
+
+/**
+ * Answers a pending permission prompt (reported by the hook) by typing the
+ * key into the agent's pane. The backend refuses when nothing is pending.
+ */
+export async function answerAgentPermission(id, allow) {
+  const current = get(agentStates)[id];
+  if (!current || current.status !== 'permission' || current.prompt !== 'permission_prompt' || current.answering) return false;
+  setState(id, { answering: true });
+  try {
+    await app()['AnswerAgentPermission'](id, Boolean(allow));
+    return true;
+  } catch (error) {
+    console.error('Could not answer the permission prompt:', error);
+    setState(id, { answering: false });
+    return false;
+  }
 }
 
 /**

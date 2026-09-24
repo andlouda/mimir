@@ -225,6 +225,13 @@
   .agent-dot-attention { background: #7ee787; box-shadow: 0 0 0 3px rgba(126, 231, 135, 0.25); }
   .agent-dot-permission { background: #ff7b72; box-shadow: 0 0 0 3px rgba(255, 123, 114, 0.25); animation: sidebar-agent-pulse 0.9s ease-in-out infinite; }
   .sidebar-agents .sidebar-list li button.sidebar-agent-permission .sidebar-agent-status { color: #ff7b72; font-weight: 600; }
+  .sidebar-agent-answer { display: flex; gap: 0.3rem; padding: 0 0.8rem 0.4rem 1.9rem; }
+  .sidebar-answer-btn { border-radius: 4px; padding: 1px 7px; font-size: 0.68rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; background: transparent; }
+  .sidebar-answer-allow { color: #7ee787; border-color: rgba(126, 231, 135, 0.45); }
+  .sidebar-answer-allow:hover:not(:disabled) { background: rgba(126, 231, 135, 0.15); }
+  .sidebar-answer-deny { color: #ff7b72; border-color: rgba(255, 123, 114, 0.45); }
+  .sidebar-answer-deny:hover:not(:disabled) { background: rgba(255, 123, 114, 0.15); }
+  .sidebar-answer-btn:disabled { opacity: 0.5; cursor: default; }
   .sidebar-agent-main { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
   .sidebar-agent-head { display: flex; gap: 0.4rem; align-items: baseline; min-width: 0; }
   .sidebar-agent-label { font-weight: 600; color: var(--text-primary); white-space: nowrap; }

@@ -45,6 +45,9 @@ type agentTerminalState struct {
 	kind   agents.Kind
 	cwd    string
 	source string
+	// pid is the agent process; hook events name their parent, which makes
+	// the pane assignment exact.
+	pid int
 	// sessionFile pins a session chosen by the user ("" = automatic).
 	sessionFile string
 }
@@ -371,7 +374,7 @@ func (a *App) rememberedAgent(terminalID int) (agentTerminalState, bool) {
 func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (string, error) {
 	result := a.detectAgent(terminalID, terminalType)
 	if result.Detected {
-		state := agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source}
+		state := agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source, pid: result.PID}
 		if prev, ok := a.rememberedAgent(terminalID); ok && prev.kind == state.kind {
 			state.sessionFile = prev.sessionFile
 		}
