@@ -115,6 +115,64 @@ type claudeToolInput struct {
 	FilePath     string `json:"file_path"`
 	NotebookPath string `json:"notebook_path"`
 	Todos        []Task `json:"todos"`
+	Pattern      string `json:"pattern"`
+	URL          string `json:"url"`
+	Query        string `json:"query"`
+	SubagentType string `json:"subagent_type"`
+	Skill        string `json:"skill"`
+}
+
+const toolSummaryMax = 80
+
+// claudeToolSummary renders a tool call as one short line for the live
+// activity display: the tool name and its most telling argument.
+func claudeToolSummary(name string, input json.RawMessage) string {
+	var in claudeToolInput
+	_ = json.Unmarshal(input, &in)
+	arg := ""
+	switch name {
+	case "Bash":
+		arg = in.Description
+		if arg == "" {
+			arg = in.Command
+		}
+	case "Read", "Write", "Edit", "MultiEdit":
+		arg = baseName(in.FilePath)
+	case "NotebookEdit":
+		arg = baseName(in.NotebookPath)
+	case "Grep", "Glob":
+		arg = in.Pattern
+	case "WebFetch":
+		arg = in.URL
+	case "WebSearch":
+		arg = in.Query
+	case "Task", "Agent":
+		arg = in.SubagentType
+		if in.Description != "" {
+			if arg != "" {
+				arg += ": "
+			}
+			arg += in.Description
+		}
+	case "Skill":
+		arg = in.Skill
+	}
+	arg = strings.TrimSpace(strings.SplitN(arg, "\n", 2)[0])
+	if r := []rune(arg); len(r) > toolSummaryMax {
+		arg = string(r[:toolSummaryMax]) + "…"
+	}
+	if arg == "" {
+		return name
+	}
+	return name + ": " + arg
+}
+
+func baseName(p string) string {
+	p = strings.TrimRight(strings.ReplaceAll(p, "\\", "/"), "/")
+	if i := strings.LastIndex(p, "/"); i >= 0 {
+		return p[i+1:]
+	}
+	return p
 }
 
 // ParseClaudeTranscript extracts user prompts and assistant text from Claude

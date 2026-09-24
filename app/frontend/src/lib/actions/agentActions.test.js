@@ -181,8 +181,8 @@ describe('agent detection', () => {
     expect(EventsOn).toHaveBeenCalledWith('agent-state-2', expect.any(Function));
 
     activeTerminalId.set(1);
-    handleAgentStateEvent(2, JSON.stringify({ state: 'working', lastText: 'Looking at the tests.\nmore', lastAt: 't1' }));
-    expect(get(agentStates)[2]).toMatchObject({ status: 'working', subject: 'Looking at the tests.', fileState: true, attention: false });
+    handleAgentStateEvent(2, JSON.stringify({ state: 'working', lastText: 'Looking at the tests.\nmore', lastAt: 't1', activity: 'Bash: npm test', activityAt: '2026-09-24T10:00:00Z' }));
+    expect(get(agentStates)[2]).toMatchObject({ status: 'working', subject: 'Looking at the tests.', activity: 'Bash: npm test', activityAt: '2026-09-24T10:00:00Z', fileState: true, attention: false });
 
     handleAgentStateEvent(2, JSON.stringify({ state: 'idle', lastText: 'Done. Shall I commit?', lastAt: 't2', sessionFile: '/s.jsonl' }));
     expect(get(agentStates)[2]).toMatchObject({ status: 'idle', subject: 'Done. Shall I commit?', attention: true, sessionFile: '/s.jsonl' });

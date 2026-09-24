@@ -20,6 +20,10 @@ type agentStatePayload struct {
 	LastText    string       `json:"lastText,omitempty"`
 	LastAt      string       `json:"lastAt,omitempty"`
 	SessionFile string       `json:"sessionFile,omitempty"`
+	// Activity / ActivityAt: the tool call currently running (see
+	// agents.StateInfo).
+	Activity   string `json:"activity,omitempty"`
+	ActivityAt string `json:"activityAt,omitempty"`
 	// Prompt is the hook's notification type while one is pending
 	// (permission_prompt, idle_prompt, ...); the frontend offers answer
 	// buttons only for permission_prompt.
@@ -171,7 +175,7 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 				lastSize, lastMod = info.Size, info.ModTime
 				if tail, err := fs.ReadTail(file, agentWatchTailBytes); err == nil {
 					st := agents.DeriveState(state.kind, tail)
-					filePayload = agentStatePayload{State: st.State, LastText: st.LastText, LastAt: st.LastAt, SessionFile: file}
+					filePayload = agentStatePayload{State: st.State, LastText: st.LastText, LastAt: st.LastAt, SessionFile: file, Activity: st.Activity, ActivityAt: st.ActivityAt}
 				}
 				// The transcript moved on after the prompt: answered. A
 				// change right after the event is the tool_use record the

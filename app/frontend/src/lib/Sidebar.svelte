@@ -1,5 +1,20 @@
 <script>
-  import { answerAgentPermission } from './actions/agentActions.js';
+  import { answerAgentPermission, elapsedSince } from './actions/agentActions.js';
+  import { onDestroy } from 'svelte';
+
+  // Elapsed time next to the running tool call; ticks only while an agent
+  // works so idle sidebars cost nothing.
+  let now = Date.now();
+  let clock = null;
+  $: anyWorking = agentRows.some((r) => r.agent.status === 'working' && r.agent.activity);
+  $: if (anyWorking && !clock) clock = setInterval(() => { now = Date.now(); }, 1000);
+  $: if (!anyWorking && clock) { clearInterval(clock); clock = null; }
+  onDestroy(() => { if (clock) clearInterval(clock); });
+  function agentActivityText(agent, at) {
+    if (agent.status !== 'working' || !agent.activity) return '';
+    const e = elapsedSince(agent.activityAt, at);
+    return e ? `${agent.activity} · ${e}` : agent.activity;
+  }
   // Left navigation sidebar. Collapse/disclosure/drag state is local to this
   // component; data and actions come from the parent via props/callbacks.
   import { onMount } from 'svelte';
@@ -263,7 +278,7 @@
                   </span>
                   <span class="sidebar-agent-state">
                     <span class="sidebar-agent-status">{agentStateText(row.agent)}</span>
-                    {#if row.agent.subject}<span class="sidebar-agent-text">{row.agent.subject}</span>{/if}
+                    {#if agentActivityText(row.agent, now)}<span class="sidebar-agent-text sidebar-agent-activity">{agentActivityText(row.agent, now)}</span>{:else if row.agent.subject}<span class="sidebar-agent-text">{row.agent.subject}</span>{/if}
                   </span>
                 </span>
               </button>

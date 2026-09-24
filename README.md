@@ -71,7 +71,9 @@ Mimir is local-first by default.
   shows the agent and its state in the pane header and can open a side panel
   fed by the agent's own session file: the snippets of its last answer (exact
   text, no terminal line wrapping), the files it read or changed next to the
-  git working-tree status, and the commands it ran with their exit codes.
+  git working-tree status, the commands it ran with their exit codes, the
+  tool call running right now with its elapsed time (also in the sidebar
+  row), and a Processes tab with what actually runs under the agent.
   Detection can be turned off in Settings. A desktop notification (system
   notifier, metadata only) tells you when an agent finishes or waits for an
   approval while its pane is not in front; also switchable in Settings.

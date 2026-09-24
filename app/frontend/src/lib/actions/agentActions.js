@@ -136,8 +136,10 @@ export function handleAgentStateEvent(id, raw) {
   if (blocked) notifyAgentEvent(id, 'permission', lastText);
   else if (finished) notifyAgentEvent(id, 'done', '');
   const prompt = status === 'permission' || status === 'idle' ? String(payload.prompt || '') : '';
-  if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention && current.prompt === prompt) return;
-  setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, prompt, answering: false, fileState: true, lastChange: Date.now() });
+  const activity = status === 'working' ? String(payload.activity || '') : '';
+  const activityAt = activity ? String(payload.activityAt || '') : '';
+  if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention && current.prompt === prompt && current.activity === activity) return;
+  setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, prompt, activity, activityAt, answering: false, fileState: true, lastChange: Date.now() });
 }
 
 function setLiveness(id, on) {
@@ -300,6 +302,26 @@ export async function loadAgentSessions(id) {
 /** Pins a session for a terminal ('' = automatic). */
 export async function selectAgentSession(id, file) {
   await app()['SelectAgentSession'](id, terminalType(id), file || '');
+}
+
+/** Loads the process tree below the agent (what runs on the machine right now). */
+export async function loadAgentProcesses(id) {
+  const raw = await app()['GetAgentProcessesJSON'](id, terminalType(id));
+  return JSON.parse(raw);
+}
+
+/**
+ * "12s" / "3m 05s" since an ISO timestamp; empty when unknown. Used next to
+ * the live activity so a hanging command is visible as such.
+ */
+export function elapsedSince(iso, now = Date.now()) {
+  const t = Date.parse(iso || '');
+  if (!Number.isFinite(t)) return '';
+  const s = Math.max(0, Math.round((now - t) / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
 
 /** Loads git status / diff stat of the agent's working directory. */

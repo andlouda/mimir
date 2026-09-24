@@ -18,13 +18,14 @@
   import { agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
-  import { answerAgentPermission, closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, selectAgentSession, setClaudeHookInstalled } from './actions/agentActions.js';
+  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneText, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, selectAgentSession, setClaudeHookInstalled } from './actions/agentActions.js';
 
   export let terminalId;
 
   const REFRESH_WORKING_MS = 6000;
   const MESSAGE_LIMIT = 24;
-  const ALL_TABS = ['snippets', 'tasks', 'files', 'commands', 'history', 'screen'];
+  const ALL_TABS = ['snippets', 'tasks', 'files', 'commands', 'processes', 'history', 'screen'];
+  const PROCESS_REFRESH_MS = 5000;
 
   let transcript = null;
   let view = 'snippets';
@@ -48,6 +49,35 @@
   let hook = null;
   let hookBusy = false;
   let hookHintFor = null;
+  // Process tree (what runs under the agent right now); refreshed while the
+  // tab is open, faster while the agent works.
+  let procs = null;
+  let procsLoading = false;
+  let procsTimer = null;
+  let now = Date.now();
+  let clock = null;
+  $: if (agent?.status === 'working' && agent?.activity && !clock) clock = setInterval(() => { now = Date.now(); }, 1000);
+  $: if (!(agent?.status === 'working' && agent?.activity) && clock) { clearInterval(clock); clock = null; }
+  $: activityLine = agent?.status === 'working' && agent?.activity ? `${agent.activity}${elapsedSince(agent.activityAt, now) ? ' · ' + elapsedSince(agent.activityAt, now) : ''}` : '';
+  $: if (view === 'processes') scheduleProcs(); else stopProcs();
+
+  async function refreshProcs() {
+    if (procsLoading) return;
+    procsLoading = true;
+    try { procs = await loadAgentProcesses(terminalId); } catch (e) { procs = { processes: [], reason: String(e?.message || e) }; } finally { procsLoading = false; }
+  }
+  function scheduleProcs() {
+    if (procsTimer) return;
+    refreshProcs();
+    procsTimer = setInterval(refreshProcs, PROCESS_REFRESH_MS);
+  }
+  function stopProcs() {
+    if (procsTimer) { clearInterval(procsTimer); procsTimer = null; }
+  }
+  function procLabel(args) {
+    const s = String(args || '');
+    return s.length > 160 ? s.slice(0, 160) + '…' : s;
+  }
 
   $: agent = $agentStates[terminalId] || null;
   $: term = $terminalMap.get(terminalId) || null;
@@ -294,12 +324,15 @@
       case 'tasks': return $t('agentPanel.tabTasks') + (openTasks ? ` (${openTasks})` : '');
       case 'files': return $t('agentPanel.tabFiles') + (changedFiles.length ? ` (${changedFiles.length})` : '');
       case 'commands': return $t('agentPanel.tabCommands') + (failedCommands ? ` (${failedCommands}✗)` : '');
+      case 'processes': return $t('agentPanel.tabProcesses') + (procs?.processes?.length > 1 ? ` (${procs.processes.length})` : '');
       case 'history': return $t('agentPanel.tabHistory');
       default: return $t('agentPanel.viewScreen');
     }
   }
 
   onDestroy(() => {
+    stopProcs();
+    if (clock) clearInterval(clock);
     if (refreshTimer) clearInterval(refreshTimer);
     if (refreshSoonTimer) clearTimeout(refreshSoonTimer);
     if (feedbackTimer) clearTimeout(feedbackTimer);
@@ -314,6 +347,7 @@
         <span class="agent-panel-status agent-status-{agent.status}">{agent.status === 'permission' ? $t('agentPanel.permission') : agent.status === 'working' ? $t('agentPanel.working') : $t('agentPanel.idle')}</span>
       {/if}
       <span class="agent-panel-sub" title={transcript?.cwd || agent?.cwd || ''}>{term?.name || ''}{agent?.cwd ? ' · ' + shortPath(agent.cwd) : ''}</span>
+      {#if activityLine}<span class="agent-panel-activity" title={agent.activity}>{activityLine}</span>{/if}
     </div>
     <div class="agent-panel-actions">
       <button type="button" class="agent-btn" on:click={() => (view === 'screen' ? refreshPane() : refresh())} disabled={loading || paneLoading} title={$t('agentPanel.refresh')}>{loading || paneLoading ? '…' : '↻'}</button>
@@ -498,6 +532,25 @@
           </div>
         {/each}
 
+      {:else if view === 'processes'}
+        <div class="agent-section-head">
+          <span>{$t('agentPanel.processesTitle')}</span>
+          <button type="button" class="agent-link" on:click={refreshProcs} disabled={procsLoading}>{procsLoading ? '…' : $t('agentPanel.gitReload')}</button>
+        </div>
+        {#if !procs}
+          <p class="agent-panel-hint">{$t('agentPanel.loading')}</p>
+        {:else if procs.reason}
+          <p class="agent-panel-hint">{procs.reason}</p>
+        {:else}
+          {#each procs.processes as p (p.pid)}
+            <div class="agent-row agent-proc-row" style="padding-left: {8 + p.depth * 14}px" title={p.args}>
+              <span class="agent-row-dim agent-proc-pid">{p.pid}</span>
+              <code class="agent-row-main">{procLabel(p.args)}</code>
+              <span class="agent-row-dim">{p.elapsed || ''}{p.cpu ? ' · ' + p.cpu + (p.cpu.endsWith('s') ? '' : '%') : ''}</span>
+            </div>
+          {/each}
+          <p class="agent-panel-hint">{$t('agentPanel.processesHint')}</p>
+        {/if}
       {:else if view === 'commands'}
         {#if commandsNewestFirst.length === 0}
           <p class="agent-panel-hint">{$t('agentPanel.noCommands')}</p>
@@ -567,6 +620,8 @@
   .agent-status-working { background: rgba(227, 179, 65, 0.14); color: #e3b341; border-color: rgba(227, 179, 65, 0.32); }
   .agent-status-idle { background: rgba(126, 231, 135, 0.14); color: #7ee787; border-color: rgba(126, 231, 135, 0.28); }
   .agent-status-permission { background: rgba(255, 123, 114, 0.16); color: #ff7b72; border-color: rgba(255, 123, 114, 0.5); }
+  .agent-panel-activity { font-family: var(--font-mono, monospace); font-size: 11px; color: #e3b341; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .agent-proc-pid { min-width: 3.5em; text-align: right; }
   .agent-panel-permission { color: #ff7b72; margin: 0 10px 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .agent-btn-allow { color: #7ee787; border-color: rgba(126, 231, 135, 0.45); }
   .agent-btn-deny { color: #ff7b72; border-color: rgba(255, 123, 114, 0.45); }
