@@ -166,6 +166,14 @@
     background: var(--accent-glow);
   }
 
+  .sidebar-workspace-button {
+    width: 100%;
+    background: none;
+    border: 0;
+    text-align: left;
+    font-family: inherit;
+  }
+
   .sidebar-heading.active-nav {
     color: var(--accent);
     background: var(--accent-glow);

@@ -141,8 +141,8 @@ function completedWorkflowState(workflowId = 'draft') {
   };
 }
 
-export async function installMimirMocks(page) {
-  await page.addInitScript(({ playbooks, functionCatalog, aiSettings, aiToolFlowConfig }) => {
+export async function installMimirMocks(page, { workspaceAgent = false } = {}) {
+  await page.addInitScript(({ playbooks, functionCatalog, aiSettings, aiToolFlowConfig, workspaceAgent }) => {
     localStorage.setItem('mimir-locale', 'en');
 
     let nextTerminalId = 1;
@@ -223,8 +223,14 @@ export async function installMimirMocks(page) {
       return JSON.stringify(completedWorkflowState(definition.id || 'draft'));
     };
 
+    const eventListeners = new Map();
+    window.__emitMimir = (name, payload) => { for (const fn of eventListeners.get(name) || []) fn(payload); };
     window.runtime = {
-      EventsOnMultiple: () => noop,
+      EventsOnMultiple: (name, callback) => {
+        if (!eventListeners.has(name)) eventListeners.set(name, new Set());
+        eventListeners.get(name).add(callback);
+        return () => eventListeners.get(name)?.delete(callback);
+      },
       EventsOff: noop,
       EventsEmit: noop,
       LogPrint: noop,
@@ -349,11 +355,48 @@ export async function installMimirMocks(page) {
         },
       },
     };
+    // Browser-only backend fixture: persistence across reloads mirrors the
+    // production JSON store, whose validation is covered by Go tests.
+    let workspace = JSON.parse(localStorage.getItem('test-agent-workspace') || 'null') || { version: 1, projects: [], tasks: [], sessions: [] };
+    const persistWorkspace = () => {
+      localStorage.setItem('test-agent-workspace', JSON.stringify(workspace));
+      return JSON.stringify(workspace);
+    };
+    const saveEntity = (collection, raw) => {
+      const item = JSON.parse(raw);
+      item.id ||= crypto.randomUUID();
+      item.revision = (item.revision || 0) + 1;
+      const index = workspace[collection].findIndex((old) => old.id === item.id);
+      if (index < 0) workspace[collection].push(item); else workspace[collection][index] = item;
+      return persistWorkspace();
+    };
+    Object.assign(window.go.main.App, {
+      GetAgentWorkspaceJSON: async () => JSON.stringify(workspace),
+      SaveAgentWorkspaceProjectJSON: async (raw) => saveEntity('projects', raw),
+      SaveAgentWorkspaceTaskJSON: async (raw) => saveEntity('tasks', raw),
+      LinkAgentWorkspaceSessionJSON: async (projectId, taskId, terminalId, terminalType, file) => {
+        workspace.sessions.push({ id: crypto.randomUUID(), projectId, taskId, host: 'local', kind: 'claude', file, title: 'Existing SSH investigation', cwd: '/repo' });
+        return persistWorkspace();
+      },
+      UnlinkAgentWorkspaceSessionJSON: async (id) => {
+        workspace.sessions = workspace.sessions.filter((ref) => ref.id !== id);
+        return persistWorkspace();
+      },
+      IsAgentDetectionEnabled: async () => true,
+      SetAgentDetectionEnabled: asyncNoop,
+      GetAgentAnnotationsJSON: async () => JSON.stringify({ sessions: {}, projects: {} }),
+      DetectAgentForTerminalJSON: async () => JSON.stringify(workspaceAgent && !localStorage.getItem('test-agent-offline')
+        ? { detected: true, kind: 'claude', label: 'Claude', pid: 4300, cwd: '/repo', source: 'local', transcripts: true }
+        : { detected: false }),
+      GetAgentProjectJSON: async () => JSON.stringify({ host: 'local', root: '/repo', branch: 'main' }),
+      ListAgentSessionsJSON: async () => JSON.stringify({ selected: '/sessions/one.jsonl', sessions: [{ file: '/sessions/one.jsonl', title: 'Existing SSH investigation', cwd: '/repo', modified: '2026-09-24T10:00:00Z' }] }),
+    });
   }, {
     playbooks: mockPlaybooks,
     functionCatalog: mockFunctionCatalog,
     aiSettings: defaultAISettings,
     aiToolFlowConfig: defaultAIToolFlowConfig,
+    workspaceAgent,
   });
 }
 

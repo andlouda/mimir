@@ -1,6 +1,29 @@
 // English translations (default + fallback). Add keys here as strings are
 // migrated to i18n; keep the same key structure in every locale file.
 export default {
+  agentWorkspace: {
+    title: 'Agent workspace', subtitle: 'Projects, tasks and agent sessions in one place.',
+    refresh: 'Refresh', loading: 'Loading…', projects: 'Projects', project: 'Project', allProjects: 'All projects',
+    newProject: 'New project', editProject: 'Edit project', noProjects: 'Create your first project to organize tasks and sessions.',
+    name: 'Name', description: 'Description / notes', host: 'Host', directory: 'Project directory (optional)',
+    showArchived: 'Show archived', archived: 'Archived', save: 'Save', cancel: 'Cancel', views: 'Workspace views',
+    attention: 'Needs attention', tasks: 'Tasks', task: 'Task', sessions: 'Sessions', session: 'Session',
+    newTask: 'New task', editTask: 'Edit task', taskTitle: 'Task title', status: 'Task status',
+    chooseProject: 'Select project', chooseTerminal: 'Select terminal', chooseSession: 'Select session',
+    terminal: 'Agent terminal', projectOnly: 'Project only — no task', linkSession: 'Assign session', assign: 'Assign',
+    linkHint: 'Choose an existing session discovered in an agent terminal. This only saves a reference; it does not send a prompt or start an agent.',
+    noLiveSession: 'Open a terminal with an agent that supports session history to discover existing sessions.',
+    noSessionsFound: 'No sessions were found for this terminal.',
+    attentionHint: 'Live requests and tasks you marked as blocked or ready for review. Open the terminal to read and answer a request.',
+    unassigned: 'Not assigned to a project', openTerminal: 'Open terminal',
+    noAttention: 'Nothing needs attention here', noAttentionHint: 'Agent requests and tasks awaiting review will appear here.',
+    taskHint: 'You control task status. An idle or disconnected agent does not complete a task.',
+    noTasks: 'No tasks yet', noTasksHint: 'Create a project, add a task and assign an existing agent session.',
+    sessionHint: 'Assignments survive closed terminals and app restarts. Removing an assignment leaves agent files untouched.',
+    connected: 'Open in terminal', offline: 'No connected terminal', unlink: 'Remove assignment', noSessions: 'No assigned sessions',
+    statuses: { planned: 'Planned', in_progress: 'In progress', blocked: 'Blocked', review: 'Ready for review', done: 'Done' },
+    reasons: { permission: 'Approval requested', blocked: 'Task blocked', input: 'Waiting for input', result: 'Result available', review: 'Ready for review' },
+  },
   sidebar: {
     terminal: 'Terminal',
     sshHosts: 'SSH Hosts',

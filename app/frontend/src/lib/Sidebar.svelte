@@ -1,4 +1,5 @@
 <script>
+  import { attentionItems } from './stores/agentWorkspaceStore.js';
   import { answerAgentPermission, elapsedSince, projectFolderName, projectKey, sessionKey } from './actions/agentActions.js';
   import { agentAnnotations } from './stores/agentStore.js';
   let showArchived = false;
@@ -134,6 +135,13 @@
       <span class="brand-icon">&#x16C7;</span>
       <span class="brand-text">Mimir</span>
     {/if}
+  </div>
+
+  <div class="sidebar-section">
+    <button class="sidebar-heading sidebar-workspace-button" class:collapsed-icon={collapsed} class:active-nav={currentPage === 'agentWorkspace'} on:click={() => openPage('agentWorkspace')} title={$t('agentWorkspace.title')} aria-label={$t('agentWorkspace.title')}>
+      <span class="nav-icon">▦</span>{#if !collapsed} {$t('agentWorkspace.title')}{/if}
+      {#if $attentionItems.length}<span class="sidebar-agent-count sidebar-agent-count-attention">{$attentionItems.length}</span>{/if}
+    </button>
   </div>
 
   {#if collapsed}

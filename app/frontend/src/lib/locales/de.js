@@ -1,6 +1,29 @@
 // German translations. Keep keys in sync with en.js; missing keys fall back
 // to English automatically.
 export default {
+  agentWorkspace: {
+    title: 'Agent-Arbeitsplatz', subtitle: 'Projekte, Aufgaben und Agent-Sitzungen an einem Ort.',
+    refresh: 'Aktualisieren', loading: 'Wird geladen…', projects: 'Projekte', project: 'Projekt', allProjects: 'Alle Projekte',
+    newProject: 'Neues Projekt', editProject: 'Projekt bearbeiten', noProjects: 'Lege dein erstes Projekt an, um Aufgaben und Sitzungen zu ordnen.',
+    name: 'Name', description: 'Beschreibung / Notizen', host: 'Host', directory: 'Projektverzeichnis (optional)',
+    showArchived: 'Archivierte anzeigen', archived: 'Archiviert', save: 'Speichern', cancel: 'Abbrechen', views: 'Arbeitsplatzansichten',
+    attention: 'Braucht Aufmerksamkeit', tasks: 'Aufgaben', task: 'Aufgabe', sessions: 'Sitzungen', session: 'Sitzung',
+    newTask: 'Neue Aufgabe', editTask: 'Aufgabe bearbeiten', taskTitle: 'Aufgabentitel', status: 'Aufgabenstatus',
+    chooseProject: 'Projekt auswählen', chooseTerminal: 'Terminal auswählen', chooseSession: 'Sitzung auswählen',
+    terminal: 'Agent-Terminal', projectOnly: 'Nur Projekt — ohne Aufgabe', linkSession: 'Sitzung zuordnen', assign: 'Zuordnen',
+    linkHint: 'Wähle eine vorhandene Sitzung aus der ermittelten Liste eines Agent-Terminals. Gespeichert wird nur die Zuordnung; dabei wird kein Prompt gesendet oder Agent gestartet.',
+    noLiveSession: 'Öffne ein Terminal mit einem Agent, dessen Sitzungsverlauf unterstützt wird, um vorhandene Sitzungen zu finden.',
+    noSessionsFound: 'Für dieses Terminal wurden keine Sitzungen gefunden.',
+    attentionHint: 'Aktuelle Anfragen und Aufgaben, die du als blockiert oder bereit zur Prüfung markiert hast. Öffne das Terminal, um eine Anfrage zu lesen und zu beantworten.',
+    unassigned: 'Keinem Projekt zugeordnet', openTerminal: 'Terminal öffnen',
+    noAttention: 'Hier ist gerade nichts offen', noAttentionHint: 'Agent-Anfragen und Aufgaben zur Prüfung erscheinen hier.',
+    taskHint: 'Du bestimmst den Aufgabenstatus. Ein wartender oder getrennter Agent schließt keine Aufgabe ab.',
+    noTasks: 'Noch keine Aufgaben', noTasksHint: 'Lege ein Projekt und eine Aufgabe an und ordne eine vorhandene Agent-Sitzung zu.',
+    sessionHint: 'Zuordnungen bleiben nach dem Schließen von Terminals und nach App-Neustarts erhalten. Das Entfernen einer Zuordnung verändert keine Agent-Dateien.',
+    connected: 'Im Terminal geöffnet', offline: 'Kein verbundenes Terminal', unlink: 'Zuordnung entfernen', noSessions: 'Keine zugeordneten Sitzungen',
+    statuses: { planned: 'Geplant', in_progress: 'In Arbeit', blocked: 'Blockiert', review: 'Zur Prüfung', done: 'Abgeschlossen' },
+    reasons: { permission: 'Freigabe angefragt', blocked: 'Aufgabe blockiert', input: 'Wartet auf Eingabe', result: 'Ergebnis verfügbar', review: 'Zur Prüfung' },
+  },
   sidebar: {
     terminal: 'Terminal',
     sshHosts: 'SSH-Hosts',

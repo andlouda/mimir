@@ -48,6 +48,30 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
 - Local audit/activity logs
 - i18n (English, German)
 
+### Agent workspace
+
+Open **Agent workspace** in the sidebar to organize agent work independently
+of terminal panes:
+
+1. Create a project with a name, host label and optional working directory.
+2. Add tasks with notes and a status: planned, in progress, blocked, ready for
+   review or done. Task status is managed explicitly; an idle agent does not
+   automatically complete a task.
+3. Use **Assign session** to choose a session discovered in an open agent
+   terminal. Assign it to a project, optionally to a task. This supports agents
+   whose session history Mimir can read; detection alone is not sufficient.
+4. **Needs attention** collects live agent requests and tasks marked blocked or
+   ready for review. Open the associated terminal to inspect and answer requests.
+
+Projects, tasks and session references are stored locally in
+`agent_workspace.json` in Mimir's OS configuration directory. Assignments survive
+closed terminals and app restarts and reconnect to detected sessions by host,
+agent kind and session reference. Without a matching live terminal they remain
+visible as disconnected; the workspace does not launch or resume agents.
+Projects and tasks can be edited, archived and restored. Removing an assignment
+only removes Mimir's reference, leaving the agent's own files intact. Existing
+session annotations remain available in the agent panel.
+
 ## Security Model
 
 Mimir is local-first by default.
