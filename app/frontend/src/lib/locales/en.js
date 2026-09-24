@@ -43,6 +43,7 @@ export default {
     agents: 'Agents',
     agentDone: 'done',
     agentPermission: 'approval',
+    noAgents: 'No agents detected yet. + opens the agent workspace.',
     agentsShowArchived: 'show {n} archived',
     agentsHideArchived: 'hide archived',
     expand: 'Expand sidebar',

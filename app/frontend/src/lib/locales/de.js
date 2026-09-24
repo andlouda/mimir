@@ -43,6 +43,7 @@ export default {
     agents: 'Agents',
     agentDone: 'fertig',
     agentPermission: 'Freigabe',
+    noAgents: 'Noch kein Agent erkannt. + öffnet den Agent-Arbeitsplatz.',
     agentsShowArchived: '{n} archivierte zeigen',
     agentsHideArchived: 'archivierte ausblenden',
     expand: 'Sidebar ausklappen',
