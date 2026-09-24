@@ -95,9 +95,10 @@
     }
     return [...groups.values()];
   })();
+  // Agent first, then the session's name: "Claude · Login fix".
   function rowLabel(row) {
     const name = row.note?.name || row.agent.title || '';
-    return name ? `${name} · ${row.agent.label}` : row.agent.label;
+    return name ? `${row.agent.label} · ${name}` : row.agent.label;
   }
   function rowMeta(row) {
     const parts = [row.term.name];
