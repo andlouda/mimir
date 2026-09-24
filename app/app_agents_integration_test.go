@@ -43,7 +43,7 @@ func TestAgentProbeAgainstRealTmux(t *testing.T) {
 	if err != nil && !strings.Contains(string(capture), agentProbeSeparator) {
 		t.Fatalf("capture failed: %v\n%s", err, capture)
 	}
-	_, width := parseAgentCapture(string(capture))
+	_, width, _ := parseAgentCapture(string(capture))
 	if width != 80 {
 		t.Fatalf("expected pane width 80, got %d\n%s", width, capture)
 	}

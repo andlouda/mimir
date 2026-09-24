@@ -831,6 +831,7 @@ export default {
     viewScreen: 'Screen',
     viewScreenTitle: 'What tmux shows in this pane (always available, keeps the agent\'s line breaks)',
     screenHint: 'tmux pane contents from the agent\'s last start. Soft wraps are joined; line breaks the agent drew itself stay.',
+    screenHintFullscreen: 'The agent runs full-screen: only what is visible in the pane right now can be captured, there is no scrollback behind it. Earlier answers are in Snippets and History.',
     verified: 'Session file confirmed against the pane',
     unverified: 'Session file not confirmed against the pane — check the Screen view if it looks wrong',
     candidates: '{n} sessions in this directory',

@@ -70,23 +70,35 @@ const paneCaptureLines = 1500
 
 // agentCaptureScript prints the pane width, a separator and the pane's
 // visible text plus recent scrollback. -J re-joins tmux's own soft wraps.
+// A full-screen TUI (Claude Code in fullscreen mode, vim) runs on the
+// alternate screen, which has no scrollback: the history behind it is the
+// shell's, not the agent's. In that case only the visible screen is
+// captured; the head line reports width and the alternate flag.
 func agentCaptureScript(tmuxBin, session string) string {
 	target := shellQuote(session + ":")
-	return tmuxBin + ` display-message -p -t ` + target + ` '#{pane_width}' 2>/dev/null; ` +
+	return tmuxBin + ` display-message -p -t ` + target + ` '#{pane_width} #{alternate_on}' 2>/dev/null; ` +
 		`echo ` + agentProbeSeparator + `; ` +
-		tmuxBin + ` capture-pane -p -J -S -` + strconv.Itoa(paneCaptureLines) + ` -t ` + target + ` 2>/dev/null`
+		`if [ "$(` + tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on}' 2>/dev/null)" = 1 ]; then ` +
+		tmuxBin + ` capture-pane -p -J -t ` + target + ` 2>/dev/null; else ` +
+		tmuxBin + ` capture-pane -p -J -S -` + strconv.Itoa(paneCaptureLines) + ` -t ` + target + ` 2>/dev/null; fi`
 }
 
-// parseAgentCapture splits capture output into pane width and cleaned text
-// with hard-wrapped full-width rows re-joined.
-func parseAgentCapture(output string) (text string, width int) {
+// parseAgentCapture splits capture output into pane width, the alternate
+// screen flag and cleaned text with hard-wrapped full-width rows re-joined.
+func parseAgentCapture(output string) (text string, width int, alternate bool) {
 	head, tail, found := strings.Cut(output, agentProbeSeparator)
 	if !found {
-		return "", 0
+		return "", 0, false
 	}
-	width, _ = strconv.Atoi(strings.TrimSpace(head))
+	fields := strings.Fields(head)
+	if len(fields) > 0 {
+		width, _ = strconv.Atoi(fields[0])
+	}
+	if len(fields) > 1 {
+		alternate = fields[1] == "1"
+	}
 	text = agents.CleanPaneText(strings.TrimPrefix(tail, "\n"))
-	return agents.JoinFullWidthRows(text, width), width
+	return agents.JoinFullWidthRows(text, width), width, alternate
 }
 
 // runPaneScript executes a tmux script in the environment the terminal
@@ -136,7 +148,8 @@ func (a *App) capturePane(terminalID int, terminalType string) (string, int) {
 	if err != nil {
 		return "", 0
 	}
-	return parseAgentCapture(output)
+	text, width, _ := parseAgentCapture(output)
+	return text, width
 }
 
 func agentDetectionDisabledPath() (string, error) {
@@ -218,6 +231,9 @@ type agentPaneText struct {
 	// HiddenLines is how many scrollback lines before the agent's start were
 	// left out (0 when full was requested or nothing was cut).
 	HiddenLines int `json:"hiddenLines"`
+	// Alternate is true when the pane runs a full-screen program: only the
+	// visible screen was captured, there is no agent scrollback behind it.
+	Alternate bool `json:"alternate"`
 }
 
 // paneTailLines is the fallback window when no agent launch line is found.
@@ -237,9 +253,9 @@ func (a *App) GetAgentPaneTextJSON(terminalID int, terminalType string, full boo
 	if err != nil {
 		return "", err
 	}
-	text, width := parseAgentCapture(output)
+	text, width, alternate := parseAgentCapture(output)
 	hidden := 0
-	if !full {
+	if !full && !alternate {
 		kind := agents.Kind("")
 		if state, ok := a.rememberedAgent(terminalID); ok {
 			kind = state.kind
@@ -247,7 +263,7 @@ func (a *App) GetAgentPaneTextJSON(terminalID int, terminalType string, full boo
 		text, hidden = agents.TrimToAgentStart(text, kind, paneTailLines)
 	}
 	logAgentEvent("agent_pane_read", fmt.Sprintf("%d lines (%d hidden)", strings.Count(text, "\n")+1, hidden))
-	payload, err := json.Marshal(agentPaneText{Text: text, Width: width, Lines: strings.Count(text, "\n") + 1, HiddenLines: hidden})
+	payload, err := json.Marshal(agentPaneText{Text: text, Width: width, Lines: strings.Count(text, "\n") + 1, HiddenLines: hidden, Alternate: alternate})
 	if err != nil {
 		return "", fmt.Errorf("failed to encode pane text: %w", err)
 	}

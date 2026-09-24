@@ -35,14 +35,14 @@ func TestAgentProbeScriptQuotesSession(t *testing.T) {
 
 func TestParseAgentCaptureJoinsFullWidthRows(t *testing.T) {
 	out := "20\n" + agentProbeSeparator + "\n" + "  /tmp/claude-1000/-\n  mnt-a-selfmade   \nprompt $ \n\n\n"
-	text, width := parseAgentCapture(out)
+	text, width, _ := parseAgentCapture(out)
 	if width != 20 {
 		t.Fatalf("width = %d", width)
 	}
 	if text != "  /tmp/claude-1000/-mnt-a-selfmade\nprompt $" {
 		t.Fatalf("unexpected text %q", text)
 	}
-	if text, width := parseAgentCapture("garbage"); text != "" || width != 0 {
+	if text, width, _ := parseAgentCapture("garbage"); text != "" || width != 0 {
 		t.Fatalf("missing separator must yield empty capture")
 	}
 }

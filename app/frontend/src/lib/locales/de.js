@@ -830,6 +830,7 @@ export default {
     viewFileTitle: 'Nachrichten aus der Sitzungsdatei des Agenten (exakter Text, keine Terminal-Umbrüche)',
     viewScreen: 'Bildschirm',
     viewScreenTitle: 'Was tmux in dieser Pane zeigt (immer verfügbar, behält die Umbrüche des Agenten)',
+    screenHintFullscreen: 'Der Agent läuft im Vollbild: erfassbar ist nur, was gerade in der Pane sichtbar ist, dahinter gibt es keinen Verlauf. Frühere Antworten stehen unter Snippets und History.',
     screenHint: 'tmux-Inhalt der Pane ab dem letzten Start des Agenten. Weiche Umbrüche sind zusammengefügt; Umbrüche, die der Agent selbst gezeichnet hat, bleiben.',
     verified: 'Sitzungsdatei gegen die Pane bestätigt',
     unverified: 'Sitzungsdatei nicht gegen die Pane bestätigt — bei Zweifel die Bildschirm-Ansicht prüfen',
