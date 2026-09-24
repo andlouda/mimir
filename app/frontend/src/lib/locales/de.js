@@ -793,6 +793,8 @@ export default {
     working: 'arbeitet',
     idle: 'wartet',
     permission: 'Freigabe nötig',
+    allow: 'Erlauben',
+    deny: 'Ablehnen',
     hookHint: 'Claude Code meldet auf diesem Host noch keine Rückfragen. Mimirs Notification-Hook in ~/.claude/settings.json eintragen, damit Freigaben im Badge und in der Seitenleiste erscheinen.',
     hookInstall: 'Hook einrichten',
     hookInstalled: 'Hook eingerichtet. Gilt ab dem nächsten Start von Claude Code.',

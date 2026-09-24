@@ -18,7 +18,7 @@
   import { agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
-  import { closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, selectAgentSession, setClaudeHookInstalled } from './actions/agentActions.js';
+  import { answerAgentPermission, closeAgentPanel, loadAgentGitStatus, loadAgentPaneText, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, selectAgentSession, setClaudeHookInstalled } from './actions/agentActions.js';
 
   export let terminalId;
 
@@ -322,7 +322,13 @@
   </div>
 
   {#if agent?.status === 'permission' && agent.lastText}
-    <p class="agent-panel-hint agent-panel-permission">{agent.lastText}</p>
+    <p class="agent-panel-hint agent-panel-permission">
+      <span>{agent.lastText}</span>
+      {#if agent.prompt === 'permission_prompt'}
+        <button type="button" class="agent-btn agent-btn-allow" disabled={agent.answering} on:click={() => answerAgentPermission(terminalId, true)}>✓ {$t('agentPanel.allow')}</button>
+        <button type="button" class="agent-btn agent-btn-deny" disabled={agent.answering} on:click={() => answerAgentPermission(terminalId, false)}>✕ {$t('agentPanel.deny')}</button>
+      {/if}
+    </p>
   {/if}
   {#if hookHintVisible}
     <p class="agent-panel-hint agent-panel-hook">
@@ -561,7 +567,9 @@
   .agent-status-working { background: rgba(227, 179, 65, 0.14); color: #e3b341; border-color: rgba(227, 179, 65, 0.32); }
   .agent-status-idle { background: rgba(126, 231, 135, 0.14); color: #7ee787; border-color: rgba(126, 231, 135, 0.28); }
   .agent-status-permission { background: rgba(255, 123, 114, 0.16); color: #ff7b72; border-color: rgba(255, 123, 114, 0.5); }
-  .agent-panel-permission { color: #ff7b72; margin: 0 10px 6px; }
+  .agent-panel-permission { color: #ff7b72; margin: 0 10px 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .agent-btn-allow { color: #7ee787; border-color: rgba(126, 231, 135, 0.45); }
+  .agent-btn-deny { color: #ff7b72; border-color: rgba(255, 123, 114, 0.45); }
   .agent-panel-hook { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 10px 6px; }
   .agent-panel-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .agent-btn { background: transparent; border: 1px solid var(--border-subtle); color: inherit; border-radius: 4px; padding: 2px 7px; cursor: pointer; }

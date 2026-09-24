@@ -8,6 +8,7 @@ vi.mock('../../../wailsjs/runtime', () => ({
 
 import { EventsOn } from '../../../wailsjs/runtime';
 import {
+  answerAgentPermission,
   handleAgentStateEvent,
   handleTerminalPrompt,
   handleTerminalTitle,
@@ -191,8 +192,8 @@ describe('agent detection', () => {
     openAgentPanel(2);
     expect(get(agentStates)[2].attention).toBe(false);
     activeTerminalId.set(1);
-    handleAgentStateEvent(2, JSON.stringify({ state: 'permission', lastText: 'Claude needs your permission to use Bash', lastAt: 't4' }));
-    expect(get(agentStates)[2]).toMatchObject({ status: 'permission', subject: 'Claude needs your permission to use Bash', attention: true });
+    handleAgentStateEvent(2, JSON.stringify({ state: 'permission', prompt: 'permission_prompt', lastText: 'Claude needs your permission to use Bash', lastAt: 't4' }));
+    expect(get(agentStates)[2]).toMatchObject({ status: 'permission', prompt: 'permission_prompt', subject: 'Claude needs your permission to use Bash', attention: true });
     handleAgentStateEvent(2, JSON.stringify({ state: 'idle', lastText: 'Done. Shall I commit?', lastAt: 't5', sessionFile: '/s.jsonl' }));
 
     // A title tick must not override the file-derived state any more.
@@ -200,6 +201,27 @@ describe('agent detection', () => {
     expect(get(agentStates)[2].status).toBe('idle');
 
     // Garbage payloads are ignored.
+    handleAgentStateEvent(2, 'not json');
+    expect(get(agentStates)[2].status).toBe('idle');
+    stopAgentWatch(2);
+  });
+
+  test('answers a pending permission prompt through the backend, once', async () => {
+    window.go.main.App.AnswerAgentPermission = vi.fn().mockResolvedValue(undefined);
+    agentStates.set({ 2: { kind: 'claude', label: 'Claude', status: 'permission', prompt: 'permission_prompt', attention: true } });
+    expect(await answerAgentPermission(2, true)).toBe(true);
+    expect(window.go.main.App.AnswerAgentPermission).toHaveBeenCalledWith(2, true);
+    // Second click while the first answer is in flight does nothing.
+    expect(await answerAgentPermission(2, false)).toBe(false);
+    expect(window.go.main.App.AnswerAgentPermission).toHaveBeenCalledTimes(1);
+    // Not a permission prompt (idle_prompt): never types anything.
+    agentStates.set({ 2: { kind: 'claude', label: 'Claude', status: 'idle', prompt: 'idle_prompt' } });
+    expect(await answerAgentPermission(2, true)).toBe(false);
+    expect(window.go.main.App.AnswerAgentPermission).toHaveBeenCalledTimes(1);
+  });
+
+  test('ignores garbage state payloads', () => {
+    agentStates.set({ 2: { kind: 'claude', label: 'Claude', status: 'idle', attention: false } });
     handleAgentStateEvent(2, 'not json');
     expect(get(agentStates)[2].status).toBe('idle');
     stopAgentWatch(2);

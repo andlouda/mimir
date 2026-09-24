@@ -76,7 +76,8 @@ Mimir is local-first by default.
   Claude Code Notification hook (`~/.claude/settings.json`, on this machine
   from Settings, on SSH hosts from the agent panel) so that a pending
   permission prompt shows up as "approval" in the badge and the sidebar
-  instead of being guessed from the screen.
+  instead of being guessed from the screen, with Allow / Deny buttons that
+  type the answer into the pane for you.
 - Credentials (SSH passwords, AI API key) are stored in the OS keyring when
   available. Without a keyring, they are kept in an encrypted file protected by
   a master password (Argon2id) plus a per-machine identifier where the OS

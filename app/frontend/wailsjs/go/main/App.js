@@ -378,6 +378,10 @@ export function GetClaudeHookStatusJSON(arg1) {
   return window['go']['main']['App']['GetClaudeHookStatusJSON'](arg1);
 }
 
+export function AnswerAgentPermission(arg1, arg2) {
+  return window['go']['main']['App']['AnswerAgentPermission'](arg1, arg2);
+}
+
 export function ListClaudeHookHostsJSON() {
   return window['go']['main']['App']['ListClaudeHookHostsJSON']();
 }

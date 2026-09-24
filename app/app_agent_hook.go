@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -49,9 +48,69 @@ func runAgentHookMode(args []string, stdin io.Reader) bool {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return true
 	}
-	name := strconv.FormatInt(time.Now().UnixNano(), 10) + "-" + strconv.Itoa(os.Getpid()) + ".json"
+	// The parent is the agent that ran the hook; the watcher uses it to
+	// assign the prompt to the right pane.
+	name := agents.HookEventFileName(time.Now().UnixNano(), os.Getpid(), os.Getppid())
 	_ = os.WriteFile(filepath.Join(dir, name), data, 0600)
 	return true
+}
+
+// agentPrompt is a permission prompt the watcher currently holds for a pane.
+type agentPrompt struct {
+	event agents.HookEvent
+	at    time.Time
+}
+
+func (a *App) setAgentPrompt(terminalID int, ev *agents.HookEvent, at time.Time) {
+	a.agentMu.Lock()
+	defer a.agentMu.Unlock()
+	if ev == nil {
+		delete(a.agentPrompts, terminalID)
+		return
+	}
+	if a.agentPrompts == nil {
+		a.agentPrompts = make(map[int]agentPrompt)
+	}
+	a.agentPrompts[terminalID] = agentPrompt{event: *ev, at: at}
+}
+
+// Keys Claude Code's permission dialog understands: option 1 is "Yes",
+// Escape is "No" (the tool call is cancelled and control returns to the
+// user). Option 2 ("don't ask again") is deliberately not offered.
+const (
+	agentPermissionAllowKeys = "1"
+	agentPermissionDenyKeys  = "\x1b"
+)
+
+// AnswerAgentPermission answers the permission prompt the hook reported for
+// a pane by typing the corresponding key into that pane. It refuses when no
+// permission prompt is pending (nothing is ever typed blindly), and it is
+// written to the activity log. The user still decides; Mimir only saves the
+// focus change.
+func (a *App) AnswerAgentPermission(terminalID int, allow bool) error {
+	a.agentMu.Lock()
+	p, ok := a.agentPrompts[terminalID]
+	if ok {
+		delete(a.agentPrompts, terminalID) // one answer per prompt
+	}
+	a.agentMu.Unlock()
+	if !ok || p.event.NotificationType != "permission_prompt" {
+		return fmt.Errorf("no permission prompt pending for this terminal")
+	}
+	if time.Since(p.at) > agentHookMaxAge {
+		return fmt.Errorf("the permission prompt is too old to answer from here")
+	}
+	keys := agentPermissionDenyKeys
+	verb := "denied"
+	if allow {
+		keys = agentPermissionAllowKeys
+		verb = "allowed"
+	}
+	if err := a.TerminalManager.WriteToTerminal(terminalID, keys); err != nil {
+		return err
+	}
+	logAgentEvent("agent_permission_answered", fmt.Sprintf("terminal %d: %s (%s)", terminalID, verb, p.event.Message))
+	return nil
 }
 
 // localHookEventsDir is where the local hook command writes payloads.

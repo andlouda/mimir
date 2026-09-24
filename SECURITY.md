@@ -59,8 +59,13 @@ Mimir is a local desktop terminal application. It may handle sensitive terminal 
   `mimir --agent-hook` in exec form (no shell), which validates the payload
   and stores it under the user cache directory with mode 0600; on WSL and SSH
   hosts it is a `cat` one-liner into `~/.cache/mimir/agent-events`. Mimir
-  reads those files only to mark the pane as waiting for approval, deletes
-  them once consumed, and never answers a prompt on the user's behalf.
+  reads those files only to mark the pane as waiting for approval and
+  deletes them once consumed. The hook file name carries the agent's
+  process id, so a prompt is attributed to the pane whose agent raised it.
+  The Allow / Deny buttons type a single key ("1" or Escape) into that pane,
+  only while the hook has reported a permission prompt there and only once
+  per prompt; every answer is written to the activity log. Mimir never
+  answers a prompt on its own.
 - Terminal recordings contain raw terminal data and may include secrets.
   Keystroke (input) recording is disabled by default. Scrubbing is best-effort
   and applied only when exporting; it cannot guarantee removal of free-form

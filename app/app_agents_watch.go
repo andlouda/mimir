@@ -20,11 +20,16 @@ type agentStatePayload struct {
 	LastText    string       `json:"lastText,omitempty"`
 	LastAt      string       `json:"lastAt,omitempty"`
 	SessionFile string       `json:"sessionFile,omitempty"`
+	// Prompt is the hook's notification type while one is pending
+	// (permission_prompt, idle_prompt, ...); the frontend offers answer
+	// buttons only for permission_prompt.
+	Prompt string `json:"prompt,omitempty"`
 }
 
 type agentWatcher struct {
 	cancel context.CancelFunc
 	kind   agents.Kind
+	pid    int
 }
 
 const (
@@ -53,14 +58,16 @@ func (a *App) startAgentWatcher(terminalID int, terminalType string, state agent
 		a.agentWatchers = make(map[int]*agentWatcher)
 	}
 	if existing, ok := a.agentWatchers[terminalID]; ok {
-		if existing.kind == state.kind {
+		// Same agent process: keep following. A new process (the user
+		// restarted the agent) gets a fresh watcher with the new pid.
+		if existing.kind == state.kind && existing.pid == state.pid {
 			a.agentMu.Unlock()
 			return
 		}
 		existing.cancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	a.agentWatchers[terminalID] = &agentWatcher{cancel: cancel, kind: state.kind}
+	a.agentWatchers[terminalID] = &agentWatcher{cancel: cancel, kind: state.kind, pid: state.pid}
 	a.agentMu.Unlock()
 
 	go a.watchAgentSession(ctx, terminalID, terminalType, state)
@@ -73,6 +80,7 @@ func (a *App) stopAgentWatcher(terminalID int) {
 		w.cancel()
 		delete(a.agentWatchers, terminalID)
 	}
+	delete(a.agentPrompts, terminalID)
 }
 
 func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalType string, state agentTerminalState) {
@@ -108,7 +116,11 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		// out. Only Claude Code has the hook.
 		pending   *agents.HookEvent
 		pendingAt time.Time
+		// bound is set once a hook event named this pane's session file; the
+		// periodic re-lookup then no longer swaps it for the newest file.
+		bound bool
 	)
+	defer a.setAgentPrompt(terminalID, nil, time.Time{})
 	eventsDir := ""
 	if state.kind == agents.KindClaude {
 		eventsDir = hookEventsDir(state.source, fs, home)
@@ -150,7 +162,7 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 			a.stopAgentWatcher(terminalID)
 			return
 		}
-		if file == "" || time.Since(lastLookup) > agentWatchRelookup {
+		if file == "" || (!bound && time.Since(lastLookup) > agentWatchRelookup) {
 			locate()
 		}
 		if file != "" {
@@ -173,11 +185,18 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		}
 		if eventsDir != "" {
 			for _, ev := range agents.ScanHookEvents(fs, eventsDir) {
-				if !agents.MatchesHookEvent(ev.Event, file, cwd) {
+				if !agents.MatchesHookEvent(ev.Event, state.pid, file, cwd) {
 					continue
 				}
 				if remover != nil {
 					_ = remover.Remove(ev.Path)
+				}
+				// The event names the session file of this very process:
+				// follow it from now on (unless the user pinned another).
+				if state.sessionFile == "" && ev.Event.TranscriptPath != "" && ev.Event.TranscriptPath != file {
+					file, lastSize, lastMod, bound = ev.Event.TranscriptPath, -1, time.Time{}, true
+				} else if ev.Event.TranscriptPath == file {
+					bound = true
 				}
 				if agents.StateForNotification(ev.Event.NotificationType) == agents.StateUnknown {
 					continue
@@ -189,11 +208,19 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		if pending != nil && time.Since(pendingAt) > agentHookMaxAge {
 			pending = nil
 		}
+		if pending != nil && pending.NotificationType == "permission_prompt" {
+			if _, held := a.heldPrompt(terminalID); !held {
+				a.setAgentPrompt(terminalID, pending, pendingAt)
+			}
+		} else {
+			a.setAgentPrompt(terminalID, nil, time.Time{})
+		}
 		payload := filePayload
 		if pending != nil {
 			payload.State = agents.StateForNotification(pending.NotificationType)
 			payload.LastText = pending.Message
 			payload.LastAt = pendingAt.Format(time.RFC3339)
+			payload.Prompt = pending.NotificationType
 			if payload.SessionFile == "" {
 				payload.SessionFile = pending.TranscriptPath
 			}
@@ -208,6 +235,13 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		case <-ticker.C:
 		}
 	}
+}
+
+func (a *App) heldPrompt(terminalID int) (agentPrompt, bool) {
+	a.agentMu.Lock()
+	defer a.agentMu.Unlock()
+	p, ok := a.agentPrompts[terminalID]
+	return p, ok
 }
 
 func (a *App) emitAgentState(terminalID int, payload agentStatePayload) {

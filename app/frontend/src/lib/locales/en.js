@@ -793,6 +793,8 @@ export default {
     working: 'working',
     idle: 'idle',
     permission: 'approval needed',
+    allow: 'Allow',
+    deny: 'Deny',
     hookHint: 'Claude Code does not report permission prompts on this host yet. Install Mimir\'s notification hook in ~/.claude/settings.json to see them in the badge and the sidebar.',
     hookInstall: 'Install hook',
     hookInstalled: 'Hook installed. Takes effect for the next Claude Code start.',

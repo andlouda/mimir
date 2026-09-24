@@ -1,4 +1,5 @@
 <script>
+  import { answerAgentPermission } from './actions/agentActions.js';
   // Left navigation sidebar. Collapse/disclosure/drag state is local to this
   // component; data and actions come from the parent via props/callbacks.
   import { onMount } from 'svelte';
@@ -266,6 +267,12 @@
                   </span>
                 </span>
               </button>
+              {#if row.agent.status === 'permission' && row.agent.prompt === 'permission_prompt'}
+                <div class="sidebar-agent-answer" role="group" aria-label={$t('sidebar.agentPermission')}>
+                  <button type="button" class="sidebar-answer-btn sidebar-answer-allow" disabled={row.agent.answering} title={$t('agentPanel.allow')} on:click={() => answerAgentPermission(row.id, true)}>✓ {$t('agentPanel.allow')}</button>
+                  <button type="button" class="sidebar-answer-btn sidebar-answer-deny" disabled={row.agent.answering} title={$t('agentPanel.deny')} on:click={() => answerAgentPermission(row.id, false)}>✕ {$t('agentPanel.deny')}</button>
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>
