@@ -296,9 +296,9 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 				// session — and anything running in it, e.g. claude — survives
 				// closing and reopening the app. Falls back to a plain shell
 				// when tmux is not installed in the WSL distro.
-				// set-clipboard external + Ms override: copy tmux mouse selections
-				// to the clipboard via OSC 52 (without letting programs inside the
-				// session write to it). The unbinds drop tmux's right-click menu
+				// set-clipboard on + Ms override: copy tmux mouse selections and
+				// OSC 52 writes from the pane (nested tmux, vim) to the clipboard.
+				// The unbinds drop tmux's right-click menu
 				// (Mimir draws its own); the wheel bindings soften scroll steps.
 				inner += `if command -v tmux >/dev/null 2>&1; then exec tmux -L mimir new-session -A -s ` + name +
 					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i'` + TmuxOptionScript(tmuxMode) + `; ` +

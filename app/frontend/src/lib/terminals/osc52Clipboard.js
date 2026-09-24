@@ -2,9 +2,10 @@ import { ClipboardSetText } from '../../../wailsjs/runtime';
 
 // Write-only OSC 52 clipboard provider.
 //
-// tmux (set-clipboard external) reports mouse selections through OSC 52, so
-// copying works even across SSH. Reading is deliberately denied: an OSC 52
-// read would let any remote program exfiltrate the local clipboard.
+// tmux (set-clipboard on) reports mouse selections through OSC 52 and passes
+// on OSC 52 writes from programs in the pane (a nested tmux, vim), so copying
+// works even across SSH. Reading is deliberately denied: an OSC 52 read would
+// let any remote program exfiltrate the local clipboard.
 export function createWriteOnlyClipboardProvider(setText = ClipboardSetText) {
   return {
     readText() {

@@ -54,9 +54,14 @@ func TmuxOptionCommands(mode string) [][]string {
 		{"set", "history-limit", "100000"},
 		{"set", "prefix", "None"},
 		{"set", "prefix2", "None"},
-		// "external": tmux may write selections to the outer clipboard,
-		// programs inside the session may not.
-		{"set", "-s", "set-clipboard", "external"},
+		// "on": tmux forwards its own copy-mode selections AND OSC 52
+		// writes from programs in the pane to the outer terminal, and keeps
+		// a copy in its paste buffer. "external" would drop the latter, which
+		// broke copying inside a nested tmux (e.g. a container whose shell
+		// starts its own tmux): its selections never left the inner server.
+		// Plain (non-tmux) terminals accept OSC 52 writes anyway; reads stay
+		// denied in the frontend provider.
+		{"set", "-s", "set-clipboard", "on"},
 		{"set", "-ga", "terminal-overrides", msOverride},
 		// Mimir draws its own context menu.
 		{"unbind-key", "-n", "MouseDown3Pane"},

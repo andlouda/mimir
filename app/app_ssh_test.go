@@ -71,7 +71,7 @@ func TestSSHTmuxBootstrapCommand(t *testing.T) {
 		"set mouse on",
 		"set history-limit 100000",
 		"set prefix None",
-		"set -s set-clipboard external",
+		"set -s set-clipboard on",
 		// The whole script is single-quoted by shellQuote, so the inner quotes
 		// around the Ms token appear as '\'' — check the capability itself.
 		`Ms=\E]52;%p1%s;%p2%s\007`,
