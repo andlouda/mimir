@@ -2,6 +2,8 @@ package agents
 
 import (
 	"encoding/json"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -96,6 +98,110 @@ type claudeRecord struct {
 		Role    string          `json:"role"`
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
+	// Session-level records Claude Code writes beside the messages.
+	IsCompactSummary bool            `json:"isCompactSummary"`
+	AITitle          string          `json:"aiTitle"`
+	LastPrompt       string          `json:"lastPrompt"`
+	PRNumber         json.RawMessage `json:"prNumber"`
+	PRUrl            string          `json:"prUrl"`
+	TotalCostUSD     float64         `json:"totalCostUSD"`
+	TotalDuration    float64         `json:"totalDuration"`
+	ModelUsage       map[string]struct {
+		InputTokens              int64 `json:"inputTokens"`
+		OutputTokens             int64 `json:"outputTokens"`
+		CacheReadInputTokens     int64 `json:"cacheReadInputTokens"`
+		CacheCreationInputTokens int64 `json:"cacheCreationInputTokens"`
+	} `json:"modelUsage"`
+}
+
+const (
+	metaPromptMax = 240
+	titleMax      = 100
+)
+
+// applyClaudeMeta folds a session-level record into meta. Returns true
+// when the record was one (and is not a message).
+func applyClaudeMeta(meta *SessionMeta, rec claudeRecord) bool {
+	switch rec.Type {
+	case "ai-title":
+		if t := strings.TrimSpace(rec.AITitle); t != "" {
+			meta.Title = trimRunesTo(t, titleMax)
+		}
+		return true
+	case "last-prompt":
+		if p := strings.TrimSpace(rec.LastPrompt); p != "" {
+			meta.LastPrompt = trimRunesTo(p, metaPromptMax)
+		}
+		return true
+	case "pr-link":
+		n := 0
+		_ = json.Unmarshal(rec.PRNumber, &n)
+		if n == 0 {
+			var s string
+			if json.Unmarshal(rec.PRNumber, &s) == nil {
+				n, _ = strconv.Atoi(s)
+			}
+		}
+		if rec.PRUrl != "" {
+			for _, l := range meta.PRLinks {
+				if l.URL == rec.PRUrl {
+					return true
+				}
+			}
+			meta.PRLinks = append(meta.PRLinks, PRLink{Number: n, URL: rec.PRUrl})
+		}
+		return true
+	case "cost-state":
+		// Cumulative: the newest record wins.
+		meta.CostUSD = rec.TotalCostUSD
+		meta.DurationMs = int64(rec.TotalDuration)
+		if len(rec.ModelUsage) > 0 {
+			meta.ModelUsage = meta.ModelUsage[:0]
+			for model, u := range rec.ModelUsage {
+				meta.ModelUsage = append(meta.ModelUsage, ModelUsage{Model: model, Input: u.InputTokens, Output: u.OutputTokens, CacheRead: u.CacheReadInputTokens, CacheCreate: u.CacheCreationInputTokens})
+			}
+			sort.Slice(meta.ModelUsage, func(i, j int) bool {
+				return meta.ModelUsage[i].Input+meta.ModelUsage[i].CacheRead > meta.ModelUsage[j].Input+meta.ModelUsage[j].CacheRead
+			})
+		}
+		return true
+	}
+	return false
+}
+
+func trimRunesTo(s string, max int) string {
+	if r := []rune(s); len(r) > max {
+		return string(r[:max]) + "…"
+	}
+	return s
+}
+
+// ClaudeSessionTitle returns the session's own title from the head of its
+// file: the AI-generated title when present, else the first prompt.
+func ClaudeSessionTitle(head []byte) string {
+	title, first := "", ""
+	scanLines(head, func(line []byte) {
+		var rec claudeRecord
+		if err := json.Unmarshal(line, &rec); err != nil {
+			return
+		}
+		switch rec.Type {
+		case "ai-title":
+			if t := strings.TrimSpace(rec.AITitle); t != "" {
+				title = trimRunesTo(t, titleMax)
+			}
+		case "user":
+			if first == "" && !rec.IsMeta && !rec.IsCompactSummary {
+				if t := claudeTextContent(rec.Message.Content, true); t != "" {
+					first = trimRunesTo(strings.TrimSpace(strings.SplitN(t, "\n", 2)[0]), titleMax)
+				}
+			}
+		}
+	})
+	if title != "" {
+		return title
+	}
+	return first
 }
 
 type claudeBlock struct {
@@ -197,6 +303,18 @@ func ParseClaudeSession(data []byte) Session {
 		if err := json.Unmarshal(line, &rec); err != nil {
 			return
 		}
+		if applyClaudeMeta(&out.Meta, rec) {
+			return
+		}
+		if rec.Type == "user" && rec.IsCompactSummary {
+			// The compaction summary is Claude Code's own "state of the
+			// session"; keep the newest one aside instead of showing it as
+			// a (huge) user message.
+			if t := claudeTextContent(rec.Message.Content, true); t != "" {
+				out.Meta.Summary, out.Meta.SummaryAt = t, rec.Timestamp
+			}
+			return
+		}
 		switch rec.Type {
 		case "user":
 			for _, b := range claudeBlocks(rec.Message.Content) {
@@ -226,6 +344,9 @@ func ParseClaudeSession(data []byte) Session {
 			text := claudeTextContent(rec.Message.Content, true)
 			if text == "" {
 				return
+			}
+			if out.Meta.FirstPrompt == "" {
+				out.Meta.FirstPrompt = trimRunesTo(strings.TrimSpace(strings.SplitN(text, "\n", 2)[0]), metaPromptMax)
 			}
 			out.Messages = append(out.Messages, Message{Role: "user", Text: text, Timestamp: rec.Timestamp})
 			lastAssistantID = ""

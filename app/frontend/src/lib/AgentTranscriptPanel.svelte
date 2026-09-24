@@ -24,7 +24,7 @@
 
   const REFRESH_WORKING_MS = 6000;
   const MESSAGE_LIMIT = 24;
-  const ALL_TABS = ['snippets', 'tasks', 'files', 'commands', 'processes', 'history', 'screen'];
+  const ALL_TABS = ['snippets', 'summary', 'tasks', 'files', 'commands', 'processes', 'history', 'screen'];
   const PROCESS_REFRESH_MS = 5000;
 
   let transcript = null;
@@ -112,7 +112,33 @@
   $: term = $terminalMap.get(terminalId) || null;
   // The screen view needs tmux (capture-pane); PowerShell/cmd and tmux mode
   // "off" have none.
-  $: TABS = ALL_TABS.filter((t) => (t !== 'screen' || !(agent && agent.tmux === false)) && (t !== 'tasks' || (transcript?.tasks || []).length > 0));
+  $: meta = transcript?.meta || null;
+  $: hasSummary = !!(meta && (meta.summary || meta.title || meta.lastPrompt || (meta.prLinks || []).length || meta.costUSD));
+  $: TABS = ALL_TABS.filter((t) => (t !== 'screen' || !(agent && agent.tmux === false)) && (t !== 'tasks' || (transcript?.tasks || []).length > 0) && (t !== 'summary' || hasSummary));
+  $: if (view === 'summary' && !TABS.includes('summary')) view = 'snippets';
+  function fmtTokens(n) {
+    n = Number(n) || 0;
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return Math.round(n / 1e3) + 'k';
+    return String(n);
+  }
+  function cacheShare(u) {
+    const total = (u.input || 0) + (u.cacheRead || 0) + (u.cacheCreate || 0);
+    return total ? Math.round(((u.cacheRead || 0) / total) * 100) : 0;
+  }
+  function fmtDuration(ms) {
+    const s = Math.round((Number(ms) || 0) / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m`;
+    return `${Math.floor(m / 60)}h ${m % 60}m`;
+  }
+  function stripSummaryPreamble(text) {
+    // Claude Code's compaction text starts with a fixed sentence about the
+    // continuation; the sections after "Summary:" are what matters.
+    const i = String(text || '').indexOf('Summary:');
+    return i >= 0 ? text.slice(i + 'Summary:'.length).trim() : text;
+  }
   $: openTasks = (transcript?.tasks || []).filter((t) => t.status !== 'completed' && t.status !== 'cancelled').length;
   $: if (view === 'tasks' && !TABS.includes('tasks')) view = 'snippets';
   $: if (view === 'screen' && !TABS.includes('screen')) view = 'snippets';
@@ -300,6 +326,21 @@
     flash($t('agentPanel.inserted', { name: target.name }));
   }
 
+  // Markdown text (the session's context summary) goes to notes as-is,
+  // under a heading with the session title.
+  async function saveTextToNotes(text) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `agent-${agent?.kind || 'session'}-state-${stamp}.md`;
+    const body = `# ${meta?.title || agent?.label || 'Agent'} · ${$t('agentPanel.contextSummary')}\n\n${text}\n`;
+    try {
+      await window['go']['main']['App']['SaveNote'](filename, body);
+      notesPanelOpen.set(true);
+      flash($t('agentPanel.savedToNotes', { filename }));
+    } catch (e) {
+      error = `Save failed: ${e?.message || e}`;
+    }
+  }
+
   async function saveToNotes(code, lang = '') {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = `agent-${agent?.kind || 'snippet'}-${stamp}.md`;
@@ -354,6 +395,7 @@
       case 'files': return $t('agentPanel.tabFiles') + (changedFiles.length ? ` (${changedFiles.length})` : '');
       case 'commands': return $t('agentPanel.tabCommands') + (failedCommands ? ` (${failedCommands}✗)` : '');
       case 'processes': return $t('agentPanel.tabProcesses') + (procs?.processes?.length > 1 ? ` (${procs.processes.length})` : '');
+      case 'summary': return $t('agentPanel.tabSummary');
       case 'history': return $t('agentPanel.tabHistory');
       default: return $t('agentPanel.viewScreen');
     }
@@ -535,6 +577,46 @@
           <button type="button" class="agent-link agent-more" on:click={() => (showOlderSnippets = !showOlderSnippets)}>{showOlderSnippets ? $t('agentPanel.olderHide') : $t('agentPanel.olderShow')}</button>
         {/if}
 
+      {:else if view === 'summary'}
+        {#if meta.title}
+          <div class="agent-section-head"><span class="agent-summary-title">{meta.title}</span></div>
+        {/if}
+        {#if meta.firstPrompt || meta.lastPrompt}
+          <div class="agent-summary-prompts">
+            {#if meta.firstPrompt}<div class="agent-row" title={meta.firstPrompt}><span class="agent-row-dim">{$t('agentPanel.firstPrompt')}</span><span class="agent-row-main">{meta.firstPrompt}</span></div>{/if}
+            {#if meta.lastPrompt}<div class="agent-row" title={meta.lastPrompt}><span class="agent-row-dim">{$t('agentPanel.lastPrompt')}</span><span class="agent-row-main">{meta.lastPrompt}</span></div>{/if}
+          </div>
+        {/if}
+        {#if (meta.prLinks || []).length}
+          <div class="agent-row">
+            <span class="agent-row-dim">{$t('agentPanel.prLinks')}</span>
+            <span class="agent-row-main">
+              {#each meta.prLinks as pr (pr.url)}<button type="button" class="agent-link" title={pr.url} on:click={() => copyText(pr.url)}>#{pr.number || '?'}</button> {/each}
+            </span>
+          </div>
+        {/if}
+        {#if meta.costUSD || (meta.modelUsage || []).length}
+          <div class="agent-row agent-summary-cost">
+            <span class="agent-row-dim">{$t('agentPanel.usage')}</span>
+            <span class="agent-row-main">
+              {#if meta.costUSD}${meta.costUSD.toFixed(2)}{/if}{#if meta.durationMs} · {fmtDuration(meta.durationMs)}{/if}
+              {#each meta.modelUsage || [] as u (u.model)}
+                <span class="agent-usage-model" title={u.model}>· {u.model.replace(/^claude-/, '')}: {fmtTokens(u.input + u.cacheRead + u.cacheCreate)} in / {fmtTokens(u.output)} out · {$t('agentPanel.cache')} {cacheShare(u)}%</span>
+              {/each}
+            </span>
+          </div>
+        {/if}
+        {#if meta.summary}
+          <div class="agent-section-head">
+            <span>{$t('agentPanel.contextSummary')}{meta.summaryAt ? ' · ' + shortTime(meta.summaryAt) : ''}</span>
+            <button type="button" class="agent-link" on:click={() => copyText(stripSummaryPreamble(meta.summary))}>{$t('agentPanel.copy')}</button>
+            <button type="button" class="agent-link" on:click={() => saveTextToNotes(stripSummaryPreamble(meta.summary))}>{$t('agentPanel.toNotes')}</button>
+          </div>
+          <div class="agent-prose agent-summary-body">{@html renderProse(stripSummaryPreamble(meta.summary))}</div>
+          <p class="agent-panel-hint">{$t('agentPanel.contextSummaryHint')}</p>
+        {:else}
+          <p class="agent-panel-hint">{$t('agentPanel.noContextSummary')}</p>
+        {/if}
       {:else if view === 'tasks'}
         <p class="agent-panel-hint">{$t('agentPanel.tasksHint')}</p>
         <ul class="agent-tasks">
@@ -676,6 +758,14 @@
   .agent-status-permission { background: rgba(255, 123, 114, 0.16); color: #ff7b72; border-color: rgba(255, 123, 114, 0.5); }
   .agent-panel-activity { font-family: var(--font-mono, monospace); font-size: 11px; color: #e3b341; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .agent-proc-pid { min-width: 3.5em; text-align: right; }
+  .agent-summary-title { font-weight: 700; font-size: 13px; }
+  .agent-summary-prompts .agent-row-main { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-summary-cost .agent-row-main { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+  .agent-usage-model { color: var(--text-secondary); }
+  .agent-summary-body { padding: 0 10px 6px; font-size: 12px; }
+  .agent-summary-body :global(h1), .agent-summary-body :global(h2), .agent-summary-body :global(h3) { font-size: 12px; margin: 8px 0 2px; }
+  .agent-summary-body :global(ol), .agent-summary-body :global(ul) { padding-left: 18px; margin: 2px 0; }
+  .agent-summary-body :global(p) { margin: 2px 0; }
   .agent-panel-permission { color: #ff7b72; margin: 0 10px 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .agent-btn-allow { color: #7ee787; border-color: rgba(126, 231, 135, 0.45); }
   .agent-btn-deny { color: #ff7b72; border-color: rgba(255, 123, 114, 0.45); }

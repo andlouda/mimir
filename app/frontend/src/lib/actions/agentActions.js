@@ -210,8 +210,9 @@ export function handleAgentStateEvent(id, raw) {
   const prompt = status === 'permission' || status === 'idle' ? String(payload.prompt || '') : '';
   const activity = status === 'working' ? String(payload.activity || '') : '';
   const activityAt = activity ? String(payload.activityAt || '') : '';
-  if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention && current.prompt === prompt && current.activity === activity) return;
-  setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, prompt, activity, activityAt, answering: false, fileState: true, lastChange: Date.now() });
+  const title = String(payload.title || current.title || '');
+  if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention && current.prompt === prompt && current.activity === activity && current.title === title) return;
+  setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, prompt, activity, activityAt, title, answering: false, fileState: true, lastChange: Date.now() });
 }
 
 function setLiveness(id, on) {

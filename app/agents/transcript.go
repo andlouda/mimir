@@ -50,6 +50,9 @@ type Transcript struct {
 	Commands []CommandRun   `json:"commands"`
 	// Tasks is the agent's own todo list, newest version.
 	Tasks []Task `json:"tasks"`
+	// Meta is what the agent recorded about the session as a whole (title,
+	// last prompt, PR links, newest context summary, cost).
+	Meta SessionMeta `json:"meta"`
 }
 
 // ReadOptions tunes ReadTranscript.
@@ -197,6 +200,7 @@ func readOne(fs FS, kind Kind, label, file, cwd string, limit int) (Transcript, 
 		Files:       session.Files,
 		Commands:    session.Commands,
 		Tasks:       session.Tasks,
+		Meta:        session.Meta,
 	}, nil
 }
 

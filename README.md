@@ -73,7 +73,12 @@ Mimir is local-first by default.
   text, no terminal line wrapping), the files it read or changed next to the
   git working-tree status, the commands it ran with their exit codes, the
   tool call running right now with its elapsed time (also in the sidebar
-  row), and a Processes tab with what actually runs under the agent.
+  row), a Processes tab with what actually runs under the agent, and a
+  State tab with what the agent itself recorded about the session: its
+  title (also used as the sidebar row name), first and last prompt, linked
+  pull requests, token usage per model with cache share, and the context
+  summary Claude Code writes when it compacts — the state of the session
+  that otherwise disappears from view.
   The sidebar groups agents by project (host plus git root, branch or
   worktree shown per row); sessions and projects can be named, annotated
   and archived from the panel, and those notes survive restarts (kept in
