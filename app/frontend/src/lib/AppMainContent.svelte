@@ -9,6 +9,7 @@
   import TerminalsPage from './views/TerminalsPage.svelte';
   import AIHubView from './views/AIHubView.svelte';
   import SettingsView from './views/SettingsView.svelte';
+  import AgentWorkspaceView from './views/AgentWorkspaceView.svelte';
   import { normalizeTemplates } from './templates/templateHelpers';
   import { containsControlChars, shellQuotePath } from './util';
   import { errorMessage as errorMessageStore } from './stores/uiStore.js';
@@ -84,6 +85,7 @@
   export let openDotEnvViewer = () => {};
   export let startNotesDrag = () => {};
   export let openPage = () => {};
+  export let selectTerminal = () => {};
   export let insertFileIntoActiveTerminal = () => {};
   export let handleOpenInNotes = () => {};
   export let getEditablePromptIntroPreview = () => '';
@@ -146,6 +148,8 @@
       {startNotesDrag}
       closeNotesPanel={() => { notesPanelOpen = false; setTimeout(handleResize, 50); }}
     />
+  {:else if currentPage === "agentWorkspace"}
+    <AgentWorkspaceView {selectTerminal} />
   {:else if currentPage === "templateManager"}
     <TemplateManager
       {SaveTemplate}

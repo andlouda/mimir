@@ -24,6 +24,7 @@
   import { sshProfiles, showSSHProfileModal, sshSecretBackend, sshConnecting, hostKeyVerifyState, fileBrowserRemoteTerminalId, fileBrowserRemoteLabel } from './lib/stores/sshStore.js';
   import { aiPanelState, showFunctionCatalog, functionCatalog, showAISettings, aiProviders, aiSettings, aiToolFlowConfig, aiToolFlowLists } from './lib/stores/aiStore.js';
   import { loadAgentDetectionSetting, loadAgentAnnotations } from './lib/stores/agentStore.js';
+  import { loadAgentWorkspace } from './lib/stores/agentWorkspaceStore.js';
   import { groupedSidebarTerminals } from './lib/terminals/sidebarGroups';
   import { dedupeSavedSessionTerminals } from './lib/util';
   import { generateTmuxSessionName } from './lib/terminals/tmuxLifecycle';
@@ -421,6 +422,7 @@
       $historyTrackingEnabled = await IsHistoryTrackingEnabled();
       await loadAgentDetectionSetting();
       await loadAgentAnnotations();
+      loadAgentWorkspace().catch(() => {}); // Errors remain visible in the workspace.
       try {
         $tmuxIntegrationMode = await window['go']['main']['App']['GetTmuxIntegrationMode']();
       } catch (error) {
@@ -504,6 +506,7 @@
   />
 
   <AppMainContent
+    selectTerminal={selectSidebarTerminal}
     bind:currentPage={$currentPage}
     {availableTerminalTypes}
     bind:selectedTerminalType
