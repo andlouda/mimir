@@ -301,7 +301,8 @@
   }
   function agentBadgeTitle(agent) {
     const parts = [agent.label];
-    if (agent.subject) parts.push(agent.subject);
+    if (agent.status === 'working' && agent.activity) parts.push(agent.activity);
+    else if (agent.subject) parts.push(agent.subject);
     if (agent.cwd) parts.push(agent.cwd);
     parts.push($t('splitPane.agentOpenPanel'));
     return parts.join('\n');

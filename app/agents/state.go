@@ -28,6 +28,12 @@ type StateInfo struct {
 	LastText string `json:"lastText,omitempty"`
 	// LastAt is the timestamp of the record the state was derived from.
 	LastAt string `json:"lastAt,omitempty"`
+	// Activity names the tool call still running ("Bash: npm test",
+	// "Edit: main.go") while the state is working; empty while the model
+	// itself is thinking.
+	Activity string `json:"activity,omitempty"`
+	// ActivityAt is when that tool call started.
+	ActivityAt string `json:"activityAt,omitempty"`
 }
 
 const lastTextMax = 400
@@ -54,6 +60,10 @@ func deriveClaudeState(tail []byte) StateInfo {
 	last := ""
 	lastText := ""
 	lastTextAt := ""
+	// Tool calls without a result yet, in call order (parallel calls are
+	// answered one by one; the newest still-open one is shown).
+	type openTool struct{ id, summary, at string }
+	var open []openTool
 	scanLines(tail, func(line []byte) {
 		var rec claudeRecord
 		if err := json.Unmarshal(line, &rec); err != nil {
@@ -61,6 +71,17 @@ func deriveClaudeState(tail []byte) StateInfo {
 		}
 		switch rec.Type {
 		case "user":
+			for _, b := range claudeBlocks(rec.Message.Content) {
+				if b.Type != "tool_result" || b.ToolUseID == "" {
+					continue
+				}
+				for i := range open {
+					if open[i].id == b.ToolUseID {
+						open = append(open[:i], open[i+1:]...)
+						break
+					}
+				}
+			}
 			if rec.IsMeta {
 				return
 			}
@@ -72,6 +93,7 @@ func deriveClaudeState(tail []byte) StateInfo {
 			for _, b := range blocks {
 				if b.Type == "tool_use" {
 					hasTool = true
+					open = append(open, openTool{id: b.ID, summary: claudeToolSummary(b.Name, b.Input), at: rec.Timestamp})
 				}
 			}
 			if text := claudeTextContent(rec.Message.Content, false); text != "" {
@@ -91,6 +113,10 @@ func deriveClaudeState(tail []byte) StateInfo {
 	case "answer":
 		info.State = StateIdle
 	}
+	if info.State == StateWorking && len(open) > 0 {
+		newest := open[len(open)-1]
+		info.Activity, info.ActivityAt = newest.summary, newest.at
+	}
 	if info.State == StateIdle || info.State == StateWorking {
 		info.LastText = trimText(lastText)
 		if info.State == StateIdle && lastTextAt != "" {
@@ -105,9 +131,41 @@ func deriveClaudeState(tail []byte) StateInfo {
 func deriveCodexState(tail []byte) StateInfo {
 	info := StateInfo{State: StateUnknown}
 	lastText := ""
+	type openCall struct{ id, summary, at string }
+	var open []openCall
 	scanLines(tail, func(line []byte) {
 		var rec codexRecord
-		if err := json.Unmarshal(line, &rec); err != nil || rec.Type != "event_msg" {
+		if err := json.Unmarshal(line, &rec); err != nil {
+			return
+		}
+		if rec.Type == "response_item" {
+			p := rec.Payload
+			switch p.Type {
+			case "function_call":
+				if p.Name != "exec_command" && p.Name != "shell" {
+					return
+				}
+				var args codexExecArgs
+				_ = json.Unmarshal([]byte(p.Arguments), &args)
+				cmd := strings.TrimSpace(args.Cmd)
+				if cmd == "" && len(args.Command) > 0 {
+					cmd = strings.Join(args.Command, " ")
+				}
+				if r := []rune(cmd); len(r) > toolSummaryMax {
+					cmd = string(r[:toolSummaryMax]) + "…"
+				}
+				open = append(open, openCall{id: p.CallID, summary: "shell: " + cmd, at: rec.Timestamp})
+			case "function_call_output":
+				for i := range open {
+					if open[i].id == p.CallID {
+						open = append(open[:i], open[i+1:]...)
+						break
+					}
+				}
+			}
+			return
+		}
+		if rec.Type != "event_msg" {
 			return
 		}
 		switch rec.Payload.Type {
@@ -121,6 +179,10 @@ func deriveCodexState(tail []byte) StateInfo {
 			}
 		}
 	})
+	if info.State == StateWorking && len(open) > 0 {
+		newest := open[len(open)-1]
+		info.Activity, info.ActivityAt = newest.summary, newest.at
+	}
 	if info.State != StateUnknown {
 		info.LastText = trimText(lastText)
 	}

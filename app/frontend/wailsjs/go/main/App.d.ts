@@ -127,6 +127,8 @@ export function SetAgentDetectionEnabled(arg1:boolean):Promise<void>;
 
 export function GetClaudeHookStatusJSON(arg1:number):Promise<string>;
 
+export function GetAgentProcessesJSON(arg1:number,arg2:string):Promise<string>;
+
 export function AnswerAgentPermission(arg1:number,arg2:boolean):Promise<void>;
 
 export function NotifyDesktop(arg1:number,arg2:string,arg3:string):Promise<void>;
