@@ -57,9 +57,10 @@ Mimir is a local desktop terminal application. It may handle sensitive terminal 
   directory, containing what the user typed plus the host and session-file
   path as key. Projects are derived from the git root, never created; Mimir
   does not start agents or create worktrees.
-- The optional Claude Code approval hook is a `Notification` hook entry in
-  `~/.claude/settings.json` that Mimir adds on request and removes again on
-  request; installing and removing it is written to the activity log and the
+- The optional Claude Code hooks are a `Notification` and a `SessionStart`
+  entry in `~/.claude/settings.json` that Mimir adds on request and removes
+  again on request (the SessionStart payload only names the session file
+  and is used to bind a pane to its session); installing and removing it is written to the activity log and the
   file is left untouched when it is not valid JSON. Locally the entry runs
   `mimir --agent-hook` in exec form (no shell), which validates the payload
   and stores it under the user cache directory with mode 0600; on WSL and SSH

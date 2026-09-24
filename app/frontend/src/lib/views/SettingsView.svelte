@@ -19,7 +19,8 @@
   async function toggleHook(row) {
     hookBusy = row.host;
     try {
-      const status = await setClaudeHookInstalledOnHost(row.host, !row.installed);
+      // Outdated installs are refreshed in place (install is idempotent).
+      const status = await setClaudeHookInstalledOnHost(row.host, !row.installed || row.outdated);
       hookHosts = hookHosts.map((h) => (h.host === row.host ? { host: row.host, ...status } : h));
     } catch (e) {
       hookHosts = hookHosts.map((h) => (h.host === row.host ? { ...h, error: String(e?.message || e) } : h));
@@ -123,11 +124,11 @@
           {#each hookHosts as row (row.host)}
             <li class="settings-host-row">
               <span class="settings-host-name">{$t(`settings.cards.claudeHook.host_${row.host}`)}</span>
-              <span class="settings-host-status" class:settings-host-ok={row.installed} class:settings-host-err={!!row.error} title={row.settingsPath || ''}>
-                {row.error ? row.error : row.installed ? $t('settings.cards.claudeHook.installed') : $t('settings.cards.claudeHook.notInstalled')}
+              <span class="settings-host-status" class:settings-host-ok={row.installed && !row.outdated} class:settings-host-err={!!row.error} title={row.settingsPath || ''}>
+                {row.error ? row.error : row.outdated ? $t('settings.cards.claudeHook.outdated') : row.installed ? $t('settings.cards.claudeHook.installed') : $t('settings.cards.claudeHook.notInstalled')}
               </span>
               <button type="button" class="settings-inline-btn" on:click={() => toggleHook(row)} disabled={hookBusy !== '' || !!row.error}>
-                {hookBusy === row.host ? '…' : row.installed ? $t('settings.cards.claudeHook.remove') : $t('settings.cards.claudeHook.install')}
+                {hookBusy === row.host ? '…' : row.outdated ? $t('settings.cards.claudeHook.update') : row.installed ? $t('settings.cards.claudeHook.remove') : $t('settings.cards.claudeHook.install')}
               </button>
             </li>
           {/each}

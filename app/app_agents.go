@@ -51,6 +51,30 @@ type agentTerminalState struct {
 	pid int
 	// sessionFile pins a session chosen by the user ("" = automatic).
 	sessionFile string
+	// boundFile is the session file a hook event named for this very
+	// process (exact, no guessing); used when nothing is pinned.
+	boundFile string
+}
+
+// effectiveSessionFile is the pin when set, else the hook-bound file.
+func (s agentTerminalState) effectiveSessionFile() string {
+	if s.sessionFile != "" {
+		return s.sessionFile
+	}
+	return s.boundFile
+}
+
+// bindAgentSession records the session file a hook event named for the
+// terminal's agent process.
+func (a *App) bindAgentSession(terminalID, pid int, file string) {
+	a.agentMu.Lock()
+	defer a.agentMu.Unlock()
+	st, ok := a.agentStates[terminalID]
+	if !ok || st.pid != pid || st.boundFile == file {
+		return
+	}
+	st.boundFile = file
+	a.agentStates[terminalID] = st
 }
 
 var tmuxSessionNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
@@ -378,6 +402,9 @@ func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (s
 		state := agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source, pid: result.PID}
 		if prev, ok := a.rememberedAgent(terminalID); ok && prev.kind == state.kind {
 			state.sessionFile = prev.sessionFile
+			if prev.pid == state.pid {
+				state.boundFile = prev.boundFile
+			}
 		}
 		a.rememberAgent(terminalID, state)
 		a.startAgentWatcher(terminalID, terminalType, state)
@@ -555,7 +582,7 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 		}
 		return transcript, nil
 	}
-	opts.File = state.sessionFile
+	opts.File = state.effectiveSessionFile()
 	transcript, err := agents.ReadTranscript(fs, state.kind, home, state.cwd, opts)
 	if err != nil {
 		if errors.Is(err, agents.ErrNotFound) {
@@ -597,7 +624,7 @@ func (a *App) ListAgentSessionsJSON(terminalID int, terminalType string) (string
 	if list == nil {
 		list = []agents.SessionSummary{}
 	}
-	payload, err := json.Marshal(map[string]any{"sessions": list, "selected": state.sessionFile})
+	payload, err := json.Marshal(map[string]any{"sessions": list, "selected": state.sessionFile, "bound": state.boundFile})
 	if err != nil {
 		return "", fmt.Errorf("failed to encode sessions: %w", err)
 	}

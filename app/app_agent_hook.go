@@ -145,7 +145,10 @@ type hookFS interface {
 }
 
 type claudeHookStatus struct {
-	Installed    bool   `json:"installed"`
+	Installed bool `json:"installed"`
+	// Outdated: installed, but an older entry set (missing SessionStart);
+	// installing again refreshes it.
+	Outdated     bool   `json:"outdated"`
 	Host         string `json:"host"` // local | wsl | ssh
 	SettingsPath string `json:"settingsPath"`
 	Command      string `json:"command,omitempty"`
@@ -267,6 +270,7 @@ func (a *App) hookStatusFrom(source string, fs hookFS, home string, cleanup func
 		return marshalHookStatus(status)
 	}
 	status.Installed = agents.HasClaudeHook(data)
+	status.Outdated = status.Installed && !agents.HookUpToDate(data)
 	if cmd, args, err := hookCommandFor(source); err == nil {
 		status.Command = strings.TrimSpace(cmd + " " + strings.Join(args, " "))
 	}

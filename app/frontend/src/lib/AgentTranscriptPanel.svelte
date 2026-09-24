@@ -15,7 +15,7 @@
   import { t } from './i18n.js';
   import { sanitizeHtml } from './util.js';
   import { extractSnippets, firstProse, groupTurns, splitMarkdown } from './agents/markdownBlocks.js';
-  import { agentAnnotations, agentStates } from './stores/agentStore.js';
+  import { agentAnnotations, agentPanelPinned, agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
   import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneText, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation } from './actions/agentActions.js';
@@ -438,6 +438,7 @@
       </span>
     </div>
     <div class="agent-panel-actions">
+      <button type="button" class="agent-btn agent-btn-pin" class:agent-btn-active={$agentPanelPinned} aria-pressed={$agentPanelPinned} on:click={() => agentPanelPinned.set(!$agentPanelPinned)} title={$agentPanelPinned ? $t('agentPanel.unpin') : $t('agentPanel.pin')}>{$agentPanelPinned ? '⊙' : '○'} {$t('agentPanel.pinLabel')}</button>
       <button type="button" class="agent-btn" on:click={() => (view === 'screen' ? refreshPane() : refresh())} disabled={loading || paneLoading} title={$t('agentPanel.refresh')}>{loading || paneLoading ? '…' : '↻'}</button>
       <button type="button" class="agent-btn" on:click={closeAgentPanel} title={$t('agentPanel.close')}>&#x2715;</button>
     </div>
@@ -520,7 +521,7 @@
           <label class="agent-session-pick">
             <span>{$t('agentPanel.sessionPickLabel')}</span>
             <select value={sessions.selected || ''} on:change={chooseSession}>
-              <option value="">{$t('agentPanel.sessionAuto')}</option>
+              <option value="">{(sessions?.bound ? $t('agentPanel.sessionBound') : $t('agentPanel.sessionAuto'))}</option>
               {#each sessions.sessions as s (s.file)}
                 <option value={s.file}>{sessionLabel(s)}</option>
               {/each}
@@ -773,6 +774,8 @@
   .agent-panel-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .agent-btn { background: transparent; border: 1px solid var(--border-subtle); color: inherit; border-radius: 4px; padding: 2px 7px; cursor: pointer; }
   .agent-btn:hover { background: rgba(255, 255, 255, 0.06); }
+  .agent-btn-pin { font-size: 11px; }
+  .agent-btn-active { color: #63b3ed; border-color: rgba(99, 179, 237, 0.6); background: rgba(99, 179, 237, 0.12); }
   .agent-tabs { display: flex; gap: 2px; padding: 0 10px 6px; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; }
   .agent-tab { background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--text-secondary); padding: 4px 8px; cursor: pointer; font-size: 11px; }
   .agent-tab:hover { color: inherit; }

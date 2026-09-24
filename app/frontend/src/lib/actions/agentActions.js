@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { agentAnnotations, agentDetectionEnabled, agentNotificationsEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
+import { agentAnnotations, agentDetectionEnabled, agentNotificationsEnabled, agentPanelPinned, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { t } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import { outputMentionsAgent, parseAgentTitle } from '../agents/agentSignals.js';
@@ -334,6 +334,7 @@ export function openAgentPanel(id) {
 
 export function closeAgentPanel() {
   agentPanelTerminalId.set(null);
+  agentPanelPinned.set(false);
 }
 
 export function toggleAgentPanel(id) {
@@ -347,10 +348,20 @@ export async function loadAgentTranscript(id, limit = 12) {
   return JSON.parse(raw);
 }
 
-// Looking at a pane clears its "finished while you were away" marker.
+// Looking at a pane clears its "finished while you were away" marker, and
+// the open panel follows the selected pane unless it is pinned.
 activeTerminalId.subscribe((id) => {
-  if (id != null) markAgentAttentionSeen(id);
+  if (id == null) return;
+  markAgentAttentionSeen(id);
+  const open = get(agentPanelTerminalId);
+  if (open != null && open !== id && !get(agentPanelPinned) && get(agentStates)[id]) {
+    agentPanelTerminalId.set(id);
+  }
 });
+
+export function setAgentPanelPinned(pinned) {
+  agentPanelPinned.set(Boolean(pinned));
+}
 
 // Turning detection off drops all state and timers; turning it on re-probes.
 agentDetectionEnabled.subscribe((enabled) => {

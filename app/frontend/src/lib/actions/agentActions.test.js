@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { agentDetectionEnabled, agentNotificationsEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
+import { agentDetectionEnabled, agentNotificationsEnabled, agentPanelPinned, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 vi.mock('../../../wailsjs/runtime', () => ({
   EventsOn: vi.fn(() => vi.fn()),
@@ -35,6 +35,7 @@ beforeEach(() => {
   agentPanelTerminalId.set(null);
   agentDetectionEnabled.set(true);
   agentNotificationsEnabled.set(true);
+  agentPanelPinned.set(false);
 });
 
 afterEach(() => {
@@ -225,6 +226,28 @@ describe('agent detection', () => {
     handleAgentStateEvent(2, 'not json');
     expect(get(agentStates)[2].status).toBe('idle');
     stopAgentWatch(2);
+  });
+
+  test('the open panel follows the selected terminal unless pinned', () => {
+    agentStates.set({ 1: { kind: 'claude', label: 'Claude', status: 'idle' }, 2: { kind: 'codex', label: 'Codex', status: 'working' } });
+    openAgentPanel(1);
+    activeTerminalId.set(2);
+    expect(get(agentPanelTerminalId)).toBe(2);
+    // A terminal without an agent leaves the panel where it is.
+    terminals.set([{ id: 1, type: 'bash' }, { id: 2, type: 'ssh' }, { id: 3, type: 'bash' }]);
+    activeTerminalId.set(3);
+    expect(get(agentPanelTerminalId)).toBe(2);
+    // Pinned: stays put.
+    agentPanelPinned.set(true);
+    activeTerminalId.set(1);
+    expect(get(agentPanelTerminalId)).toBe(2);
+    // Closed panels never reopen on their own; closing drops the pin.
+    stopAgentWatch(1); stopAgentWatch(2);
+    agentPanelTerminalId.set(null);
+    agentPanelPinned.set(true);
+    agentStates.set({ 1: { kind: 'claude', label: 'Claude', status: 'idle' } });
+    activeTerminalId.set(1);
+    expect(get(agentPanelTerminalId)).toBeNull();
   });
 
   test('annotation keys combine host with session file or git root', () => {

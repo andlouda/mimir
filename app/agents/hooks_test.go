@@ -28,10 +28,19 @@ func TestInstallAndRemoveClaudeHook(t *testing.T) {
 	if !strings.Contains(string(out), `"notify-send x"`) {
 		t.Fatalf("foreign notification hook dropped: %s", out)
 	}
-	// Installing twice keeps exactly one Mimir entry.
+	// Installing twice keeps exactly one Mimir entry per event
+	// (Notification + SessionStart).
 	out2, _ := InstallClaudeHook(out, "/opt/mimir", []string{"--agent-hook"})
-	if strings.Count(string(out2), HookMarker) != 1 {
-		t.Fatalf("expected one marker, got %d", strings.Count(string(out2), HookMarker))
+	if strings.Count(string(out2), HookMarker) != 2 || !strings.Contains(string(out2), `"SessionStart"`) {
+		t.Fatalf("expected one marker per event, got %d: %s", strings.Count(string(out2), HookMarker), out2)
+	}
+	if !HookUpToDate(out2) {
+		t.Fatalf("fresh install must be up to date")
+	}
+	// An older install with only the Notification entry is outdated.
+	old := []byte(`{"hooks":{"Notification":[{"matcher":"permission_prompt","hooks":[{"type":"command","command":"/opt/mimir","args":["--agent-hook"],"statusMessage":"mimir-agent-hook"}]}]}}`)
+	if !HasClaudeHook(old) || HookUpToDate(old) {
+		t.Fatalf("notification-only install must count as installed but outdated")
 	}
 	removed, ok, err := RemoveClaudeHook(out2)
 	if err != nil || !ok || HasClaudeHook(removed) || !strings.Contains(string(removed), `"notify-send x"`) {
@@ -60,6 +69,10 @@ func TestParseHookEventAndState(t *testing.T) {
 	}
 	if _, err := ParseHookEvent([]byte(`{"hook_event_name":"PreToolUse"}`)); err == nil {
 		t.Fatalf("non-notification must be rejected")
+	}
+	start, err := ParseHookEvent([]byte(`{"session_id":"s","transcript_path":"/h/s.jsonl","hook_event_name":"SessionStart","source":"startup"}`))
+	if err != nil || start.TranscriptPath != "/h/s.jsonl" || StateForNotification(start.NotificationType) != StateUnknown {
+		t.Fatalf("session start must parse and carry no state: %v %+v", err, start)
 	}
 	if !strings.Contains(RemoteHookCommand(), HookEventsDirName) {
 		t.Fatalf("remote command must target the events dir")
