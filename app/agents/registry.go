@@ -22,6 +22,8 @@ type Descriptor struct {
 	Kind Kind `json:"kind"`
 	// Label is the human-readable name shown in the UI.
 	Label string `json:"label"`
+	// Short is the compact code for the sidebar row and the pane badge.
+	Short string `json:"short"`
 	// Binaries are the executable base names that identify the agent in a
 	// process list (case-insensitive; a trailing .exe/.cmd is ignored).
 	Binaries []string `json:"-"`
@@ -30,13 +32,13 @@ type Descriptor struct {
 }
 
 var registry = []Descriptor{
-	{Kind: KindClaude, Label: "Claude", Binaries: []string{"claude"}, Transcripts: true},
-	{Kind: KindCodex, Label: "Codex", Binaries: []string{"codex"}, Transcripts: true},
-	{Kind: KindGemini, Label: "Gemini CLI", Binaries: []string{"gemini"}, Transcripts: false},
+	{Kind: KindClaude, Label: "Claude", Short: "C", Binaries: []string{"claude"}, Transcripts: true},
+	{Kind: KindCodex, Label: "Codex", Short: "cx", Binaries: []string{"codex"}, Transcripts: true},
+	{Kind: KindGemini, Label: "Gemini CLI", Short: "g", Binaries: []string{"gemini"}, Transcripts: false},
 	// OpenCode transcripts come from its local SQLite database (not over SSH).
-	{Kind: KindOpenCode, Label: "OpenCode", Binaries: []string{"opencode"}, Transcripts: true},
-	{Kind: KindAider, Label: "Aider", Binaries: []string{"aider"}, Transcripts: false},
-	{Kind: KindHermes, Label: "Hermes", Binaries: []string{"hermes"}, Transcripts: false},
+	{Kind: KindOpenCode, Label: "OpenCode", Short: "oc", Binaries: []string{"opencode"}, Transcripts: true},
+	{Kind: KindAider, Label: "Aider", Short: "a", Binaries: []string{"aider"}, Transcripts: false},
+	{Kind: KindHermes, Label: "Hermes", Short: "h", Binaries: []string{"hermes"}, Transcripts: false},
 }
 
 // Registry returns the supported agents.

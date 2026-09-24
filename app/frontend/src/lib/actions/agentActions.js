@@ -81,13 +81,15 @@ export async function runAgentDetection(id) {
     && previous.pid === result.pid
     && previous.cwd === result.cwd
     && previous.source === result.source
-    && previous.tmux === !!result.tmux;
+    && previous.tmux === !!result.tmux
+    && previous.short === (result.short || '');
   if (unchanged) return result;
   const keepProject = previous?.project && previous.cwd === result.cwd && previous.source === result.source;
   setState(id, {
     kind: result.kind,
     project: keepProject ? previous.project : null,
     label: result.label,
+    short: result.short || '',
     pid: result.pid,
     cwd: result.cwd,
     source: result.source,

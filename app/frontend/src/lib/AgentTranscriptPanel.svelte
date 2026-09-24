@@ -418,7 +418,7 @@
         <!-- svelte-ignore a11y_autofocus -->
         <input class="agent-inline-input" type="text" bind:value={nameDraft} maxlength="120" placeholder={agent?.label || ''} autofocus on:keydown={(e) => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') editingName = false; }} on:blur={saveName} />
       {:else}
-        <button type="button" class="agent-panel-label agent-panel-label-btn" title={$t('agentPanel.renameSession')} disabled={!sessionKey(agent)} on:click={() => { nameDraft = note?.name || ''; editingName = true; }}>{note?.name ? note.name + ' · ' : ''}{agent?.label || $t('agentPanel.title')}{#if note?.archived} · {$t('agentPanel.archived')}{/if}</button>
+        <button type="button" class="agent-panel-label agent-panel-label-btn" title={$t('agentPanel.renameSession')} disabled={!sessionKey(agent)} on:click={() => { nameDraft = note?.name || ''; editingName = true; }}>{agent?.label || $t('agentPanel.title')}{note?.name ? ' · ' + note.name : ''}{#if note?.archived} · {$t('agentPanel.archived')}{/if}</button>
       {/if}
       {#if agent?.status && agent.status !== 'unknown'}
         <span class="agent-panel-status agent-status-{agent.status}">{agent.status === 'permission' ? $t('agentPanel.permission') : agent.status === 'working' ? $t('agentPanel.working') : $t('agentPanel.idle')}</span>

@@ -21,6 +21,7 @@ type Process struct {
 type Detection struct {
 	Kind  Kind   `json:"kind"`
 	Label string `json:"label"`
+	Short string `json:"short"`
 	PID   int    `json:"pid"`
 	// Transcripts reports whether transcripts can be read for this agent.
 	Transcripts bool `json:"transcripts"`
@@ -128,7 +129,7 @@ func FindAgent(procs []Process, rootPID int) (Detection, bool) {
 		children[p.PPID] = append(children[p.PPID], p)
 		if p.PID == rootPID {
 			if d, ok := MatchArgs(p.Args); ok {
-				return Detection{Kind: d.Kind, Label: d.Label, PID: p.PID, Transcripts: d.Transcripts}, true
+				return Detection{Kind: d.Kind, Label: d.Label, Short: d.Short, PID: p.PID, Transcripts: d.Transcripts}, true
 			}
 		}
 	}
@@ -143,7 +144,7 @@ func FindAgent(procs []Process, rootPID int) (Detection, bool) {
 			}
 			seen[child.PID] = true
 			if d, ok := MatchArgs(child.Args); ok {
-				return Detection{Kind: d.Kind, Label: d.Label, PID: child.PID, Transcripts: d.Transcripts}, true
+				return Detection{Kind: d.Kind, Label: d.Label, Short: d.Short, PID: child.PID, Transcripts: d.Transcripts}, true
 			}
 			queue = append(queue, child.PID)
 		}

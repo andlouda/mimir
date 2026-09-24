@@ -95,9 +95,11 @@
     }
     return [...groups.values()];
   })();
+  // Agent code first, then the session's name: "C · Login fix".
   function rowLabel(row) {
+    const code = row.agent.short || row.agent.label;
     const name = row.note?.name || row.agent.title || '';
-    return name ? `${name} · ${row.agent.label}` : row.agent.label;
+    return name ? `${code} · ${name}` : code;
   }
   function rowMeta(row) {
     const parts = [row.term.name];
