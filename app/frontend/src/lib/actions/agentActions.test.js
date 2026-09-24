@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { agentDetectionEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
+import { agentDetectionEnabled, agentNotificationsEnabled, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 vi.mock('../../../wailsjs/runtime', () => ({
   EventsOn: vi.fn(() => vi.fn()),
@@ -24,13 +24,14 @@ import {
 beforeEach(() => {
   vi.useFakeTimers();
   globalThis.window = {
-    go: { main: { App: { DetectAgentForTerminalJSON: vi.fn(), GetAgentTranscriptJSON: vi.fn(), GetAgentPaneTextJSON: vi.fn() } } },
+    go: { main: { App: { DetectAgentForTerminalJSON: vi.fn(), GetAgentTranscriptJSON: vi.fn(), GetAgentPaneTextJSON: vi.fn(), NotifyDesktop: vi.fn().mockResolvedValue(undefined) } } },
   };
   terminals.set([{ id: 1, type: 'bash' }, { id: 2, type: 'ssh' }]);
   activeTerminalId.set(1);
   agentStates.set({});
   agentPanelTerminalId.set(null);
   agentDetectionEnabled.set(true);
+  agentNotificationsEnabled.set(true);
 });
 
 afterEach(() => {
@@ -192,8 +193,22 @@ describe('agent detection', () => {
     openAgentPanel(2);
     expect(get(agentStates)[2].attention).toBe(false);
     activeTerminalId.set(1);
+    window.go.main.App.NotifyDesktop.mockClear();
     handleAgentStateEvent(2, JSON.stringify({ state: 'permission', prompt: 'permission_prompt', lastText: 'Claude needs your permission to use Bash', lastAt: 't4' }));
     expect(get(agentStates)[2]).toMatchObject({ status: 'permission', prompt: 'permission_prompt', subject: 'Claude needs your permission to use Bash', attention: true });
+    // The pane is not active: a desktop notification goes out, once.
+    expect(window.go.main.App.NotifyDesktop).toHaveBeenCalledTimes(1);
+    expect(window.go.main.App.NotifyDesktop.mock.calls[0][0]).toBe(2);
+    expect(window.go.main.App.NotifyDesktop.mock.calls[0][2]).toBe('Claude needs your permission to use Bash');
+    // Repeated permission events for the same prompt do not notify again.
+    handleAgentStateEvent(2, JSON.stringify({ state: 'permission', prompt: 'permission_prompt', lastText: 'Claude needs your permission to use Bash', lastAt: 't4' }));
+    expect(window.go.main.App.NotifyDesktop).toHaveBeenCalledTimes(1);
+    // Disabled: silent.
+    agentNotificationsEnabled.set(false);
+    handleAgentStateEvent(2, JSON.stringify({ state: 'working', lastText: 'x', lastAt: 't4b' }));
+    handleAgentStateEvent(2, JSON.stringify({ state: 'permission', prompt: 'permission_prompt', lastText: 'again', lastAt: 't4c' }));
+    expect(window.go.main.App.NotifyDesktop).toHaveBeenCalledTimes(1);
+    agentNotificationsEnabled.set(true);
     handleAgentStateEvent(2, JSON.stringify({ state: 'idle', lastText: 'Done. Shall I commit?', lastAt: 't5', sessionFile: '/s.jsonl' }));
 
     // A title tick must not override the file-derived state any more.

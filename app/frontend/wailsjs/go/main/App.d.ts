@@ -129,6 +129,8 @@ export function GetClaudeHookStatusJSON(arg1:number):Promise<string>;
 
 export function AnswerAgentPermission(arg1:number,arg2:boolean):Promise<void>;
 
+export function NotifyDesktop(arg1:number,arg2:string,arg3:string):Promise<void>;
+
 export function ListClaudeHookHostsJSON():Promise<string>;
 
 export function GetClaudeHookStatusForHostJSON(arg1:string):Promise<string>;

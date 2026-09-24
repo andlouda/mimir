@@ -72,7 +72,10 @@ Mimir is local-first by default.
   fed by the agent's own session file: the snippets of its last answer (exact
   text, no terminal line wrapping), the files it read or changed next to the
   git working-tree status, and the commands it ran with their exit codes.
-  Detection can be turned off in Settings. Optionally Mimir installs a
+  Detection can be turned off in Settings. A desktop notification (system
+  notifier, metadata only) tells you when an agent finishes or waits for an
+  approval while its pane is not in front; also switchable in Settings.
+  Optionally Mimir installs a
   Claude Code Notification hook (`~/.claude/settings.json`, on this machine
   from Settings, on SSH hosts from the agent panel) so that a pending
   permission prompt shows up as "approval" in the badge and the sidebar

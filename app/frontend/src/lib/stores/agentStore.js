@@ -46,6 +46,28 @@ agentDetectionEnabled.subscribe((enabled) => {
   }
 });
 
+const NOTIFY_KEY = 'mimir-agent-notify';
+
+function readNotifySetting() {
+  try {
+    if (localStorage.getItem(NOTIFY_KEY) === 'off') return false;
+  } catch {
+    /* localStorage unavailable */
+  }
+  return true;
+}
+
+// Desktop notification when an agent finishes or needs an approval while
+// its pane is not in front (on by default; a per-machine UI preference).
+export const agentNotificationsEnabled = writable(readNotifySetting());
+agentNotificationsEnabled.subscribe((enabled) => {
+  try {
+    localStorage.setItem(NOTIFY_KEY, enabled ? 'on' : 'off');
+  } catch {
+    /* localStorage unavailable */
+  }
+});
+
 /** Loads the persisted setting from the backend (call once at start-up). */
 export async function loadAgentDetectionSetting() {
   const getter = globalThis.window?.['go']?.['main']?.['App']?.['IsAgentDetectionEnabled'];
