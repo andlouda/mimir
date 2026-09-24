@@ -479,7 +479,7 @@
 
   <div class="agent-panel-body">
     {#if view === 'screen'}
-      <p class="agent-panel-hint">{$t('agentPanel.screenHint')}</p>
+      <p class="agent-panel-hint">{pane?.alternate ? $t('agentPanel.screenHintFullscreen') : $t('agentPanel.screenHint')}</p>
       {#if pane}
         <div class="agent-code">
           <div class="agent-code-bar">

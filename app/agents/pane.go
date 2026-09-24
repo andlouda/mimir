@@ -69,11 +69,22 @@ func TrimToAgentStart(text string, kind Kind, maxLines int) (string, int) {
 	lines := strings.Split(text, "\n")
 	start := -1
 	if d, ok := Lookup(kind); ok {
+		// The newest start wins: either the prompt line that launched the
+		// binary or the agent's own start banner (the launch line is often
+		// gone when a full-screen TUI redraws, the banner never is).
 		for i := len(lines) - 1; i >= 0; i-- {
-			if promptLaunches(lines[i], d.Binaries) {
+			if promptLaunches(lines[i], d.Binaries) || bannerStarts(lines[i], kind) {
 				start = i
 				break
 			}
+		}
+		// A banner spans several lines: back up to its first line, and to
+		// the launch line right above it when there is one.
+		for start > 0 && bannerStarts(lines[start-1], kind) {
+			start--
+		}
+		if start > 0 && promptLaunches(lines[start-1], d.Binaries) {
+			start--
 		}
 	}
 	if start < 0 && maxLines > 0 && len(lines) > maxLines {
@@ -83,6 +94,21 @@ func TrimToAgentStart(text string, kind Kind, maxLines int) (string, int) {
 		return text, 0
 	}
 	return strings.Join(lines[start:], "\n"), start
+}
+
+// bannerStarts reports whether a line is the first line of an agent's start
+// banner.
+func bannerStarts(line string, kind Kind) bool {
+	t := strings.TrimSpace(line)
+	switch kind {
+	case KindClaude:
+		return strings.HasPrefix(t, "Claude Code v") || strings.Contains(t, "▐▛███▛█")
+	case KindCodex:
+		return strings.Contains(t, "OpenAI Codex")
+	case KindOpenCode:
+		return strings.HasPrefix(t, "█▀▀█ █▀▀█ █▀▀▀") || strings.HasPrefix(strings.ToLower(t), "opencode v")
+	}
+	return false
 }
 
 // promptLaunches reports whether a line looks like a shell prompt that ran one
@@ -117,13 +143,26 @@ func promptLaunches(line string, binaries []string) bool {
 // tail tmux pads the capture with.
 func CleanPaneText(text string) string {
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	for i := range lines {
-		lines[i] = strings.TrimRight(lines[i], " \t")
+	out := lines[:0]
+	blank := 0
+	for _, l := range lines {
+		l = strings.TrimRight(l, " \t")
+		if l == "" {
+			blank++
+			// A full-screen layout pads with empty rows; two are enough to
+			// keep the structure readable.
+			if blank > 2 {
+				continue
+			}
+		} else {
+			blank = 0
+		}
+		out = append(out, l)
 	}
-	for len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(out, "\n")
 }
 
 // PaneTranscript wraps captured pane text as a single-message transcript so
