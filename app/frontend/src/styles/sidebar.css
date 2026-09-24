@@ -166,14 +166,6 @@
     background: var(--accent-glow);
   }
 
-  .sidebar-workspace-button {
-    width: 100%;
-    background: none;
-    border: 0;
-    text-align: left;
-    font-family: inherit;
-  }
-
   .sidebar-heading.active-nav {
     color: var(--accent);
     background: var(--accent-glow);
@@ -220,6 +212,8 @@
 
   /* ─── Agents overview ─── */
   .sidebar-agents .sidebar-heading .sidebar-agent-count { position: static; margin-left: auto; }
+  .sidebar-agents .sidebar-heading .sidebar-add-btn { margin-left: auto; }
+  .sidebar-agents .sidebar-heading .sidebar-agent-count + .sidebar-add-btn { margin-left: 0.3rem; }
   .sidebar-agents .sidebar-heading .sidebar-disclosure { margin-left: 0; }
   .sidebar-agents .sidebar-list li button.sidebar-agent-row {
     padding: 0.35rem 0.8rem 0.35rem 1rem;

@@ -1,5 +1,4 @@
 <script>
-  import { attentionItems } from './stores/agentWorkspaceStore.js';
   import { answerAgentPermission, elapsedSince, projectFolderName, projectKey, sessionKey } from './actions/agentActions.js';
   import { agentAnnotations } from './stores/agentStore.js';
   let showArchived = false;
@@ -137,13 +136,6 @@
     {/if}
   </div>
 
-  <div class="sidebar-section">
-    <button class="sidebar-heading sidebar-workspace-button" class:collapsed-icon={collapsed} class:active-nav={currentPage === 'agentWorkspace'} on:click={() => openPage('agentWorkspace')} title={$t('agentWorkspace.title')} aria-label={$t('agentWorkspace.title')}>
-      <span class="nav-icon">▦</span>{#if !collapsed} {$t('agentWorkspace.title')}{/if}
-      {#if $attentionItems.length}<span class="sidebar-agent-count sidebar-agent-count-attention">{$attentionItems.length}</span>{/if}
-    </button>
-  </div>
-
   {#if collapsed}
     <div class="sidebar-section">
       <div class="sidebar-heading collapsed-icon" on:click={openTerminals} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') openTerminals(); }} tabindex="0" role="button" class:active-nav={currentPage === 'terminals'} title={$t('sidebar.terminal')}>
@@ -155,14 +147,12 @@
         <span class="nav-icon">&#x2192;</span>
       </div>
     </div>
-    {#if agentRows.length > 0}
-      <div class="sidebar-section">
-        <div class="sidebar-heading collapsed-icon" on:click={() => selectTerminal(agentRows[0].term)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectTerminal(agentRows[0].term); }} tabindex="0" role="button" title={$t('sidebar.agents')}>
-          <span class="nav-icon">&#x2731;</span>
-          <span class="sidebar-agent-count" class:sidebar-agent-count-attention={agentsNeedingMe > 0}>{agentsNeedingMe || agentRows.length}</span>
-        </div>
+    <div class="sidebar-section">
+      <div class="sidebar-heading collapsed-icon" on:click={() => openPage('agentWorkspace')} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') openPage('agentWorkspace'); }} tabindex="0" role="button" class:active-nav={currentPage === 'agentWorkspace'} title={$t('agentWorkspace.title')} aria-label={$t('agentWorkspace.title')}>
+        <span class="nav-icon">&#x2731;</span>
+        {#if agentsNeedingMe || agentRows.length}<span class="sidebar-agent-count" class:sidebar-agent-count-attention={agentsNeedingMe > 0}>{agentsNeedingMe || agentRows.length}</span>{/if}
       </div>
-    {/if}
+    </div>
     <div class="sidebar-section">
       <div class="sidebar-heading collapsed-icon" on:click={() => { openPage("fileBrowser"); }} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { openPage("fileBrowser"); }}} tabindex="0" role="button" class:active-nav={currentPage === 'fileBrowser'} title={$t('sidebar.files')}>
         <span class="nav-icon">&#x2302;</span>
@@ -285,19 +275,23 @@
       {/if}
     </div>
 
-    {#if allAgentRows.length > 0}
-      <div class="sidebar-section sidebar-agents">
+    <div class="sidebar-section sidebar-agents">
         <div class="sidebar-heading"
           on:click={() => { agentsNavOpen = !agentsNavOpen; }}
           on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { agentsNavOpen = !agentsNavOpen; } }}
           tabindex="0" role="button"
+          class:active-nav={currentPage === 'agentWorkspace'}
           aria-expanded={agentsNavOpen}
         >
           <span class="nav-icon">&#x2731;</span> {$t('sidebar.agents')}
-          <span class="sidebar-agent-count" class:sidebar-agent-count-attention={agentsNeedingMe > 0}>{agentsNeedingMe || agentRows.length}</span>
+          {#if agentsNeedingMe || agentRows.length}<span class="sidebar-agent-count" class:sidebar-agent-count-attention={agentsNeedingMe > 0}>{agentsNeedingMe || agentRows.length}</span>{/if}
+          <button class="sidebar-add-btn" on:click|stopPropagation={() => openPage('agentWorkspace')} title={$t('agentWorkspace.title')} aria-label={$t('agentWorkspace.title')}>+</button>
           <span class="sidebar-disclosure">{agentsNavOpen ? '▾' : '▸'}</span>
         </div>
-        {#if agentsNavOpen}
+        {#if agentsNavOpen && allAgentRows.length === 0}
+          <p class="sidebar-empty">{$t('sidebar.noAgents')}</p>
+        {/if}
+        {#if agentsNavOpen && allAgentRows.length > 0}
         <ul class="sidebar-list">
           {#each agentGroups as group (group.key)}
             {#if agentGroups.length > 1 || group.host}
@@ -343,8 +337,7 @@
           {/if}
         </ul>
         {/if}
-      </div>
-    {/if}
+    </div>
 
     <div class="sidebar-section">
       <div class="sidebar-heading"

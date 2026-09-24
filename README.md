@@ -50,8 +50,9 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
 
 ### Agent workspace
 
-Open **Agent workspace** in the sidebar to organize agent work independently
-of terminal panes:
+Click **+** on the AGENTS section of the sidebar (or the ✱ icon when the
+sidebar is collapsed) to open the agent workspace and organize agent work
+independently of terminal panes:
 
 1. Create a project with a name, host label and optional working directory.
 2. Add tasks with notes and a status: planned, in progress, blocked, ready for
