@@ -718,6 +718,7 @@ export default {
     statusPending: 'Pending',
   },
   appTerminals: {
+    restoreFailed: 'Some terminals from the last session could not be restored:',
     defaultTerminalType: 'Default terminal type',
     newTerminal: '+ New',
     aiExplainTitle: 'Summarizes the visible terminal output and explains errors or important signals.',
