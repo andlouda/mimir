@@ -345,6 +345,20 @@
     }
   }
 
+  // Retries a restore step when the backend's start cap answers with a
+  // rate-limit error (a large saved session starts many terminals at once).
+  async function restoreWithRetry(step, attempts = 4) {
+    for (let i = 0; ; i++) {
+      try {
+        return await step();
+      } catch (error) {
+        const rateLimited = /rate limit/i.test(String(error?.message || error));
+        if (!rateLimited || i >= attempts - 1) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 2500 * (i + 1)));
+      }
+    }
+  }
+
   async function restoreLocalTerminal(saved) {
     const tmuxSessionName = tmuxCapableTerminalTypes.has(saved.type)
       ? (saved.tmuxSessionName || generateTmuxSessionName('mimir'))
@@ -438,16 +452,27 @@
 
       const savedSession = await GetLoadedSessionData();
       const savedTerminals = dedupeSavedSessionTerminals(savedSession?.terminals || []);
+      const notRestored = [];
       if (savedTerminals.length > 0) {
         for (const saved of savedTerminals) {
-          if (saved.type === 'ssh' && saved.sshProfileId) {
-            const profile = $sshProfiles.find(p => p.id === saved.sshProfileId);
-            if (profile) await restoreSSHTerminal(profile, saved);
-          } else if (['bash', 'zsh', 'wsl', 'cmd', 'powershell'].includes(saved.type)) {
-            await restoreLocalTerminal(saved);
+          // One failing terminal must not abort the rest of the restore;
+          // the backend's start cap answers with a rate-limit error, which
+          // is retried after a pause instead of dropping the terminal.
+          try {
+            await restoreWithRetry(async () => {
+              if (saved.type === 'ssh' && saved.sshProfileId) {
+                const profile = $sshProfiles.find(p => p.id === saved.sshProfileId);
+                if (profile) await restoreSSHTerminal(profile, saved);
+              } else if (['bash', 'zsh', 'wsl', 'cmd', 'powershell'].includes(saved.type)) {
+                await restoreLocalTerminal(saved);
+              }
+            });
+          } catch (error) {
+            notRestored.push(`${saved.name || saved.type}: ${error?.message || error}`);
           }
         }
       }
+      if (notRestored.length) $errorMessage = `${$tr('appTerminals.restoreFailed')}\n${notRestored.join('\n')}`;
       if ($terminals.length === 0) doAddTerminal();
       else scheduleSessionSave(50);
     } catch (error) {

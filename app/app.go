@@ -72,7 +72,10 @@ func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 		activeTerminalStates: make(map[int]session.TerminalState),
 		pendingHostKeys:      make(map[string]pendingSSHHostKey),
 		appIconPNG:           iconPNG,
-		apiLimiter:           newRateLimiter(10*time.Second, 5),
+		// Caps how fast the frontend can spawn shells (a runaway page must
+		// not fork-bomb the machine); generous enough for a session restore
+		// that brings back every saved terminal at once.
+		apiLimiter: newRateLimiter(10*time.Second, 40),
 	}
 
 	app.TerminalManager.SetTmuxIntegrationMode(loadTmuxIntegrationMode())

@@ -718,6 +718,7 @@ export default {
     statusPending: 'Ausstehend',
   },
   appTerminals: {
+    restoreFailed: 'Einige Terminals der letzten Sitzung konnten nicht wiederhergestellt werden:',
     defaultTerminalType: 'Standard-Terminaltyp',
     newTerminal: '+ Neu',
     aiExplainTitle: 'Fasst die sichtbare Terminal-Ausgabe zusammen und erklärt Fehler oder wichtige Signale.',
