@@ -31,7 +31,7 @@ func TestInstallAndRemoveClaudeHook(t *testing.T) {
 	// Installing twice keeps exactly one Mimir entry per event
 	// (Notification + SessionStart).
 	out2, _ := InstallClaudeHook(out, "/opt/mimir", []string{"--agent-hook"})
-	if strings.Count(string(out2), HookMarker) != 2 || !strings.Contains(string(out2), `"SessionStart"`) {
+	if strings.Count(string(out2), HookMarker) != 3 || !strings.Contains(string(out2), `"SessionStart"`) || !strings.Contains(string(out2), `"UserPromptSubmit"`) {
 		t.Fatalf("expected one marker per event, got %d: %s", strings.Count(string(out2), HookMarker), out2)
 	}
 	if !HookUpToDate(out2) {

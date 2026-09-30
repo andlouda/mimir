@@ -64,6 +64,22 @@ func (s agentTerminalState) effectiveSessionFile() string {
 	return s.boundFile
 }
 
+// boundElsewhere reports whether another terminal's agent is bound to (or
+// pinned on) the file, so two panes never follow the same session.
+func (a *App) boundElsewhere(terminalID int, file string) bool {
+	if file == "" {
+		return false
+	}
+	a.agentMu.Lock()
+	defer a.agentMu.Unlock()
+	for id, st := range a.agentStates {
+		if id != terminalID && (st.boundFile == file || st.sessionFile == file) {
+			return true
+		}
+	}
+	return false
+}
+
 // bindAgentSession records the session file a hook event named for the
 // terminal's agent process.
 func (a *App) bindAgentSession(terminalID, pid int, file string) {

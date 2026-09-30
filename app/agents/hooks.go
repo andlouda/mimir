@@ -59,11 +59,14 @@ func ParseHookEvent(data []byte) (HookEvent, error) {
 		if ev.NotificationType == "" {
 			return ev, errors.New("notification without a type")
 		}
-	case "SessionStart":
-		// Binds the pane to its session file the moment Claude starts
-		// (or resumes / clears / compacts); carries no state.
+	case "SessionStart", "UserPromptSubmit":
+		// Bind the pane to its session file: the moment Claude starts (or
+		// resumes / clears / compacts) and on every prompt, so sessions
+		// that were already running when the hook was installed get bound
+		// at their next prompt. Carries no state; the prompt text in a
+		// UserPromptSubmit payload is never read.
 		if ev.TranscriptPath == "" && ev.SessionID == "" {
-			return ev, errors.New("session start without a session")
+			return ev, errors.New("session event without a session")
 		}
 	default:
 		return ev, errors.New("unsupported hook event")
@@ -76,6 +79,7 @@ func ParseHookEvent(data []byte) (HookEvent, error) {
 var hookEvents = []struct{ Event, Matcher string }{
 	{"Notification", HookMatcher},
 	{"SessionStart", ""},
+	{"UserPromptSubmit", ""},
 }
 
 // StateForNotification maps a notification type to an agent state.

@@ -2,6 +2,18 @@
   import { answerAgentPermission, elapsedSince, projectFolderName, projectKey, sessionKey } from './actions/agentActions.js';
   import { agentAnnotations } from './stores/agentStore.js';
   let showArchived = false;
+  // Collapsed project groups, remembered per machine.
+  const GROUPS_KEY = 'mimir-agent-groups-collapsed';
+  let collapsedGroups = new Set();
+  try { collapsedGroups = new Set(JSON.parse(localStorage.getItem(GROUPS_KEY) || '[]')); } catch { /* keep empty */ }
+  function toggleGroup(key) {
+    if (collapsedGroups.has(key)) collapsedGroups.delete(key); else collapsedGroups.add(key);
+    collapsedGroups = collapsedGroups;
+    try { localStorage.setItem(GROUPS_KEY, JSON.stringify([...collapsedGroups])); } catch { /* ignore */ }
+  }
+  function groupAttention(group) {
+    return group.rows.filter((r) => r.agent.status === 'permission' || r.agent.attention).length;
+  }
   import { onDestroy } from 'svelte';
 
   // Elapsed time next to the running tool call; ticks only while an agent
@@ -298,10 +310,14 @@
           {#each agentGroups as group (group.key)}
             {#if agentGroups.length > 1 || group.host}
               <li class="sidebar-agent-group" title={group.key}>
-                <span class="sidebar-agent-group-name">{group.name}</span>{#if group.host}<span class="sidebar-agent-group-host">{group.host}</span>{/if}
+                <button type="button" class="sidebar-agent-group-btn" aria-expanded={!collapsedGroups.has(group.key)} on:click={() => toggleGroup(group.key)}>
+                  <span class="sidebar-agent-group-disclosure">{collapsedGroups.has(group.key) ? '▸' : '▾'}</span>
+                  <span class="sidebar-agent-group-name">{group.name}</span>{#if group.host}<span class="sidebar-agent-group-host">{group.host}</span>{/if}
+                  <span class="sidebar-agent-group-count" class:sidebar-agent-count-attention={groupAttention(group) > 0}>{collapsedGroups.has(group.key) ? (groupAttention(group) || group.rows.length) : ''}</span>
+                </button>
               </li>
             {/if}
-          {#each group.rows as row (row.id)}
+          {#each (collapsedGroups.has(group.key) && (agentGroups.length > 1 || group.host)) ? [] : group.rows as row (row.id)}
             <li>
               <button
                 class="sidebar-agent-row"
