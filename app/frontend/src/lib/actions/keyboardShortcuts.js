@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { notesPanelOpen } from '../stores/uiStore.js';
+import { notesPanelOpen, resetTerminalFontSize, zoomTerminalFont } from '../stores/uiStore.js';
 import { showTemplatePicker, showWorkflowPicker } from '../stores/templateStore.js';
 import { activeTerminalId, layoutTree, terminals } from '../stores/terminalStore.js';
 import { customFolders } from '../stores/sessionStore.js';
@@ -21,9 +21,16 @@ const DIGIT_CODE = /^Digit([1-9])$/;
  * shell (xterm would otherwise forward e.g. Ctrl+Shift+Right as an escape
  * sequence before the window handler runs).
  */
+const ZOOM_KEYS = ['+', '=', '-', '0'];
+
+export function isZoomShortcut(event) {
+  return !!event?.ctrlKey && !event.altKey && !event.metaKey && ZOOM_KEYS.includes(event.key);
+}
+
 export function isGlobalShortcut(event) {
   if (!event?.ctrlKey) return false;
   if (event.key === 'Tab') return true;
+  if (isZoomShortcut(event)) return true;
   if (!event.shiftKey) return false;
   if (['ArrowLeft', 'ArrowRight'].includes(event.key)) return true;
   if (DIGIT_CODE.test(event.code || '')) return true;
@@ -123,6 +130,14 @@ export function createKeydownHandler({
     if (event.ctrlKey && event.shiftKey && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
       event.preventDefault();
       cycleTerminal(event.key === 'ArrowRight' ? 1 : -1);
+      return;
+    }
+
+    // Zoom: Ctrl + / Ctrl = grow, Ctrl - shrink, Ctrl 0 reset (all terminals).
+    if (isZoomShortcut(event)) {
+      event.preventDefault();
+      if (event.key === '0') resetTerminalFontSize();
+      else zoomTerminalFont(event.key === '-' ? -1 : 1);
       return;
     }
 

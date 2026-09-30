@@ -122,6 +122,7 @@ export default {
         desc_off: 'Lokale Terminals starten ohne tmux: keine Sitzungs-Wiederherstellung nach Neustart, alles nativ. SSH-Profile behalten ihren eigenen tmux-Schalter.',
         note: 'Unsichtbar und Klassisch werden sofort auf laufende tmux-Terminals angewendet; Aus gilt für Terminals, die ab jetzt geöffnet werden.',
       },
+      fontSize: { title: 'Terminal-Schriftgröße', desc: 'Zoom für alle Terminals, damit mehr Panes nebeneinander passen. Auch Strg + / Strg − / Strg 0 oder Strg + Mausrad über einem Terminal.', smaller: 'Kleiner', larger: 'Größer', reset: 'Zurücksetzen' },
       claudeHook: {
         title: 'Claude-Code-Freigaben',
         desc: 'Trägt Hooks in ~/.claude/settings.json ein, damit Claude Code Mimir meldet, wenn es auf eine Freigabe oder Eingabe wartet, und welche Session-Datei zu welcher Pane gehört, sobald eine Session startet (kein Raten mehr zwischen Sessions im selben Verzeichnis). Mimir zeigt dann „Freigabe“ im Pane-Badge und in der Agenten-Übersicht, statt es vom Bildschirm zu raten. Claude Code in WSL liest seine eigene settings.json und steht deshalb als eigener Host in der Liste.',

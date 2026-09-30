@@ -97,6 +97,8 @@
   .settings-host-status { flex: 1; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .settings-host-ok { color: #7ee787; }
   .settings-host-err { color: #ff7b72; }
+  .settings-stepper { display: inline-flex; align-items: center; gap: 6px; }
+  .settings-stepper-value { min-width: 3.2em; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.8rem; }
   .settings-inline-btn {
     background: transparent;
     border: 1px solid var(--border-subtle);

@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
-import { errorMessage } from '../stores/uiStore.js';
+import { errorMessage, terminalFontSize } from '../stores/uiStore.js';
 import { sshProfiles } from '../stores/sshStore.js';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -114,7 +114,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     cursorBlink: true,
     cursorStyle: 'bar',
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-    fontSize: 13,
+    fontSize: get(terminalFontSize),
     lineHeight: 1.35,
     scrollback: 100000,
     // Also sets the width of xterm 6's scrollbar slider (default 14px).
@@ -666,3 +666,17 @@ export function saveTerminalName(id, event) {
     return t;
   }));
 }
+
+// Zoom: apply a changed font size to every open terminal and re-fit them
+// so the shell learns the new rows × cols.
+terminalFontSize.subscribe((size) => {
+  for (const term of get(terminals)) {
+    if (!term?.terminal) continue;
+    try {
+      if (term.terminal.options.fontSize !== size) term.terminal.options.fontSize = size;
+      safelyFitAndResizeTerminal(term, ResizeTerminal);
+    } catch (error) {
+      console.error(`Failed to apply font size to terminal ${term.id}:`, error);
+    }
+  }
+});
