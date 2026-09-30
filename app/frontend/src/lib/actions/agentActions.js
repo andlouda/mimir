@@ -305,11 +305,21 @@ function windowInFront() {
  * Text is metadata only (agent label, terminal name, the hook's one-line
  * message); the backend collapses bursts per terminal.
  */
+const NOTIFY_DEDUPE_MS = 5000;
+const recentNotifications = new Map(); // "<kind>|<session file or id>" → time
+
 export function notifyAgentEvent(id, kind, message) {
   if (!get(agentNotificationsEnabled)) return false;
   if (get(activeTerminalId) === id && windowInFront()) return false;
   const agent = get(agentStates)[id];
   if (!agent) return false;
+  // Several panes may (still) follow the same session file; one event is
+  // one notification.
+  const key = `${kind}|${agent.sessionFile || `#${id}`}`;
+  const now = Date.now();
+  const last = recentNotifications.get(key) || 0;
+  if (now - last < NOTIFY_DEDUPE_MS) return false;
+  recentNotifications.set(key, now);
   const fn = globalThis.window?.['go']?.['main']?.['App']?.['NotifyDesktop'];
   if (typeof fn !== 'function') return false;
   const translate = get(t);

@@ -221,15 +221,22 @@
     gap: 0.5rem;
     text-align: left;
   }
-  .sidebar-agent-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 0.3rem; flex-shrink: 0; background: var(--text-muted); }
-  .agent-dot-working { background: #e3b341; animation: sidebar-agent-pulse 1.2s ease-in-out infinite; }
-  .agent-dot-idle { background: #63b3ed; }
-  .agent-dot-attention { background: #7ee787; box-shadow: 0 0 0 3px rgba(126, 231, 135, 0.25); }
-  .agent-dot-permission { background: #ff7b72; box-shadow: 0 0 0 3px rgba(255, 123, 114, 0.25); animation: sidebar-agent-pulse 0.9s ease-in-out infinite; }
+  /* Quiet by default: one small dot carries the state, only an open
+     approval and a finished-while-away agent get colour and weight. */
+  .sidebar-agent-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 0.32rem; flex-shrink: 0; background: var(--text-muted); opacity: 0.7; }
+  .agent-dot-working { background: #e3b341; opacity: 0.85; }
+  .agent-dot-idle { background: var(--text-secondary); opacity: 0.6; }
+  .agent-dot-attention { background: #7ee787; opacity: 1; }
+  .agent-dot-permission { background: #ff7b72; opacity: 1; box-shadow: 0 0 0 2px rgba(255, 123, 114, 0.2); }
   .sidebar-agents .sidebar-list li button.sidebar-agent-permission .sidebar-agent-status { color: #ff7b72; font-weight: 600; }
-  .sidebar-agents .sidebar-list li.sidebar-agent-group { display: flex; gap: 0.4rem; align-items: baseline; padding: 0.35rem 0.8rem 0.1rem 1rem; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .sidebar-agents .sidebar-list li.sidebar-agent-group { padding: 0.3rem 0.8rem 0 0.6rem; }
+  .sidebar-agent-group-btn { display: flex; gap: 0.35rem; align-items: baseline; width: 100%; background: transparent; border: 0; padding: 0.1rem 0; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); cursor: pointer; text-align: left; font-family: inherit; }
+  .sidebar-agent-group-btn:hover .sidebar-agent-group-name { color: var(--text-primary); }
+  .sidebar-agent-group-disclosure { width: 0.8rem; opacity: 0.7; }
   .sidebar-agent-group-name { font-weight: 700; color: var(--text-secondary); }
   .sidebar-agent-group-host { opacity: 0.8; }
+  .sidebar-agent-group-count { margin-left: auto; font-size: 0.6rem; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+  .sidebar-agent-group-count.sidebar-agent-count-attention { color: #7ee787; }
   .sidebar-agents .sidebar-list li.sidebar-agent-archived { padding: 0.2rem 0.8rem 0.4rem 1rem; }
   .sidebar-agent-archived-btn { background: transparent; border: 0; color: var(--text-muted); font-size: 0.66rem; cursor: pointer; padding: 0; }
   .sidebar-agent-archived-btn:hover { color: var(--text-secondary); }
@@ -247,7 +254,7 @@
   .sidebar-agent-term { color: var(--text-muted); font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sidebar-agent-state { display: flex; gap: 0.4rem; min-width: 0; font-size: 0.7rem; }
   .sidebar-agent-status { color: var(--text-secondary); white-space: nowrap; }
-  .sidebar-agent-attention .sidebar-agent-status { color: #7ee787; font-weight: 600; }
+  .sidebar-agent-attention .sidebar-agent-status { color: #7ee787; }
   .sidebar-agent-text { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sidebar-agent-count { position: absolute; right: 6px; top: 4px; min-width: 14px; padding: 0 4px; border-radius: 999px; font-size: 0.6rem; line-height: 14px; text-align: center; background: rgba(99, 179, 237, 0.25); color: #63b3ed; }
   .sidebar-agent-count-attention { background: rgba(126, 231, 135, 0.3); color: #7ee787; }

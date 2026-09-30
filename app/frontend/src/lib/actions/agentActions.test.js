@@ -228,6 +228,20 @@ describe('agent detection', () => {
     stopAgentWatch(2);
   });
 
+  test('one notification per session event even when several panes follow the same file', () => {
+    window.go.main.App.NotifyDesktop.mockClear();
+    agentStates.set({
+      1: { kind: 'claude', label: 'Claude', status: 'working', sessionFile: '/s/same.jsonl' },
+      2: { kind: 'claude', label: 'Claude', status: 'working', sessionFile: '/s/same.jsonl' },
+      3: { kind: 'claude', label: 'Claude', status: 'working', sessionFile: '/s/other.jsonl' },
+    });
+    terminals.set([{ id: 1, type: 'bash' }, { id: 2, type: 'bash' }, { id: 3, type: 'bash' }]);
+    activeTerminalId.set(9);
+    for (const id of [1, 2, 3]) handleAgentStateEvent(id, JSON.stringify({ state: 'idle', lastText: 'Done.', lastAt: 't' }));
+    expect(window.go.main.App.NotifyDesktop).toHaveBeenCalledTimes(2);
+    stopAgentWatch(1); stopAgentWatch(2); stopAgentWatch(3);
+  });
+
   test('the open panel follows the selected terminal unless pinned', () => {
     agentStates.set({ 1: { kind: 'claude', label: 'Claude', status: 'idle' }, 2: { kind: 'codex', label: 'Codex', status: 'working' } });
     openAgentPanel(1);

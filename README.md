@@ -105,7 +105,8 @@ Mimir is local-first by default.
   summary Claude Code writes when it compacts — the state of the session
   that otherwise disappears from view.
   The sidebar groups agents by project (host plus git root, branch or
-  worktree shown per row); sessions and projects can be named, annotated
+  worktree shown per row; groups collapse individually and stay collapsed
+  across restarts); sessions and projects can be named, annotated
   and archived from the panel, and those notes survive restarts (kept in
   Mimir's config directory, keyed by host and session file).
   Detection can be turned off in Settings. A desktop notification (system

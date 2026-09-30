@@ -153,8 +153,21 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		case agents.KindCodex:
 			files, _ = agents.FindCodexTranscripts(fs, home, cwd)
 		}
-		if len(files) > 0 && files[0] != file {
-			file, lastSize, lastMod = files[0], -1, time.Time{}
+		// Newest first, skipping files another pane is bound to or pinned
+		// on: three agents in one directory must not all show the same
+		// session while their own bindings are still pending.
+		pick := ""
+		for _, f := range files {
+			if !a.boundElsewhere(terminalID, f) {
+				pick = f
+				break
+			}
+		}
+		if pick == "" && len(files) > 0 {
+			pick = files[0]
+		}
+		if pick != "" && pick != file {
+			file, lastSize, lastMod = pick, -1, time.Time{}
 		}
 		lastLookup = time.Now()
 	}
@@ -172,7 +185,9 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 			a.stopAgentWatcher(terminalID)
 			return
 		}
-		if file == "" || (!bound && time.Since(lastLookup) > agentWatchRelookup) {
+		// Re-pick right away when another pane got bound to the file this
+		// one only guessed.
+		if file == "" || (!bound && (time.Since(lastLookup) > agentWatchRelookup || a.boundElsewhere(terminalID, file))) {
 			locate()
 		}
 		if file != "" {
