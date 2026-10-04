@@ -21,7 +21,19 @@
       isLinux = env?.platform === 'linux';
     } catch { isLinux = false; }
     try { gpuPolicy = gpuSaved = await window['go']['main']['App']['GetGPUPolicy'](); } catch { gpuPolicy = gpuSaved = 'never'; }
+    try { waylandFix = waylandSaved = await window['go']['main']['App']['GetWaylandFix'](); } catch { waylandFix = waylandSaved = 'auto'; }
+    try { isWayland = !!(await window['go']['main']['App']['IsWaylandSession']()); } catch { isWayland = false; }
   });
+  let waylandFix = '';
+  let waylandSaved = '';
+  let isWayland = false;
+  async function changeWaylandFix(event) {
+    try {
+      waylandFix = await window['go']['main']['App']['SetWaylandFix'](event.target.value);
+    } catch (error) {
+      console.error('Could not save Wayland setting:', error);
+    }
+  }
   async function changeGPUPolicy(event) {
     try {
       gpuPolicy = await window['go']['main']['App']['SetGPUPolicy'](event.target.value);
@@ -140,6 +152,19 @@
         <strong>{$t('settings.cards.gpu.title')}</strong>
         <p>{$t('settings.cards.gpu.desc')}</p>
         {#if gpuPolicy !== gpuSaved}<p class="settings-note">{$t('settings.cards.gpu.restart')}</p>{/if}
+      </label>
+      <label class="ai-hub-card settings-toggle-card">
+        <div class="ai-hub-card-top">
+          <span class="ai-hub-icon">&#x25A6;</span>
+          <select value={waylandFix} on:change={changeWaylandFix}>
+            <option value="auto">{$t('settings.cards.wayland.auto')}</option>
+            <option value="on">{$t('settings.cards.wayland.on')}</option>
+            <option value="off">{$t('settings.cards.wayland.off')}</option>
+          </select>
+        </div>
+        <strong>{$t('settings.cards.wayland.title')}</strong>
+        <p>{$t('settings.cards.wayland.desc')}{isWayland ? ' ' + $t('settings.cards.wayland.detected') : ''}</p>
+        {#if waylandFix !== waylandSaved}<p class="settings-note">{$t('settings.cards.gpu.restart')}</p>{/if}
       </label>
     {/if}
     <label class="ai-hub-card settings-toggle-card">

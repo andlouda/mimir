@@ -123,6 +123,14 @@ export default {
         note: 'Unsichtbar und Klassisch werden sofort auf laufende tmux-Terminals angewendet; Aus gilt für Terminals, die ab jetzt geöffnet werden.',
       },
       fontSize: { title: 'Terminal-Schriftgröße', desc: 'Zoom für alle Terminals, damit mehr Panes nebeneinander passen. Auch Strg + / Strg − / Strg 0 oder Strg + Mausrad über einem Terminal.', smaller: 'Kleiner', larger: 'Größer', reset: 'Zurücksetzen' },
+      wayland: {
+        title: 'Wayland-Kompatibilität (Linux-Webview)',
+        auto: 'Automatisch (unter Wayland an)',
+        on: 'Immer an',
+        off: 'Aus',
+        desc: 'Hält WebKitGTK vom DMA-BUF-Renderer fern, der üblichen Quelle für Artefakte, hängengebliebene Bereiche und Tearing in Wayland-Sitzungen (NVIDIA, VMs). Eine eigene Variable WEBKIT_DISABLE_DMABUF_RENDERER gewinnt immer.',
+        detected: 'Diese Sitzung ist Wayland.',
+      },
       gpu: {
         title: 'GPU-Beschleunigung (Linux-Webview)',
         never: 'Aus (Standard, am sichersten)',

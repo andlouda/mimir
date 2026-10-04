@@ -43,7 +43,9 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
   provides a GL context (box-drawing and block characters are painted by the
   renderer, heavy output repaints faster) with a silent fallback to the DOM
   renderer; both are switchable in Settings. On Linux the webview's GPU
-  policy is a setting too (off by default, "on demand" enables WebGL).
+  policy is a setting too (off by default, "on demand" enables WebGL), and
+  under Wayland Mimir keeps WebKitGTK off its DMA-BUF renderer by default
+  (the usual source of artifacts and stale regions there; switchable).
 - Terminal scrollback search (Ctrl+Shift+F)
 - 58 built-in command templates with discovery-driven variables
 - Workflow engine with playbooks, approval flow, and AI steps

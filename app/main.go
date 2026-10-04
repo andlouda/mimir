@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log"
 	"os"
+	"runtime"
 
 	"mimir/desktop"
 
@@ -34,6 +35,11 @@ func main() {
 	// Fix dropped/doubled umlaut and dead-key input in the WebKitGTK webview.
 	// Must run before GTK initializes (i.e. before wails.Run). No-op off Linux.
 	configureInputMethod()
+	// Wayland: keep WebKit off its DMA-BUF renderer unless the user says
+	// otherwise (artifacts / stale regions); also before GTK initializes.
+	if runtime.GOOS == "linux" {
+		applyWaylandFix()
+	}
 
 	// Create an instance of the app structure
 	app := NewApp(templates, appIconPNG)
