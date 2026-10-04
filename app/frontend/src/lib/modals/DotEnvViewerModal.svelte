@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   // Secure .env viewer. Reads the .env file from the terminal's working
   // directory over the same out-of-band channel discovery uses (SSH exec or a
   // local tmux cwd read) — never through the shell, so the contents never touch
@@ -120,7 +121,7 @@
 </script>
 
 <div class="modal-overlay" on:click={onClose} on:keydown={handleKeydown} tabindex="0" role="button">
-  <div class="dotenv-modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+  <div class="dotenv-modal" role="dialog" use:modalFocus={{ onEscape: onClose }} aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
     <div class="dotenv-header">
       <h3>
         {$t('dotEnvViewer.title')}

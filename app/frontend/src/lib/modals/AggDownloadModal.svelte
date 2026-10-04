@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   // Confirmation dialog for downloading the pinned `agg` binary (GIF export).
   // The actual download is handled by the parent. Styles from the global stylesheets (styles/).
   import { t } from '../i18n.js';
@@ -10,7 +11,7 @@
 </script>
 
 <div class="modal-overlay" on:click={onCancel} on:keydown={(e) => { if (e.key === 'Escape') onCancel(); }} tabindex="0" role="button">
-  <div class="template-prompt-modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+  <div class="template-prompt-modal" role="dialog" use:modalFocus={{ onEscape: onCancel }} aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
     <div class="template-prompt-header">
       <h3>{$t('aggDownload.title')}</h3>
       <button type="button" class="modal-close-button" on:click={onCancel}>&#x2715;</button>

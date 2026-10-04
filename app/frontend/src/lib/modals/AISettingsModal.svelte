@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   // Presentational AI Settings modal. Logic stays in the parent; the three
   // config objects are two-way bound, actions are forwarded via callbacks.
   // All styles (shared modal + AI-settings classes) come from the global CSS.
@@ -31,7 +32,7 @@
 >
   <div
     class="template-prompt-modal"
-    role="dialog"
+    role="dialog" use:modalFocus={{ onEscape: onClose }}
     aria-modal="true"
     tabindex="-1"
     on:click|stopPropagation

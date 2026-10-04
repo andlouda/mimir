@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   // Function catalog browser. Owns its own UI state and calls the backend
   // (ExplainFunction / discoveryApi) directly; cross-cutting concerns are
   // emitted to the parent. Styles come from the global stylesheets (styles/).
@@ -123,7 +124,7 @@
 </script>
 
 <div class="modal-overlay" on:click={onClose} on:keydown={(e) => { if (e.key === 'Escape') onClose(); }} tabindex="0" role="button">
-  <div class="function-catalog-modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+  <div class="function-catalog-modal" role="dialog" use:modalFocus={{ onEscape: onClose }} aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
     <div class="template-prompt-header">
       <h3>{$t('functionCatalog.title')}</h3>
       <button type="button" class="modal-close-button" on:click={onClose}>&#x2715;</button>

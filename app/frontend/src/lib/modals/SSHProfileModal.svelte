@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   // SSH profile manager: list + editor. Owns the form/editor/key-browse state
   // and persists via bindings; profile-list changes are reported to the parent
   // (which shares sshProfiles with the sidebar). Connecting and host-key
@@ -144,7 +145,7 @@
 </script>
 
 <div class="modal-overlay" on:click|self={onClose} on:keydown={(e) => { if (e.key === 'Escape') onClose(); }} tabindex="0" role="button">
-  <div class="ssh-modal">
+  <div class="ssh-modal" role="dialog" aria-modal="true" use:modalFocus={{ onEscape: onClose }}>
     <div class="modal-header">
       <h3>{editingId ? (editingId === '__new__' ? $t('sshProfile.titleNew') : $t('sshProfile.titleEdit')) : $t('sshProfile.titleList')}</h3>
       <button class="header-btn close-btn" on:click={onClose}>✕</button>
