@@ -6,8 +6,7 @@ import {
   terminalSearchNext,
   terminalSearchPrev,
   toggleTerminalSearch,
-  updateTerminalSearchQuery,
-} from './terminalSearchActions.js';
+  updateTerminalSearchQuery,, SEARCH_OPTIONS } from './terminalSearchActions.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 
 function terminal(overrides = {}) {
@@ -58,8 +57,8 @@ describe('terminal search actions', () => {
     terminalSearchPrev(1);
 
     expect(get(terminals)[0].searchQuery).toBe('error');
-    expect(term.searchAddon.findNext).toHaveBeenCalledWith('error');
-    expect(term.searchAddon.findPrevious).toHaveBeenCalledWith('error');
+    expect(term.searchAddon.findNext).toHaveBeenCalledWith('error', SEARCH_OPTIONS);
+    expect(term.searchAddon.findPrevious).toHaveBeenCalledWith('error', SEARCH_OPTIONS);
   });
 
   test('closes search and dismisses restore summary', () => {
