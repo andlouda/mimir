@@ -1,4 +1,5 @@
 <script>
+  import { ClipboardSetText } from '../../../wailsjs/runtime';
   import { onDestroy, onMount, tick } from 'svelte';
   import { t } from '../i18n.js';
   import { cleanTranscript } from '../transcript/cleanTranscript.js';
@@ -340,7 +341,7 @@
   async function copyAll() {
     if (!transcriptText) return;
     try {
-      await navigator.clipboard.writeText(displayText);
+      await ClipboardSetText(displayText);
     } catch (error) {
       onError(`Copy failed: ${error?.message || error}`);
     }
@@ -351,7 +352,7 @@
     try {
       const result = await getTranscriptContentScrubbed(selectedResumeId);
       const text = showCleaned ? cleanTranscript(result.text) : result.text;
-      await navigator.clipboard.writeText(text);
+      await ClipboardSetText(text);
     } catch (error) {
       onError(`Copy failed: ${error?.message || error}`);
     }

@@ -13,6 +13,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
 //go:embed all:frontend/dist
@@ -62,12 +63,20 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		// Same as --bg-void / the xterm background (#0c0e14): the window must
+		// not flash a different colour on launch or resize.
+		BackgroundColour: &options.RGBA{R: 12, G: 14, B: 20, A: 255},
 		// Linux window icon (taskbar / Alt-Tab / WM titlebar) and program
 		// name. Without these the running GTK window has no custom icon even
 		// when the .desktop file does. WebviewGpuPolicyNever is the Wails
 		// default when Options.Linux is nil; we keep it explicit because
 		// providing any Linux options overrides that fallback.
+		// WebView2 would otherwise zoom the whole UI on Ctrl+wheel / pinch,
+		// with no way back; Mimir has its own terminal zoom.
+		Windows: &windows.Options{
+			IsZoomControlEnabled: false,
+			DisablePinchZoom:     true,
+		},
 		Linux: &linux.Options{
 			Icon:             appIconPNG,
 			ProgramName:      "mimir",

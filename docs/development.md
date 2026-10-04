@@ -17,7 +17,7 @@ Linux/WSL native dependencies for Wails:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config build-essential
+sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config build-essential
 ```
 
 ## Setup

@@ -168,13 +168,13 @@ Install Wails native dependencies:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config build-essential
+sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config build-essential
 ```
 
 Runtime users usually need:
 
 ```bash
-sudo apt install libgtk-3-0 libwebkit2gtk-4.0-37
+sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0
 ```
 
 Package names can differ by distribution/version.
