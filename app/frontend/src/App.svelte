@@ -34,7 +34,7 @@
   import { runAggDownload } from './lib/actions/aggActions.js';
   import { applyAISettingsDefaults, clearAIApiKey, closeAISettings, getAIToolPromptPreview, getEditablePromptIntroPreview, isUsingDefaultPromptIntroPreview, loadAISettingsConfig, openAISettings, saveAISettings, setDevOpsPrePromptExample, toggleAIMenu } from './lib/actions/aiSettingsActions.js';
   import { createDragDropHandlers } from './lib/actions/dragDrop.js';
-  import { createKeydownHandler } from './lib/actions/keyboardShortcuts.js';
+  import { createKeydownHandler, focusTerminal } from './lib/actions/keyboardShortcuts.js';
   import { closeTerminalSearch, dismissRestoreSummary, terminalSearchNext, terminalSearchPrev, toggleTerminalSearch, updateTerminalSearchQuery } from './lib/actions/terminalSearchActions.js';
   import { applyTemplate, closeTemplatePrompt, handleTemplatePromptFieldChange, loadTemplatesFromBackend, runWorkflowFromPicker, submitTemplatePrompt, toggleWorkflowPicker } from './lib/actions/templateActions.js';
   import { createSSHActions, loadSSHProfiles, openSSHProfilePicker } from './lib/actions/sshActions.js';
@@ -303,6 +303,7 @@
 
     if (page === "terminals") {
       await reinitializeTerminals();
+      focusTerminal($activeTerminalId);
       return;
     }
 
@@ -403,6 +404,18 @@
     }
   }
 
+  function handleNativeContextMenu(event) {
+    const t = event.target;
+    const editable = t && (t.closest?.('input, textarea, [contenteditable="true"]'));
+    if (!editable) event.preventDefault();
+  }
+  function handleBeforeUnload(event) {
+    if ($terminals.length > 0) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }
+
   function handleGlobalError(event) {
     const msg = event?.reason?.message || event?.message || 'Unknown error';
     console.error('[mimir] unhandled error:', msg);
@@ -416,6 +429,10 @@
     window.addEventListener('resize', handleResize);
     window.addEventListener('error', handleGlobalError);
     window.addEventListener('unhandledrejection', handleGlobalError);
+    // The webview's own context menu offers "Reload", which drops every
+    // terminal; keep it to text fields, Mimir draws its own menu in panes.
+    window.addEventListener('contextmenu', handleNativeContextMenu);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     await loadSSHProfiles();
     try {
       await loadAvailableTerminalTypes();
@@ -511,6 +528,8 @@
   onDestroy(() => {
     window.removeEventListener('resize', handleResize);
     window.removeEventListener('error', handleGlobalError);
+    window.removeEventListener('contextmenu', handleNativeContextMenu);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
     window.removeEventListener('unhandledrejection', handleGlobalError);
     offUpdateProgress();
     $terminals.forEach((term) => cleanupTerminalResources(term));

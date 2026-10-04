@@ -1,11 +1,12 @@
 <script>
+  import { registerOverlay, isGlobalShortcut } from './actions/keyboardShortcuts.js';
   import { zoomTerminalFont } from './stores/uiStore.js';
   import { agentStates } from './stores/agentStore.js';
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
   import { tmuxScrollKeys } from './terminals/wheelScroll.js';
   import { WriteToTerminal } from '../../wailsjs/go/main/App';
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, tick, onDestroy } from 'svelte';
   import { t } from './i18n.js';
   import { calculateSplitRatio } from './terminals/splitPaneResize.js';
   import { consumeWheelEvent } from './terminals/wheelScroll.js';
@@ -228,13 +229,28 @@
   }
 
   function closeContextMenu() {
+    const termId = contextMenu?.termId;
     contextMenu = null;
+    // Hand the keyboard back to the pane the menu belonged to.
+    const term = termId != null ? $terminalMap.get(termId) : null;
+    try { term?.terminal?.focus?.(); } catch { /* ignore */ }
   }
 
   function handleWindowKeydown(event) {
     if (contextMenu && event.key === 'Escape') {
       closeContextMenu();
     }
+  }
+
+  // The context menu takes part in the Escape stack (see keyboardShortcuts).
+  const unregisterOverlay = registerOverlay(() => !!contextMenu, closeContextMenu);
+  onDestroy(unregisterOverlay);
+
+  // The search bar must own the keyboard the moment it appears, otherwise
+  // the query is typed into the shell.
+  function focusOnMount(node) {
+    node.focus();
+    node.select?.();
   }
 
   async function ctxCopy(term) {
@@ -520,10 +536,11 @@
           </div>
         {/if}
         {#if term.searchVisible}
-          <div class="search-bar" role="toolbar" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+          <div class="search-bar" role="toolbar" tabindex="-1" on:click|stopPropagation on:keydown={(e) => { if (!isGlobalShortcut(e)) e.stopPropagation(); }}>
             <input
               type="text"
               class="search-input"
+              use:focusOnMount
               placeholder={$t('splitPane.searchPlaceholder')}
               value={term.searchQuery}
               on:input={(e) => dispatch('searchinput', { id: term.id, query: e.target.value })}

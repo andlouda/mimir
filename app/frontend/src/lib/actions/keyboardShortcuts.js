@@ -23,6 +23,52 @@ const DIGIT_CODE = /^Digit([1-9])$/;
  */
 const ZOOM_KEYS = ['+', '=', '-', '0'];
 
+// Physical-key letter for shortcuts: "KeyN" → "N" whatever CapsLock or the
+// layout (Cyrillic, Greek, …) makes of event.key; falls back to the key.
+export function letterOf(event) {
+  const m = /^Key([A-Z])$/.exec(event?.code || '');
+  if (m) return m[1];
+  const k = String(event?.key || '');
+  return k.length === 1 ? k.toUpperCase() : k;
+}
+
+// ---- overlay stack ---------------------------------------------------------
+// Escape closes the topmost Mimir overlay. Components with their own overlay
+// state (the pane context menu) register here; pickers are stores; terminal
+// search bars live on the terminal objects. The xterm key handler asks this
+// first, because xterm stops propagation of every key it handles and the
+// window listener would never see Escape while a terminal has focus.
+const overlays = []; // { isOpen, close } — last registered = topmost
+export function registerOverlay(isOpen, close) {
+  const entry = { isOpen, close };
+  overlays.push(entry);
+  return () => {
+    const i = overlays.indexOf(entry);
+    if (i >= 0) overlays.splice(i, 1);
+  };
+}
+
+export function closeTopOverlay() {
+  for (let i = overlays.length - 1; i >= 0; i--) {
+    if (overlays[i].isOpen()) { overlays[i].close(); return true; }
+  }
+  if (get(showTemplatePicker)) { showTemplatePicker.set(false); return true; }
+  if (get(showWorkflowPicker)) { showWorkflowPicker.set(false); return true; }
+  const visibleSearches = get(terminals).filter((terminal) => terminal.searchVisible);
+  if (visibleSearches.length && overlayHooks.closeTerminalSearch) {
+    for (const terminal of visibleSearches) overlayHooks.closeTerminalSearch(terminal.id);
+    return true;
+  }
+  return false;
+}
+
+export function hasOpenOverlay() {
+  return overlays.some((o) => o.isOpen()) || get(showTemplatePicker) || get(showWorkflowPicker)
+    || get(terminals).some((terminal) => terminal.searchVisible);
+}
+
+const overlayHooks = { closeTerminalSearch: null };
+
 export function isZoomShortcut(event) {
   return !!event?.ctrlKey && !event.altKey && !event.metaKey && ZOOM_KEYS.includes(event.key);
 }
@@ -34,7 +80,7 @@ export function isGlobalShortcut(event) {
   if (!event.shiftKey) return false;
   if (['ArrowLeft', 'ArrowRight'].includes(event.key)) return true;
   if (DIGIT_CODE.test(event.code || '')) return true;
-  return ['N', 'n', 'F', 'f', 'P', 'p', 'W', 'w', 'T', 't', 'M', 'm', 'U', 'u', 'O', 'o'].includes(event.key);
+  return ['N', 'F', 'P', 'W', 'T', 'M', 'U', 'O'].includes(letterOf(event));
 }
 
 // Terminals minimized through the shortcut, most recent last, so Ctrl+Shift+U
@@ -120,7 +166,14 @@ export function createKeydownHandler({
   toggleMinimize,
   schedule = setTimeout,
 } = {}) {
+  overlayHooks.closeTerminalSearch = closeTerminalSearch || null;
   return function handleGlobalKeydown(event) {
+    // IME composition and auto-repeat: a held Ctrl+Shift+T must not open a
+    // terminal per repeat; cycling (Tab / arrows) may repeat.
+    if (event.isComposing || event.keyCode === 229) return;
+    const cycling = event.ctrlKey && (event.key === 'Tab' || event.key === 'ArrowLeft' || event.key === 'ArrowRight');
+    if (event.repeat && !cycling) return;
+
     if (event.ctrlKey && event.key === 'Tab') {
       event.preventDefault();
       cycleTerminal(event.shiftKey ? -1 : 1);
@@ -148,7 +201,7 @@ export function createKeydownHandler({
       return;
     }
 
-    if (event.ctrlKey && event.shiftKey && (event.key === 'M' || event.key === 'm')) {
+    if (event.ctrlKey && event.shiftKey && letterOf(event) === 'M') {
       event.preventDefault();
       minimizeActiveTerminal(toggleMinimize);
       return;
@@ -157,56 +210,45 @@ export function createKeydownHandler({
     // Ctrl+Shift+O is the primary restore key: Ctrl+Shift+U is GTK's
     // Unicode-input chord on Linux and never reaches the page there. U stays
     // as an alias for platforms where it works.
-    if (event.ctrlKey && event.shiftKey && ['O', 'o', 'U', 'u'].includes(event.key)) {
+    if (event.ctrlKey && event.shiftKey && ['O', 'U'].includes(letterOf(event))) {
       event.preventDefault();
       restoreMinimizedTerminal(toggleMinimize);
       return;
     }
 
-    if (event.ctrlKey && event.shiftKey && (event.key === 'T' || event.key === 't')) {
+    if (event.ctrlKey && event.shiftKey && letterOf(event) === 'T') {
       event.preventDefault();
       if (typeof addTerminal === 'function') addTerminal();
       return;
     }
 
-    if (event.ctrlKey && event.shiftKey && event.key === 'N') {
+    if (event.ctrlKey && event.shiftKey && letterOf(event) === 'N') {
       event.preventDefault();
       notesPanelOpen.update((open) => !open);
       schedule(handleResize, 50);
       return;
     }
 
-    if (event.ctrlKey && event.shiftKey && event.key === 'F') {
+    if (event.ctrlKey && event.shiftKey && letterOf(event) === 'F') {
       event.preventDefault();
       toggleTerminalSearch();
       return;
     }
 
-    if (event.ctrlKey && event.shiftKey && (event.key === 'P' || event.key === 'p')) {
+    if (event.ctrlKey && event.shiftKey && letterOf(event) === 'P') {
       event.preventDefault();
       showTemplatePicker.update((open) => !open);
       return;
     }
 
-    if (event.ctrlKey && event.shiftKey && (event.key === 'W' || event.key === 'w')) {
+    if (event.ctrlKey && event.shiftKey && letterOf(event) === 'W') {
       event.preventDefault();
       toggleWorkflowPicker();
       return;
     }
 
     if (event.key === 'Escape') {
-      if (get(showTemplatePicker)) {
-        showTemplatePicker.set(false);
-        return;
-      }
-      if (get(showWorkflowPicker)) {
-        showWorkflowPicker.set(false);
-        return;
-      }
-      const visibleSearches = get(terminals).filter((terminal) => terminal.searchVisible);
-      for (const terminal of visibleSearches) {
-        closeTerminalSearch(terminal.id);
-      }
+      closeTopOverlay();
     }
   };
 }
