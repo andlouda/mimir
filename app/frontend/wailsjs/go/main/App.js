@@ -382,6 +382,10 @@ export function IsWaylandSession() {
   return window['go']['main']['App']['IsWaylandSession']();
 }
 
+export function UpdateSessionLayout(arg1) {
+  return window['go']['main']['App']['UpdateSessionLayout'](arg1);
+}
+
 export function SetTmuxIntegrationMode(arg1) {
   return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
 }

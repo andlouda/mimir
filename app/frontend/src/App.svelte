@@ -27,6 +27,7 @@
   import { loadAgentWorkspace } from './lib/stores/agentWorkspaceStore.js';
   import { groupedSidebarTerminals } from './lib/terminals/sidebarGroups';
   import { dedupeSavedSessionTerminals } from './lib/util';
+  import { appendLeaf, rebuildLayout, collectLeafIds } from './lib/terminals/layoutTree.js';
   import { generateTmuxSessionName } from './lib/terminals/tmuxLifecycle';
   import { checkForUpdates, downloadUpdate, openUpdatePage, restartApp } from './lib/actions/updateActions.js';
   import { assignTerminalToFolder as assignTerminalToFolderAction, createFolder, deleteFolder as deleteFolderAction, loadCustomFolders, renameFolder, toggleTerminalFolder } from './lib/actions/folderActions.js';
@@ -38,7 +39,7 @@
   import { applyTemplate, closeTemplatePrompt, handleTemplatePromptFieldChange, loadTemplatesFromBackend, runWorkflowFromPicker, submitTemplatePrompt, toggleWorkflowPicker } from './lib/actions/templateActions.js';
   import { createSSHActions, loadSSHProfiles, openSSHProfilePicker } from './lib/actions/sshActions.js';
   import { addTerminal, splitTerminal, removeTerminal, toggleRecording, reconnectSSH, toggleMinimize, startEditingName, saveTerminalName, handleResize, reinitializeTerminals, createTerminalInstance, cleanupTerminalResources } from './lib/actions/terminalActions.js';
-  import { persistTerminalState, scheduleSessionSave, loadTranscriptExcerpt, clearSessionSaveTimer } from './lib/actions/sessionActions.js';
+  import { persistTerminalState, scheduleSessionSave, loadTranscriptExcerpt, clearSessionSaveTimer, layoutKeyFor, enableLayoutPersistence } from './lib/actions/sessionActions.js';
 
   const isWindowsPlatform = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
   const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
@@ -258,7 +259,7 @@
     const startX = e.clientX;
     const startWidth = $notesPanelWidth;
     const onMove = (ev) => {
-      $notesPanelWidth = Math.max(250, Math.min(800, startWidth + (startX - ev.clientX)));
+      $notesPanelWidth = Math.max(250, Math.min(800, window.innerWidth - 560, startWidth + (startX - ev.clientX)));
     };
     const onUp = () => {
       localStorage.setItem('mimir-notes-width', String($notesPanelWidth));
@@ -367,15 +368,8 @@
     const id = typeof startWithOptions === 'function'
       ? await startWithOptions(saved.type, tmuxSessionName)
       : await window['go']['main']['App']['StartTerminal'](saved.type);
-    if (!id) return;
-    const newLeaf = { type: 'leaf', terminalId: id };
-    if (saved.minimized) {
-      // minimized: don't add to layout tree
-    } else if ($layoutTree === null) {
-      $layoutTree = newLeaf;
-    } else {
-      $layoutTree = { type: 'split', direction: 'horizontal', ratio: 0.5, children: [$layoutTree, newLeaf] };
-    }
+    if (!id) return null;
+    // The layout is rebuilt once after every terminal is back (see onMount).
     const restoreClass = ['bash', 'zsh', 'wsl'].includes(saved.type) ? 'rehydrated' : 'transcript-restored';
     const newTerminal = await createTerminalInstance(
       id, saved.type, saved.name, saved.minimized, '', true, tmuxSessionName, saved.resumeId || '', restoreClass,
@@ -385,21 +379,14 @@
     $terminals = $terminals.map((t) => t.id === newTerminal.id ? { ...t, restoredTranscript, restoreClass, restoreDismissed: false, folderId } : t);
     persistTerminalState({ ...newTerminal, restoreClass, folderId });
     await reinitializeTerminals();
+    return { id, minimized: !!saved.minimized, key: layoutKeyFor({ ...newTerminal, resumeId: newTerminal.resumeId || saved.resumeId || '', tmuxSessionName }) };
   }
 
   async function restoreSSHTerminal(profile, saved) {
     try {
       const startSSH = window['go']['main']['App']['StartSSHTerminal'];
       const id = await startSSH(profile.id);
-      if (!id) return;
-      const newLeaf = { type: 'leaf', terminalId: id };
-      if (saved.minimized) {
-        // minimized: don't add to layout tree
-      } else if ($layoutTree === null) {
-        $layoutTree = newLeaf;
-      } else {
-        $layoutTree = { type: 'split', direction: 'horizontal', ratio: 0.5, children: [$layoutTree, newLeaf] };
-      }
+      if (!id) return null;
       const name = saved.name || `SSH: ${profile.name}`;
       const restoreClass = 'live-restored';
       const newTerminal = await createTerminalInstance(
@@ -410,6 +397,7 @@
       $terminals = $terminals.map((t) => t.id === newTerminal.id ? { ...t, restoredTranscript, restoreClass, restoreDismissed: false, folderId } : t);
       persistTerminalState({ ...newTerminal, type: 'ssh', sshProfileId: profile.id, restoreClass, folderId });
       await reinitializeTerminals();
+      return { id, minimized: !!saved.minimized, key: layoutKeyFor({ ...newTerminal, resumeId: newTerminal.resumeId || saved.resumeId || '', tmuxSessionName: saved.tmuxSessionName || '' }) };
     } catch (e) {
       console.warn(`Failed to restore SSH terminal for ${profile.name}: ${e.message || e}`);
     }
@@ -453,6 +441,7 @@
       const savedSession = await GetLoadedSessionData();
       const savedTerminals = dedupeSavedSessionTerminals(savedSession?.terminals || []);
       const notRestored = [];
+      const restored = []; // { id, minimized, key } in save order
       if (savedTerminals.length > 0) {
         for (const saved of savedTerminals) {
           // One failing terminal must not abort the rest of the restore;
@@ -460,21 +449,46 @@
           // is retried after a pause instead of dropping the terminal.
           try {
             await restoreWithRetry(async () => {
+              let entry = null;
               if (saved.type === 'ssh' && saved.sshProfileId) {
                 const profile = $sshProfiles.find(p => p.id === saved.sshProfileId);
-                if (profile) await restoreSSHTerminal(profile, saved);
+                if (profile) entry = await restoreSSHTerminal(profile, saved);
               } else if (['bash', 'zsh', 'wsl', 'cmd', 'powershell'].includes(saved.type)) {
-                await restoreLocalTerminal(saved);
+                entry = await restoreLocalTerminal(saved);
               }
+              // The saved key is what the layout was serialised with; the
+              // new terminal keeps resume id and tmux name, so they match.
+              if (entry) restored.push({ ...entry, savedKey: layoutKeyFor(saved) });
             });
           } catch (error) {
             notRestored.push(`${saved.name || saved.type}: ${error?.message || error}`);
           }
         }
       }
+      // Rebuild the arrangement from the saved layout (keys → new ids);
+      // anything visible that the layout does not mention is appended with
+      // an equal share. Without a saved layout the panes form a balanced row.
+      let tree = null;
+      try {
+        const savedLayout = savedSession?.layout ? JSON.parse(savedSession.layout) : null;
+        const byKey = new Map();
+        for (const r of restored) { if (!r.minimized) { byKey.set(r.savedKey, r.id); byKey.set(r.key, r.id); } }
+        tree = rebuildLayout(savedLayout, (key) => byKey.get(key) ?? null);
+      } catch (error) {
+        console.warn('Saved layout unreadable, using a balanced row:', error);
+        tree = null;
+      }
+      const placed = new Set(tree ? collectLeafIds(tree) : []);
+      for (const r of restored) {
+        if (!r.minimized && !placed.has(r.id)) tree = appendLeaf(tree, { type: 'leaf', terminalId: r.id });
+      }
+      $layoutTree = tree;
+      if (restored.length) await reinitializeTerminals();
+      enableLayoutPersistence();
       if (notRestored.length) $errorMessage = `${$tr('appTerminals.restoreFailed')}\n${notRestored.join('\n')}`;
       if ($terminals.length === 0) doAddTerminal();
       else scheduleSessionSave(50);
+      enableLayoutPersistence();
     } catch (error) {
       $errorMessage = `Failed to load templates or session: ${error.message || error}`;
     }
