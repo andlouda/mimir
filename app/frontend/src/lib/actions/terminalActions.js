@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
-import { errorMessage, terminalFontSize, terminalRenderer } from '../stores/uiStore.js';
+import { currentPage, errorMessage, terminalFontSize, terminalRenderer } from '../stores/uiStore.js';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { sshProfiles } from '../stores/sshStore.js';
@@ -93,7 +93,14 @@ export function cleanupTerminalResources(term, { dispose = true } = {}) {
   }
 }
 
+// Ids closed while their createTerminalInstance was still awaiting the
+// backend: the tail of that call must not re-register them.
+const closedDuringInit = new Set();
+
 function finalizeTerminalRemoval(id) {
+  closedDuringInit.add(id);
+  setTimeout(() => closedDuringInit.delete(id), 60000);
+  stopAgentWatch(id);
   const existing = get(terminals).find(t => t.id === id);
   cleanupTerminalResources(existing, { dispose: false });
   const nextTerminals = get(terminals).filter(t => t.id !== id);
@@ -249,11 +256,12 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
       safelyFitAndResizeTerminal(newTerminal, ResizeTerminal);
       wireTerminalDom(newTerminal);
     }
-  } else if (!minimized) {
-    errorMessage.set(`Failed to find terminal element for ID: ${id}`);
-    console.error(get(errorMessage));
-    return newTerminal;
   }
+  // No pane element yet (another page is showing): the events, the ready
+  // handshake and the agent watch are wired like for a minimized terminal,
+  // and the next reinitializeTerminals() attaches the xterm when the
+  // Terminals page renders. Returning early here used to leave a dead,
+  // persisted pane that never printed anything.
 
   const offOutput = EventsOn(`terminal-output-${id}`, data => {
     safelyWriteTerminal(newTerminal, data);
@@ -289,7 +297,9 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   newTerminal.cleanupHandlers.push(offDisconnected);
 
   await ConfirmFrontendReady(id);
+  if (closedDuringInit.has(id)) { cleanupTerminalResources(newTerminal); return null; }
   await InitializeTerminal(id);
+  if (closedDuringInit.has(id)) { cleanupTerminalResources(newTerminal); return null; }
 
   startAgentWatch(id, type);
   newTerminal.cleanupHandlers.push(() => stopAgentWatch(id));
@@ -449,6 +459,13 @@ export async function addTerminal(terminalTypeParam, nameParam, minimized = fals
 
   const name = typeof nameParam === 'string' ? nameParam : `${type.toUpperCase()} ${get(terminals).length + 1}`;
 
+  // A new terminal belongs on the Terminals page; switch there first so
+  // the pane element exists when the xterm is created.
+  if (!minimized && get(currentPage) !== 'terminals') {
+    currentPage.set('terminals');
+    await tick();
+  }
+
   try {
     const tmuxSessionName = tmuxCapableTerminalTypes.has(type) ? generateTmuxSessionName('mimir') : '';
     const id = await startTerminalBackend(type, tmuxSessionName);
@@ -464,6 +481,7 @@ export async function addTerminal(terminalTypeParam, nameParam, minimized = fals
     }
 
     const newTerminal = await createTerminalInstance(id, type, name, minimized, '', false, tmuxSessionName, '', 'fresh');
+    if (!newTerminal || closedDuringInit.has(id)) return; // closed while starting
     activeTerminalId.set(id);
     persistTerminalState(newTerminal);
 
@@ -539,6 +557,7 @@ export async function splitTerminal(terminalId, direction) {
     }));
 
     const newTerminal = await createTerminalInstance(newId, type, name, false, sshProfileId, false, '', '', 'fresh');
+    if (!newTerminal || closedDuringInit.has(newId)) return; // closed while starting
     persistTerminalState({ ...newTerminal, minimized: false, sshProfileId });
     activeTerminalId.set(newId);
 
@@ -552,18 +571,19 @@ export async function toggleRecording(terminalId) {
   const term = get(terminals).find(t => t.id === terminalId);
   if (!term) return;
 
+  const next = !term.recording;
   try {
-    if (term.recording) {
-      await StopRecording(terminalId);
-      term.recording = false;
+    if (next) {
+      await StartRecording(terminalId, term.name || `Terminal ${terminalId}`);
     } else {
-      const name = term.name || `Terminal ${terminalId}`;
-      await StartRecording(terminalId, name);
-      term.recording = true;
+      await StopRecording(terminalId);
     }
-    terminals.update(list => [...list]);
+    // The terminal object is replaced on every output chunk; set the flag
+    // on the current one, never on the copy captured before the await.
+    terminals.update(list => list.map(t => (t.id === terminalId ? { ...t, recording: next } : t)));
   } catch (e) {
     console.error('Recording toggle failed:', e);
+    errorMessage.set(`Recording: ${e?.message || e}`);
   }
 }
 

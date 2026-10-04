@@ -37,6 +37,7 @@ type App struct {
 	TemplateManager       *template.Manager
 	loadedSessionData     session.SessionData
 	sessionLayout         string
+	sessionHandedOut      bool
 	activeTerminalStates  map[int]session.TerminalState
 	stateMu               sync.Mutex
 	aiSettings            AISettings
@@ -235,10 +236,35 @@ func (a *App) GetCurrentDirectory() (string, error) {
 	return os.Getwd()
 }
 
-// GetLoadedSessionData returns the session data loaded at startup.
-// This is called by the frontend to restore previous terminals.
+// GetLoadedSessionData returns the session data loaded at startup. The
+// frontend calls it once to restore previous terminals. A second call
+// means the webview reloaded: the old page's terminals are still running
+// in the backend and would be spawned a second time on top. In that case
+// the live state is snapshotted, those terminals are closed (tmux-backed
+// shells survive and are re-attached by the restore) and the snapshot is
+// handed out instead, so a reload behaves like an app restart.
 func (a *App) GetLoadedSessionData() session.SessionData {
-	return a.loadedSessionData
+	a.stateMu.Lock()
+	first := !a.sessionHandedOut
+	a.sessionHandedOut = true
+	if first {
+		data := a.loadedSessionData
+		a.stateMu.Unlock()
+		return data
+	}
+	live := session.SessionData{Layout: a.sessionLayout}
+	for _, st := range a.activeTerminalStates {
+		live.Terminals = append(live.Terminals, st)
+	}
+	a.activeTerminalStates = make(map[int]session.TerminalState)
+	a.stateMu.Unlock()
+	if a.TerminalManager != nil {
+		for _, id := range a.TerminalManager.SessionIDs() {
+			_ = a.TerminalManager.CloseTerminal(id)
+		}
+	}
+	log.Printf("session: frontend reloaded, re-attaching %d terminals", len(live.Terminals))
+	return live
 }
 
 // SaveCurrentSession collects and saves the current state of all active terminals.
