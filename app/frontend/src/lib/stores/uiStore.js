@@ -48,6 +48,18 @@ export function zoomTerminalFont(delta) {
 export function resetTerminalFontSize() {
   terminalFontSize.set(TERMINAL_FONT_DEFAULT);
 }
+
+// Terminal renderer: 'auto' tries WebGL (fast, draws box-drawing and block
+// glyphs itself) and falls back to the DOM renderer; 'dom' forces the DOM
+// renderer (compatibility). Remembered per machine.
+const RENDERER_KEY = 'mimir-terminal-renderer';
+function initialRenderer() {
+  try { return localStorage.getItem(RENDERER_KEY) === 'dom' ? 'dom' : 'auto'; } catch { return 'auto'; }
+}
+export const terminalRenderer = writable(initialRenderer());
+terminalRenderer.subscribe((mode) => {
+  try { localStorage.setItem(RENDERER_KEY, mode); } catch { /* ignore */ }
+});
 // tmux integration for new terminals: 'invisible' | 'classic' | 'off'
 // (loaded from the backend at start-up; see terminal/tmux_options.go).
 export const tmuxIntegrationMode = writable('invisible');

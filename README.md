@@ -37,6 +37,13 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
   new terminal, Ctrl+Shift+N toggles notes, Ctrl+Shift+P templates,
   Ctrl+Shift+C (or Ctrl+Insert) copies the selection, Ctrl+plus /
   Ctrl+minus / Ctrl+0 (or Ctrl+wheel) zoom every terminal's font
+- Rendering: JetBrains Mono is bundled so every machine draws the same
+  glyphs, cell widths follow Unicode 11 (emoji and agent status glyphs no
+  longer overlap), and terminals use xterm's WebGL renderer when the webview
+  provides a GL context (box-drawing and block characters are painted by the
+  renderer, heavy output repaints faster) with a silent fallback to the DOM
+  renderer; both are switchable in Settings. On Linux the webview's GPU
+  policy is a setting too (off by default, "on demand" enables WebGL).
 - Terminal scrollback search (Ctrl+Shift+F)
 - 58 built-in command templates with discovery-driven variables
 - Workflow engine with playbooks, approval flow, and AI steps

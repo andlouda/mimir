@@ -123,6 +123,21 @@ export default {
         note: 'Unsichtbar und Klassisch werden sofort auf laufende tmux-Terminals angewendet; Aus gilt für Terminals, die ab jetzt geöffnet werden.',
       },
       fontSize: { title: 'Terminal-Schriftgröße', desc: 'Zoom für alle Terminals, damit mehr Panes nebeneinander passen. Auch Strg + / Strg − / Strg 0 oder Strg + Mausrad über einem Terminal.', smaller: 'Kleiner', larger: 'Größer', reset: 'Zurücksetzen' },
+      gpu: {
+        title: 'GPU-Beschleunigung (Linux-Webview)',
+        never: 'Aus (Standard, am sichersten)',
+        ondemand: 'Bei Bedarf',
+        always: 'Immer',
+        desc: 'Ob die WebKitGTK-Webview die GPU nutzen darf. „Bei Bedarf“ gibt den Terminals einen WebGL-Kontext (siehe Terminal-Renderer). Manche Treiber zeigen mit Beschleunigung Flackern oder ein leeres Fenster; dann zurück auf Aus.',
+        restart: 'Gilt nach einem Neustart von Mimir.',
+      },
+      renderer: {
+        title: 'Terminal-Renderer',
+        auto: 'Automatisch (WebGL, wenn verfügbar)',
+        dom: 'DOM (Kompatibilität)',
+        desc_auto: 'Zeichnet mit WebGL, wenn die Webview einen GL-Kontext liefert: Rahmen- und Blockzeichen malt der Renderer selbst (keine Lücken in TUI-Rahmen), viel Ausgabe wird schneller neu gezeichnet. Fällt still auf den DOM-Renderer zurück, wenn WebGL fehlt.',
+        desc_dom: 'Zeichnet jedes Zeichen als Text. Am kompatibelsten; Rahmen von Vollbildprogrammen können mit Ersatzschriften Lücken zeigen, viel Ausgabe wird langsamer neu gezeichnet.',
+      },
       claudeHook: {
         title: 'Claude-Code-Freigaben',
         desc: 'Trägt Hooks in ~/.claude/settings.json ein, damit Claude Code Mimir meldet, wenn es auf eine Freigabe oder Eingabe wartet, und welche Session-Datei zu welcher Pane gehört, sobald eine Session startet (kein Raten mehr zwischen Sessions im selben Verzeichnis). Mimir zeigt dann „Freigabe“ im Pane-Badge und in der Agenten-Übersicht, statt es vom Bildschirm zu raten. Claude Code in WSL liest seine eigene settings.json und steht deshalb als eigener Host in der Liste.',

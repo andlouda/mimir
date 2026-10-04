@@ -4,13 +4,32 @@
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
-  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, resetTerminalFontSize, terminalFontSize, tmuxIntegrationMode, zoomTerminalFont } from '../stores/uiStore.js';
+  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, resetTerminalFontSize, terminalFontSize, terminalRenderer, tmuxIntegrationMode, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onMount } from 'svelte';
 
   // One row per host the hook can live on: this machine and, on Windows,
   // the WSL distro (Claude Code there reads its own settings.json).
+  // Linux webview GPU policy (read at start-up, needs a restart).
+  let gpuPolicy = '';
+  let gpuSaved = '';
+  let isLinux = false;
+  onMount(async () => {
+    try {
+      const env = await window['runtime']?.['Environment']?.();
+      isLinux = env?.platform === 'linux';
+    } catch { isLinux = false; }
+    try { gpuPolicy = gpuSaved = await window['go']['main']['App']['GetGPUPolicy'](); } catch { gpuPolicy = gpuSaved = 'never'; }
+  });
+  async function changeGPUPolicy(event) {
+    try {
+      gpuPolicy = await window['go']['main']['App']['SetGPUPolicy'](event.target.value);
+    } catch (error) {
+      console.error('Could not save GPU policy:', error);
+    }
+  }
+
   let hookHosts = null;
   let hookBusy = '';
   onMount(async () => {
@@ -97,6 +116,32 @@
       <strong>{$t('settings.cards.fontSize.title')}</strong>
       <p>{$t('settings.cards.fontSize.desc')}</p>
     </div>
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x25A3;</span>
+        <select bind:value={$terminalRenderer}>
+          <option value="auto">{$t('settings.cards.renderer.auto')}</option>
+          <option value="dom">{$t('settings.cards.renderer.dom')}</option>
+        </select>
+      </div>
+      <strong>{$t('settings.cards.renderer.title')}</strong>
+      <p>{$t(`settings.cards.renderer.desc_${$terminalRenderer}`)}</p>
+    </label>
+    {#if isLinux}
+      <label class="ai-hub-card settings-toggle-card">
+        <div class="ai-hub-card-top">
+          <span class="ai-hub-icon">&#x2699;</span>
+          <select value={gpuPolicy} on:change={changeGPUPolicy}>
+            <option value="never">{$t('settings.cards.gpu.never')}</option>
+            <option value="ondemand">{$t('settings.cards.gpu.ondemand')}</option>
+            <option value="always">{$t('settings.cards.gpu.always')}</option>
+          </select>
+        </div>
+        <strong>{$t('settings.cards.gpu.title')}</strong>
+        <p>{$t('settings.cards.gpu.desc')}</p>
+        {#if gpuPolicy !== gpuSaved}<p class="settings-note">{$t('settings.cards.gpu.restart')}</p>{/if}
+      </label>
+    {/if}
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2261;</span>

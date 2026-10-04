@@ -65,7 +65,7 @@ func main() {
 		Linux: &linux.Options{
 			Icon:             appIconPNG,
 			ProgramName:      "mimir",
-			WebviewGpuPolicy: linux.WebviewGpuPolicyNever,
+			WebviewGpuPolicy: linuxGPUPolicy(loadGPUPolicy()),
 		},
 		OnStartup: app.startup,
 		OnBeforeClose: func(ctx context.Context) (prevent bool) {
@@ -84,5 +84,19 @@ func main() {
 
 	if err != nil {
 		log.Fatalf("Failed to start application: %v", err)
+	}
+}
+
+// linuxGPUPolicy maps the persisted setting to the webview policy. The
+// default stays "never" (see app_gpu.go); "ondemand" is what gives xterm a
+// WebGL context on Linux.
+func linuxGPUPolicy(policy string) linux.WebviewGpuPolicy {
+	switch policy {
+	case GPUPolicyOnDemand:
+		return linux.WebviewGpuPolicyOnDemand
+	case GPUPolicyAlways:
+		return linux.WebviewGpuPolicyAlways
+	default:
+		return linux.WebviewGpuPolicyNever
 	}
 }

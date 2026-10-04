@@ -362,6 +362,14 @@ export function GetTmuxIntegrationMode() {
   return window['go']['main']['App']['GetTmuxIntegrationMode']();
 }
 
+export function GetGPUPolicy() {
+  return window['go']['main']['App']['GetGPUPolicy']();
+}
+
+export function SetGPUPolicy(arg1) {
+  return window['go']['main']['App']['SetGPUPolicy'](arg1);
+}
+
 export function SetTmuxIntegrationMode(arg1) {
   return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
 }
