@@ -6,7 +6,9 @@ import {
   terminalSearchNext,
   terminalSearchPrev,
   toggleTerminalSearch,
-  updateTerminalSearchQuery,, SEARCH_OPTIONS } from './terminalSearchActions.js';
+  updateTerminalSearchQuery,
+  SEARCH_OPTIONS,
+} from './terminalSearchActions.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 
 function terminal(overrides = {}) {
