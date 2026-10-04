@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { createKeydownHandler, isGlobalShortcut } from './keyboardShortcuts.js';
+import { createKeydownHandler, isGlobalShortcut, registerOverlay, closeTopOverlay } from './keyboardShortcuts.js';
 import { notesPanelOpen } from '../stores/uiStore.js';
 import { showTemplatePicker, showWorkflowPicker } from '../stores/templateStore.js';
 import { activeTerminalId, layoutTree, terminals } from '../stores/terminalStore.js';
@@ -117,6 +117,45 @@ describe('keyboard shortcuts', () => {
     handler(event);
     expect(addTerminal).toHaveBeenCalledOnce();
     expect(event.preventDefault).toHaveBeenCalled();
+  });
+
+  test('ignores key repeat and IME composition for creating shortcuts', async () => {
+    const addTerminal = vi.fn();
+    const handler = createKeydownHandler({ addTerminal });
+    handler({ ctrlKey: true, shiftKey: true, key: 'T', code: 'KeyT', repeat: true, preventDefault() {} });
+    handler({ ctrlKey: true, shiftKey: true, key: 'T', code: 'KeyT', isComposing: true, preventDefault() {} });
+    expect(addTerminal).not.toHaveBeenCalled();
+    handler({ ctrlKey: true, shiftKey: true, key: 'T', code: 'KeyT', preventDefault() {} });
+    expect(addTerminal).toHaveBeenCalledTimes(1);
+  });
+
+  test('letter shortcuts work with CapsLock and non-Latin layouts via event.code', () => {
+    const toggleTerminalSearch = vi.fn();
+    const handler = createKeydownHandler({ toggleTerminalSearch });
+    handler({ ctrlKey: true, shiftKey: true, key: 'f', code: 'KeyF', preventDefault() {} }); // CapsLock
+    handler({ ctrlKey: true, shiftKey: true, key: 'А', code: 'KeyF', preventDefault() {} }); // Cyrillic layout
+    expect(toggleTerminalSearch).toHaveBeenCalledTimes(2);
+    expect(isGlobalShortcut({ ctrlKey: true, shiftKey: true, key: 'А', code: 'KeyF' })).toBe(true);
+  });
+
+  test('Escape closes the topmost overlay: registered menu, then pickers, then searches', () => {
+    let menuOpen = true;
+    const unregister = registerOverlay(() => menuOpen, () => { menuOpen = false; });
+    showTemplatePicker.set(true);
+    terminals.set([{ id: 1, type: 'bash', searchVisible: true }]);
+    const closeTerminalSearch = vi.fn();
+    const handler = createKeydownHandler({ closeTerminalSearch });
+    handler({ key: 'Escape', preventDefault() {} });
+    expect(menuOpen).toBe(false);
+    expect(get(showTemplatePicker)).toBe(true);
+    handler({ key: 'Escape', preventDefault() {} });
+    expect(get(showTemplatePicker)).toBe(false);
+    expect(closeTerminalSearch).not.toHaveBeenCalled();
+    handler({ key: 'Escape', preventDefault() {} });
+    expect(closeTerminalSearch).toHaveBeenCalledWith(1);
+    terminals.set([{ id: 1, type: 'bash', searchVisible: false }]); // the real closer clears the flag
+    expect(closeTopOverlay()).toBe(false);
+    unregister();
   });
 
   test('isGlobalShortcut only claims Mimir combos', () => {

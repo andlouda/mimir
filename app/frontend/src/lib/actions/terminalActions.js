@@ -11,7 +11,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { createWriteOnlyClipboardProvider } from '../terminals/osc52Clipboard.js';
 import { clearHoveredLink, createLinkProvider } from '../terminals/terminalLinks.js';
-import { isGlobalShortcut } from './keyboardShortcuts.js';
+import { isGlobalShortcut, closeTopOverlay, focusTerminal } from './keyboardShortcuts.js';
 import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../terminals/layoutTree.js';
@@ -108,6 +108,9 @@ function finalizeTerminalRemoval(id) {
       null;
     activeTerminalId.set(nextActive ? nextActive.id : null);
   }
+  // Closing a pane with the mouse left focus on <body>; hand it to the pane
+  // that became active.
+  setTimeout(() => focusTerminal(get(activeTerminalId)), 0);
 
   RemoveTerminalState(id);
   scheduleSessionSave();
@@ -147,6 +150,15 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   // textarea, whose input event xterm forwards to the PTY — Ctrl+Shift+M
   // ended up typing "M" into Claude Code on Linux.
   terminal.attachCustomKeyEventHandler((event) => {
+    // Escape closes Mimir's topmost overlay (context menu, search bar,
+    // pickers) instead of reaching the shell; without an overlay it is the
+    // shell's key as before. xterm stops propagation of handled keys, so
+    // this is the only place that sees Escape while the terminal has focus.
+    if (event.key === 'Escape' && event.type === 'keydown' && closeTopOverlay()) {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      return false;
+    }
     if (isCopyShortcut(event) && terminal.hasSelection()) {
       // Ctrl+Shift+C / Ctrl+Insert copy the selection (also one made with
       // Shift+drag in a pane whose program owns the mouse). Only on keydown,
@@ -600,7 +612,13 @@ export async function terminalToBackground(id) {
     return t;
   }));
   layoutTree.set(removeLeafFromTree(get(layoutTree), id));
+  // The keyboard must not stay on a pane that just left the screen.
+  if (get(activeTerminalId) === id) {
+    const visible = get(layoutTree) ? collectLeafIds(get(layoutTree)) : [];
+    activeTerminalId.set(visible.length ? visible[0] : null);
+  }
   await reinitializeTerminals();
+  focusTerminal(get(activeTerminalId));
 }
 
 export async function terminalToForeground(id) {
