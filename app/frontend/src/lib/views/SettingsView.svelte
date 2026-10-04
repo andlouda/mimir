@@ -182,7 +182,7 @@
     </label>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
-        <span class="ai-hub-icon">&#x1F916;</span>
+        <span class="ai-hub-icon">&#x2731;</span>
         <input type="checkbox" bind:checked={$agentDetectionEnabled} />
       </div>
       <strong>{$t('settings.cards.agentDetection.title')}</strong>
@@ -241,7 +241,7 @@
 
     <button type="button" class="ai-hub-card" on:click={onToggleNotes}>
       <div class="ai-hub-card-top">
-        <span class="ai-hub-icon">&#x1F4DD;</span>
+        <span class="ai-hub-icon">&#x270E;</span>
         <span class="ai-hub-link">{notesPanelOpen ? $t('settings.actions.close') : $t('settings.actions.open')}</span>
       </div>
       <strong>{$t('settings.cards.notes.title')}</strong>
@@ -250,7 +250,7 @@
 
     <button type="button" class="ai-hub-card" on:click={() => { showFolderManager = !showFolderManager; }}>
       <div class="ai-hub-card-top">
-        <span class="ai-hub-icon">&#x1F4C2;</span>
+        <span class="ai-hub-icon">&#x2302;</span>
         <span class="ai-hub-link">{showFolderManager ? $t('settings.actions.close') : $t('settings.actions.manage')}</span>
       </div>
       <strong>{$t('settings.cards.folders.title')}</strong>
@@ -259,7 +259,7 @@
 
     <button type="button" class="ai-hub-card" on:click={onToggleHistory}>
       <div class="ai-hub-card-top">
-        <span class="ai-hub-icon">&#x1F4DC;</span>
+        <span class="ai-hub-icon">&#x2261;</span>
         <span class="ai-hub-link">{historyTrackingEnabled ? $t('settings.actions.enabled') : $t('settings.actions.disabled')}</span>
       </div>
       <strong>{$t('settings.cards.history.title')}</strong>
@@ -268,7 +268,7 @@
 
     <button type="button" class="ai-hub-card" on:click={onInstallAgg} disabled={aggAvailable}>
       <div class="ai-hub-card-top">
-        <span class="ai-hub-icon">&#x1F3AC;</span>
+        <span class="ai-hub-icon">&#x25B8;</span>
         <span class="ai-hub-link">{aggAvailable ? $t('settings.actions.installed') : $t('settings.actions.install')}</span>
       </div>
       <strong>{$t('settings.cards.agg.title')}</strong>

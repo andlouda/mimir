@@ -180,7 +180,7 @@
                 <button type="button" class="dotenv-icon-btn" on:click={() => toggleReveal(i)}
                   title={revealed.has(i) ? $t('dotEnvViewer.hide') : $t('dotEnvViewer.reveal')}
                   aria-label={revealed.has(i) ? $t('dotEnvViewer.hide') : $t('dotEnvViewer.reveal')}>
-                  {revealed.has(i) ? '🙈' : '👁'}
+                  {revealed.has(i) ? '◉' : '○'}
                 </button>
                 <button type="button" class="dotenv-icon-btn" on:click={() => copyValue(i)}
                   title={$t('dotEnvViewer.copy')} aria-label={$t('dotEnvViewer.copy')}>

@@ -417,6 +417,7 @@ export default {
     ctxCopyTmux: 'Copy last tmux selection',
     ctxCopyTmuxTitle: 'Fetches the text tmux copied last (its paste buffer) and puts it on the clipboard — works even when the remote tmux cannot forward selections itself',
     ctxOpenLink: 'Open link in browser',
+    searchNoMatch: 'no match',
     ctxCopyLink: 'Copy link',
     ctxCopyJoined: 'Copy as one line',
     ctxCopyJoinedTitle: 'Joins the selected rows: rows cut mid-token (URLs, paths) are glued together, word-wrapped rows get a space',

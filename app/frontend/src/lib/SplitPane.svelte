@@ -546,9 +546,14 @@
               on:input={(e) => dispatch('searchinput', { id: term.id, query: e.target.value })}
               on:keydown={(e) => handleSearchKeydown(e, term.id)}
             />
-            <button class="search-btn" on:click={() => dispatch('searchprev', term.id)} title={$t('splitPane.searchPrev')}>&#x25B2;</button>
-            <button class="search-btn" on:click={() => dispatch('searchnext', term.id)} title={$t('splitPane.searchNext')}>&#x25BC;</button>
-            <button class="search-btn search-close-btn" on:click={() => dispatch('searchclose', term.id)} title={$t('splitPane.searchClose')}>&#x2715;</button>
+            {#if term.searchQuery}
+              <span class="search-count" class:search-count-none={!term.searchResult || term.searchResult.count === 0} aria-live="polite">
+                {term.searchResult && term.searchResult.count > 0 ? `${term.searchResult.index + 1}/${term.searchResult.count}` : $t('splitPane.searchNoMatch')}
+              </span>
+            {/if}
+            <button class="search-btn" on:click={() => dispatch('searchprev', term.id)} title={$t('splitPane.searchPrev')} aria-label={$t('splitPane.searchPrev')}>&#x25B2;</button>
+            <button class="search-btn" on:click={() => dispatch('searchnext', term.id)} title={$t('splitPane.searchNext')} aria-label={$t('splitPane.searchNext')}>&#x25BC;</button>
+            <button class="search-btn search-close-btn" on:click={() => dispatch('searchclose', term.id)} title={$t('splitPane.searchClose')} aria-label={$t('splitPane.searchClose')}>&#x2715;</button>
           </div>
         {/if}
         {#if term.disconnected}
@@ -986,6 +991,8 @@
 
   /* ─── Search Bar ─────────────────────────────────────── */
 
+  .search-count { font-size: 11px; color: var(--text-secondary); padding: 0 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .search-count-none { color: #ff7b72; }
   .search-bar {
     position: absolute;
     top: 4px;

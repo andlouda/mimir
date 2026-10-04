@@ -12,6 +12,7 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { createWriteOnlyClipboardProvider } from '../terminals/osc52Clipboard.js';
 import { clearHoveredLink, createLinkProvider } from '../terminals/terminalLinks.js';
 import { isGlobalShortcut, closeTopOverlay, focusTerminal } from './keyboardShortcuts.js';
+import { updateTerminalSearchResult } from './terminalSearchActions.js';
 import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../terminals/layoutTree.js';
@@ -148,6 +149,9 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   }
   const searchAddon = new SearchAddon();
   terminal.loadAddon(searchAddon);
+  const searchResultsDisposable = typeof searchAddon.onDidChangeResults === 'function'
+    ? searchAddon.onDidChangeResults(({ resultIndex, resultCount }) => updateTerminalSearchResult(id, resultIndex, resultCount))
+    : null;
   terminal.loadAddon(new ClipboardAddon(undefined, createWriteOnlyClipboardProvider()));
   const linkProviderDisposable = terminal.registerLinkProvider(createLinkProvider(id, terminal));
   // Keep Mimir's global shortcuts out of the shell; the window handler still
@@ -198,6 +202,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     reconnecting: false,
     searchVisible: false,
     searchQuery: '',
+    searchResult: null,
     tmuxSessionName: '',
     tmuxOwned: false,
     tmuxActive: false,
@@ -243,6 +248,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   newTerminal.cleanupHandlers.push(() => clearHoveredLink(id));
   newTerminal.cleanupHandlers.push(() => forgetTerminalResize(id));
   newTerminal.cleanupHandlers.push(linkProviderDisposable);
+  newTerminal.cleanupHandlers.push(() => searchResultsDisposable?.dispose?.());
 
   const element = document.getElementById(`terminal-${id}`);
   if (element) {
