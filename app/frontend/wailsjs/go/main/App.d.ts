@@ -123,6 +123,16 @@ export function GetGPUPolicy():Promise<string>;
 
 export function SetGPUPolicy(arg1:string):Promise<string>;
 
+export function GetPromptMode():Promise<string>;
+
+export function SetPromptMode(arg1:string):Promise<string>;
+
+export function GetIMModule():Promise<string>;
+
+export function SetIMModule(arg1:string):Promise<string>;
+
+export function IMModuleEffective():Promise<boolean>;
+
 export function GetWaylandFix():Promise<string>;
 
 export function SetWaylandFix(arg1:string):Promise<string>;

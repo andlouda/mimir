@@ -1,6 +1,10 @@
 package main
 
-import "os"
+import (
+	"os"
+
+	"mimir/terminal"
+)
 
 // configureInputMethod works around dropped/doubled dead-key and umlaut input
 // in the WebKitGTK webview.
@@ -15,11 +19,15 @@ import "os"
 // correctly, while still supporting compose-key and dead-key sequences for
 // Latin scripts.
 //
-// We only set it when the user has not chosen an input method themselves, so
-// anyone relying on IBus/fcitx for CJK or other complex scripts keeps it.
-// Must run before GTK/WebKit initialize (i.e. before wails.Run).
+// Forcing the simple context also disables ibus/fcitx, which CJK and other
+// complex-script users need even when they never exported GTK_IM_MODULE
+// (GNOME sets it up without the variable). So the workaround is applied
+// only for Latin-script locales by default, can be forced or switched off
+// in Settings (terminal.IMModule), and never overrides a module the user
+// exported. Must run before GTK/WebKit initialize (i.e. before wails.Run).
 func configureInputMethod() {
-	if _, ok := os.LookupEnv("GTK_IM_MODULE"); !ok {
+	_, envSet := os.LookupEnv("GTK_IM_MODULE")
+	if terminal.ShouldForceSimpleIM(terminal.IMModule(), terminal.CurrentLocale(), envSet) {
 		_ = os.Setenv("GTK_IM_MODULE", "gtk-im-context-simple")
 	}
 }

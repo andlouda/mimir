@@ -9,6 +9,14 @@ function initialNotesPanelWidth() {
 }
 
 export const currentPage = writable('terminals');
+// Shell prompt for new terminals: 'mimir' (short "dir $ " prompt) or
+// 'shell' (keep the user's own prompt). Loaded from the backend at start.
+export const promptMode = writable('mimir');
+export async function loadPromptMode() {
+  const getter = globalThis.window?.['go']?.['main']?.['App']?.['GetPromptMode'];
+  if (typeof getter !== 'function') return;
+  try { promptMode.set((await getter()) === 'shell' ? 'shell' : 'mimir'); } catch { /* keep default */ }
+}
 
 // Terminal font size (zoom): Ctrl + / Ctrl - / Ctrl 0, Ctrl + wheel, or
 // Settings. Applies to every terminal, remembered per machine.

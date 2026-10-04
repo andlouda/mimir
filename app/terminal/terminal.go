@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 
 	"mimir/history"
@@ -70,9 +71,32 @@ function global:prompt {
   if (-not $userName) { $userName = 'unknown' }
   $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
   [Console]::Write("$([char]27)]7337;cmd=$b64;exit=$exitCode;cwd=$cwd;host=$hostName;user=$userName;shell=powershell;ts=$ts$([char]7)")
-  return "PS $((Get-Location).Path)> "
+  return __MIMIR_PROMPT__
 }
 `
+
+// conptyPowerShellPromptOnly keeps Mimir's short prompt when the beacon
+// profile is not installed (history off, no consent).
+const conptyPowerShellPromptOnly = `function global:prompt { "$env:USERNAME ❯ " }
+`
+
+// powerShellProfileContent renders the profile for the current prompt mode:
+// the beacon prompt returns Mimir's short prompt or PowerShell's default
+// text, so the beacon is never replaced by a prompt typed from the frontend.
+func powerShellProfileContent(withBeacon bool) string {
+	mimir := PromptMode() == PromptModeMimir
+	if !withBeacon {
+		if mimir {
+			return conptyPowerShellPromptOnly
+		}
+		return ""
+	}
+	text := `"PS $((Get-Location).Path)> "`
+	if mimir {
+		text = `"$env:USERNAME ❯ "`
+	}
+	return strings.Replace(conptyPowerShellHistoryHook, "__MIMIR_PROMPT__", text, 1)
+}
 
 func isHistoryEnabled() bool {
 	configDir, err := os.UserConfigDir()
@@ -124,10 +148,11 @@ func writeMimirShellFile(name string, content string) (string, error) {
 }
 
 func conptyPowerShellCommand() string {
-	if !isHistoryEnabled() && !shellHookConsent() {
+	content := powerShellProfileContent(isHistoryEnabled() || shellHookConsent())
+	if content == "" {
 		return "powershell.exe"
 	}
-	profilePath, err := writeMimirShellFile("mimir-profile.ps1", conptyPowerShellHistoryHook)
+	profilePath, err := writeMimirShellFile("mimir-profile.ps1", content)
 	if err != nil {
 		log.Printf("history: failed to write PowerShell hook profile: %v", err)
 		return "powershell.exe"

@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
-import { currentPage, errorMessage, terminalFontSize, terminalRenderer } from '../stores/uiStore.js';
+import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer } from '../stores/uiStore.js';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { sshProfiles } from '../stores/sshStore.js';
@@ -340,17 +340,11 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
 
   if (!tmuxCapableTerminalTypes.has(type) && type !== 'ssh') {
     await WriteToTerminal(id, '\r');
-    let promptCmd = '';
-    switch (type) {
-      case 'powershell':
-        promptCmd = 'function prompt { "$env:USERNAME ❯ " }; cls';
-        break;
-      case 'cmd':
-        promptCmd = 'prompt %USERNAME% $G$S& cls';
-        break;
-    }
-    if (promptCmd) {
-      await WriteToTerminal(id, promptCmd + '\r');
+    // PowerShell gets its prompt from the backend profile (so the cwd /
+    // history beacon is never replaced by a prompt typed here). cmd has no
+    // profile; its short prompt is typed only in Mimir prompt mode.
+    if (type === 'cmd' && get(promptMode) === 'mimir') {
+      await WriteToTerminal(id, 'prompt %USERNAME% $G$S& cls\r');
     }
   }
 

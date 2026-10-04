@@ -4,7 +4,7 @@
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
-  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, resetTerminalFontSize, terminalFontSize, terminalRenderer, tmuxIntegrationMode, zoomTerminalFont } from '../stores/uiStore.js';
+  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, tmuxIntegrationMode, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onMount } from 'svelte';
@@ -23,10 +23,23 @@
     try { gpuPolicy = gpuSaved = await window['go']['main']['App']['GetGPUPolicy'](); } catch { gpuPolicy = gpuSaved = 'never'; }
     try { waylandFix = waylandSaved = await window['go']['main']['App']['GetWaylandFix'](); } catch { waylandFix = waylandSaved = 'auto'; }
     try { isWayland = !!(await window['go']['main']['App']['IsWaylandSession']()); } catch { isWayland = false; }
+    try { imModule = imSaved = await window['go']['main']['App']['GetIMModule'](); imEffective = !!(await window['go']['main']['App']['IMModuleEffective']()); } catch { imModule = imSaved = 'auto'; }
   });
   let waylandFix = '';
   let waylandSaved = '';
   let isWayland = false;
+  let imModule = '';
+  let imSaved = '';
+  let imEffective = false;
+  async function changePromptMode(event) {
+    try { promptMode.set(await window['go']['main']['App']['SetPromptMode'](event.target.value)); } catch (error) { console.error('Could not save prompt mode:', error); }
+  }
+  async function changeIMModule(event) {
+    try {
+      imModule = await window['go']['main']['App']['SetIMModule'](event.target.value);
+      imEffective = !!(await window['go']['main']['App']['IMModuleEffective']());
+    } catch (error) { console.error('Could not save input-method setting:', error); }
+  }
   async function changeWaylandFix(event) {
     try {
       waylandFix = await window['go']['main']['App']['SetWaylandFix'](event.target.value);
@@ -166,7 +179,32 @@
         <p>{$t('settings.cards.wayland.desc')}{isWayland ? ' ' + $t('settings.cards.wayland.detected') : ''}</p>
         {#if waylandFix !== waylandSaved}<p class="settings-note">{$t('settings.cards.gpu.restart')}</p>{/if}
       </label>
+      <label class="ai-hub-card settings-toggle-card">
+        <div class="ai-hub-card-top">
+          <span class="ai-hub-icon">&#x00E4;</span>
+          <select value={imModule} on:change={changeIMModule}>
+            <option value="auto">{$t('settings.cards.im.auto')}</option>
+            <option value="simple">{$t('settings.cards.im.simple')}</option>
+            <option value="system">{$t('settings.cards.im.system')}</option>
+          </select>
+        </div>
+        <strong>{$t('settings.cards.im.title')}</strong>
+        <p>{$t('settings.cards.im.desc')}</p>
+        <p class="settings-note">{imEffective ? $t('settings.cards.im.effectiveOn') : $t('settings.cards.im.effectiveOff')}{imModule !== imSaved ? ' ' + $t('settings.cards.gpu.restart') : ''}</p>
+      </label>
     {/if}
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x276F;</span>
+        <select value={$promptMode} on:change={changePromptMode}>
+          <option value="mimir">{$t('settings.cards.prompt.mimir')}</option>
+          <option value="shell">{$t('settings.cards.prompt.shell')}</option>
+        </select>
+      </div>
+      <strong>{$t('settings.cards.prompt.title')}</strong>
+      <p>{$t(`settings.cards.prompt.desc_${$promptMode}`)}</p>
+      <p class="settings-note">{$t('settings.cards.prompt.note')}</p>
+    </label>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2261;</span>
