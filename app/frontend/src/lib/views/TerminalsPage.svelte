@@ -90,13 +90,6 @@
   </div>
 </div>
 
-{#if errorMessage}
-  <div class="error-message">
-    <span class="error-icon">!</span>
-    <span class="error-text">{errorMessage}</span>
-    <button class="error-dismiss" on:click={dismissError}>×</button>
-  </div>
-{/if}
 
 <div class="terminal-and-notes">
   <div class="terminal-area">

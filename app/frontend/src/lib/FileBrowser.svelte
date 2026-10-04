@@ -72,24 +72,35 @@
     return '/';
   }
 
+  // Only the newest request may update the listing: a slow response for a
+  // directory the user already left must not be shown under the new path.
+  let loading = false;
+  let loadRequest = 0;
   async function loadDirectory(path) {
+    const target = normalizePath(path);
+    const token = ++loadRequest;
+    loading = true;
     try {
       errorMessage = '';
-      currentPath = normalizePath(path);
-      if (isRemote) {
-        files = await RemoteListDirectory(remoteTerminalId, currentPath);
-      } else {
-        files = await ListDirectory(currentPath);
-      }
-      files.sort((a, b) => {
+      const listing = isRemote
+        ? await RemoteListDirectory(remoteTerminalId, target)
+        : await ListDirectory(target);
+      if (token !== loadRequest) return;
+      listing.sort((a, b) => {
         if (a.isDir === b.isDir) {
           return a.name.localeCompare(b.name);
         }
         return a.isDir ? -1 : 1;
       });
+      currentPath = target;
+      files = listing;
     } catch (error) {
+      if (token !== loadRequest) return;
       errorMessage = `Failed to load directory: ${error.message || error}`;
+      currentPath = target;
       files = [];
+    } finally {
+      if (token === loadRequest) loading = false;
     }
   }
 
@@ -217,7 +228,8 @@
     <span>{currentPath}</span>
   </div>
 
-  <ul class="file-list">
+  {#if loading}<div class="file-list-loading" role="status">{$t('fileBrowser.loading')}</div>{/if}
+  <ul class="file-list" class:file-list-stale={loading}>
     {#each files as file (file.name)}
       <li class="file-item" class:is-dir={file.isDir}>
         <span
@@ -551,4 +563,6 @@
     font-size: 0.78rem;
     flex-shrink: 0;
   }
+  .file-list-loading { padding: 6px 12px; font-size: 12px; color: var(--text-secondary); }
+  .file-list-stale { opacity: 0.6; }
 </style>

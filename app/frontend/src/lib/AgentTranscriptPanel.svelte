@@ -176,7 +176,11 @@
     }
   }
   $: if (agent?.status === 'idle' && agent?.lastChange) refreshSoon();
-  $: scheduleAutoRefresh(agent?.status);
+  // Keyed on the status string: every agent-state event replaces the
+  // agent object, and re-running on each one restarted the interval
+  // before it could ever fire.
+  $: agentStatus = agent?.status;
+  $: scheduleAutoRefresh(agentStatus);
 
   $: assistantMessages = (transcript?.messages || []).filter((m) => m.role === 'assistant');
   // A reply can be spread over several assistant records (text, tool call,
@@ -341,7 +345,7 @@
   // Markdown text (the session's context summary) goes to notes as-is,
   // under a heading with the session title.
   async function saveTextToNotes(text) {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23);
     const filename = `agent-${agent?.kind || 'session'}-state-${stamp}.md`;
     const body = `# ${meta?.title || agent?.label || 'Agent'} · ${$t('agentPanel.contextSummary')}\n\n${text}\n`;
     try {
@@ -354,7 +358,7 @@
   }
 
   async function saveToNotes(code, lang = '') {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 23);
     const filename = `agent-${agent?.kind || 'snippet'}-${stamp}.md`;
     const body = '```' + lang + '\n' + code + '\n```\n';
     try {
