@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   import { t } from '../i18n.js';
 
   export let lastRunState = null;
@@ -18,7 +19,7 @@
     on:click={() => !approvalLoading && close()}
     on:keydown={(e) => { if (e.key === 'Escape' && !approvalLoading) close(); }}
   >
-    <div class="approval-modal" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+    <div class="approval-modal" role="dialog" use:modalFocus={{ onEscape: () => { if (!approvalLoading) close(); } }} aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="pane-header">
         <div>
           <h3>{$t('workflowBuilder.approveStep')}</h3>

@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   // SSH host-key verification prompt (presentational). Accept/reject are handled
   // by the parent (tied to the connect flow). Styles from the global stylesheets (styles/).
   import { t } from '../i18n.js';
@@ -9,7 +10,7 @@
 </script>
 
 <div class="modal-overlay" on:click|self={onReject} on:keydown={(e) => { if (e.key === 'Escape') onReject(); }} tabindex="0" role="button">
-  <div class="ssh-modal" style="max-width: 480px;">
+  <div class="ssh-modal" style="max-width: 480px;" role="dialog" aria-modal="true" use:modalFocus={{ onEscape: onReject }}>
     <div class="modal-header">
       <h3>{state.status === 'mismatch' ? $t('hostKey.mismatchTitle') : $t('hostKey.unknownTitle')}</h3>
     </div>

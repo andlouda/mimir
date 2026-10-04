@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from './actions/modalFocus.js';
   import { onMount } from 'svelte';
   import { t } from './i18n.js';
   import {
@@ -126,7 +127,7 @@
 </script>
 
 {#if phase === 'loading' || phase === 'setup' || phase === 'unlock'}
-  <div class="gate-overlay" role="dialog" aria-modal="true" aria-label={$t('secretGate.ariaUnlock')}>
+  <div class="gate-overlay" role="dialog" aria-modal="true" aria-label={$t('secretGate.ariaUnlock')} use:modalFocus={{ restoreFocus: false }}>
     <div class="gate-card">
       <div class="gate-brand">mimir</div>
 

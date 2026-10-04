@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   // AI action panel. Owns run/insert logic (calls the backend directly via the
   // Wails runtime bridge); the parent opens it (sets `state`) and supplies the
   // live terminal output. Shared modal styles come from the global stylesheets (styles/).
@@ -84,7 +85,7 @@
 >
   <div
     class="template-prompt-modal"
-    role="dialog"
+    role="dialog" use:modalFocus={{ onEscape: onClose }}
     aria-modal="true"
     tabindex="-1"
     on:click|stopPropagation

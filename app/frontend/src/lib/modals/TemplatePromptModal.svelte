@@ -1,4 +1,5 @@
 <script>
+  import { modalFocus } from '../actions/modalFocus.js';
   // Presentational modal that collects variable values before running a
   // template. Logic (open/close/submit) stays in the parent; shared modal
   // styles come from the global ./modal.css (imported by App.svelte).
@@ -19,7 +20,7 @@
 >
   <div
     class="template-prompt-modal"
-    role="dialog"
+    role="dialog" use:modalFocus={{ onEscape: onClose }}
     aria-modal="true"
     tabindex="-1"
     on:click|stopPropagation
