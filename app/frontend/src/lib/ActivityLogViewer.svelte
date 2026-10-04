@@ -225,7 +225,7 @@
       {#if visibleLogs.length === 0}
         <div class="empty-state-card">{$t('activityLog.noEntries')}</div>
       {:else}
-        {#each visibleLogs as entry (`${entry.kind}-${entry.timestamp}-${entry.title}`)}
+        {#each visibleLogs as entry, i (`${entry.kind}-${entry.timestamp}-${entry.title}-${i}`)}
           <button
             type="button"
             class="log-card"

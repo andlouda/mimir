@@ -228,10 +228,12 @@
         } catch (err) { onError(`Export scrubbed failed: ${err.message || err}`); }
       }}
       on:exportgif={async (e) => {
+        const id = typeof e.detail === 'object' ? e.detail.id : e.detail;
         try {
-          const path = await ExportRecordingGIF(e.detail);
+          const path = await ExportRecordingGIF(id);
           if (path) onError(`GIF export saved: ${path}`);
         } catch (err) { onError(`GIF export failed: ${err.message || err}`); }
+        finally { e.detail?.done?.(); }
       }}
       on:exporttrimmed={async (e) => {
         try {
@@ -274,4 +276,15 @@
       onDeleteFolder={deleteFolder}
     />
   {/if}
+
+<!-- The error/result banner belongs to the app, not to the Terminals page: export results and
+     failures used to be invisible on the Recordings and Settings pages. -->
+{#if errorMessage}
+  <div class="error-message">
+    <span class="error-icon">!</span>
+    <span class="error-text">{errorMessage}</span>
+    <button class="error-dismiss" on:click={() => onError('')}>×</button>
+  </div>
+{/if}
+
 </div>

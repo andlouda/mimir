@@ -468,6 +468,7 @@ export default {
     footnote: '{count} Variablen · Werte sind standardmäßig maskiert und werden nie geloggt.',
   },
   fileBrowser: {
+    loading: 'Lade…',
     remote: 'Remote: {label}',
     switchToLocal: 'Zu Lokal wechseln',
     up: '↑ Hoch',

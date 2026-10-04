@@ -278,10 +278,13 @@
   }
 
   async function handleExportGif() {
-    if (!selectedId) return;
+    if (!selectedId || exportingGif) return;
     exportingGif = true;
     try {
-      dispatch('exportgif', selectedId);
+      // The parent runs the export and resolves `done` when it finished,
+      // so the button stays disabled for the whole export (double clicks
+      // used to start two exports).
+      await new Promise((done) => dispatch('exportgif', { id: selectedId, done }));
     } finally {
       exportingGif = false;
     }

@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte';
   import { marked } from 'marked';
   import { t } from './i18n.js';
   import { sanitizeHtml } from './util.js';
@@ -67,16 +67,27 @@
     }
   }
 
+  let saving = false;
   async function saveCurrentNote() {
-    if (!activeNote) return;
+    // Bind the save to the note and text at this moment: "Back" clears
+    // activeNote while the save is in flight, and writing back into a
+    // cleared activeNote used to resurrect a nameless ghost editor.
+    const note = activeNote;
+    const content = editorContent;
+    if (!note?.filename) return;
+    saving = true;
     try {
-      await SaveNote(activeNote.filename, editorContent);
-      activeNote = { ...activeNote, content: editorContent };
-      dirty = false;
+      await SaveNote(note.filename, content);
+      if (activeNote === note) {
+        activeNote = { ...note, content };
+        if (editorContent === content) dirty = false;
+      }
       await loadNotes();
       errorMessage = '';
     } catch (err) {
       errorMessage = `Failed to save: ${err}`;
+    } finally {
+      saving = false;
     }
   }
 
@@ -185,14 +196,27 @@
     });
   }
 
-  function goBackToList() {
+  async function goBackToList() {
+    if (saving) return;
     if (dirty && activeNote) {
-      saveCurrentNote();
+      await saveCurrentNote();
     }
     activeNote = null;
     editorContent = '';
     dirty = false;
   }
+
+  // Closing the panel (button, Ctrl+Shift+N, page switch) keeps the edit:
+  // notes autosave everywhere else, so a silent discard here surprised.
+  async function requestClose() {
+    if (dirty && activeNote) await saveCurrentNote();
+    dispatch('close');
+  }
+  onDestroy(() => {
+    if (dirty && activeNote?.filename) {
+      SaveNote(activeNote.filename, editorContent).catch((err) => console.error('Failed to save note on close:', err));
+    }
+  });
 
   function formatTimeAgo(unix) {
     const diff = Math.floor(Date.now() / 1000) - unix;
@@ -242,7 +266,7 @@
           {/if}
         </div>
       {/if}
-      <button class="notes-icon-btn notes-close-btn" on:click={() => dispatch('close')} title={$t('markdownNotes.close')}>&times;</button>
+      <button class="notes-icon-btn notes-close-btn" on:click={requestClose} title={$t('markdownNotes.close')} aria-label={$t('markdownNotes.close')}>&times;</button>
     </div>
   </div>
 

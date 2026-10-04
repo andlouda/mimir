@@ -468,6 +468,7 @@ export default {
     footnote: '{count} variables · values are masked by default and never logged.',
   },
   fileBrowser: {
+    loading: 'Loading…',
     remote: 'Remote: {label}',
     switchToLocal: 'Switch to Local',
     up: '↑ Up',
