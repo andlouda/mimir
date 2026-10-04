@@ -71,11 +71,21 @@
     editingProject = false;
     try { await setProjectName(terminalId, projectDraft.trim()); } catch (e) { showFeedback(String(e?.message || e)); }
   }
+  // The pending save is bound to the pane and note it was typed for, so a
+  // quick switch to another pane (the panel follows the selection) cannot
+  // write the text onto the next pane's session.
+  let pendingNote = null; // { terminalId, name, archived, text }
   function noteChanged() {
     if (noteTimer) clearTimeout(noteTimer);
-    noteTimer = setTimeout(async () => {
-      try { await setSessionAnnotation(terminalId, { name: note?.name || '', note: noteDraft.trim(), archived: !!note?.archived }); } catch (e) { showFeedback(String(e?.message || e)); }
-    }, 600);
+    pendingNote = { terminalId, name: note?.name || '', archived: !!note?.archived, text: noteDraft.trim() };
+    noteTimer = setTimeout(flushNote, 600);
+  }
+  async function flushNote() {
+    if (noteTimer) { clearTimeout(noteTimer); noteTimer = null; }
+    const p = pendingNote;
+    pendingNote = null;
+    if (!p) return;
+    try { await setSessionAnnotation(p.terminalId, { name: p.name, note: p.text, archived: p.archived }); } catch (e) { showFeedback(String(e?.message || e)); }
   }
   async function toggleArchived() {
     try { await setSessionAnnotation(terminalId, { name: note?.name || '', note: note?.note || '', archived: !note?.archived }); } catch (e) { showFeedback(String(e?.message || e)); }
@@ -183,6 +193,8 @@
   $: changedFiles = (transcript?.files || []).filter((f) => f.ops.some((op) => op !== 'read'));
 
   function resetFor() {
+    flushNote();
+    noteOpen = false; noteDraft = '';
     transcript = null; pane = null; paneFull = false; git = null; view = 'snippets';
     error = ''; showOlderSnippets = false; summaryExpanded = false; sessions = null; sessionsOpen = false;
   }
@@ -402,7 +414,7 @@
   }
 
   onDestroy(() => {
-    if (noteTimer) clearTimeout(noteTimer);
+    flushNote();
     stopProcs();
     if (clock) clearInterval(clock);
     if (refreshTimer) clearInterval(refreshTimer);
