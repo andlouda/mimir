@@ -362,6 +362,26 @@ export function GetTmuxIntegrationMode() {
   return window['go']['main']['App']['GetTmuxIntegrationMode']();
 }
 
+export function GetGPUPolicy() {
+  return window['go']['main']['App']['GetGPUPolicy']();
+}
+
+export function SetGPUPolicy(arg1) {
+  return window['go']['main']['App']['SetGPUPolicy'](arg1);
+}
+
+export function GetWaylandFix() {
+  return window['go']['main']['App']['GetWaylandFix']();
+}
+
+export function SetWaylandFix(arg1) {
+  return window['go']['main']['App']['SetWaylandFix'](arg1);
+}
+
+export function IsWaylandSession() {
+  return window['go']['main']['App']['IsWaylandSession']();
+}
+
 export function SetTmuxIntegrationMode(arg1) {
   return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
 }

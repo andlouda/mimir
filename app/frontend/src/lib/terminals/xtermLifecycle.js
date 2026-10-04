@@ -119,7 +119,7 @@ export function rebindTerminalResize(term) {
   }
 }
 
-export function safelyAttachTerminal(term, element) {
+export function safelyAttachTerminal(term, element, { renderer = 'auto', WebglAddon = null } = {}) {
   if (!term?.terminal || !element) {
     return false;
   }
@@ -132,11 +132,42 @@ export function safelyAttachTerminal(term, element) {
     } else {
       term.terminal.open(element);
     }
+    if (renderer === 'auto') enableWebgl(term, WebglAddon);
     return true;
   } catch (error) {
     console.error(`Failed to attach terminal ${term.id}:`, error);
     return false;
   }
+}
+
+// WebGL renderer: the DOM renderer takes box-drawing and block glyphs from
+// the font (gaps in TUI borders, misaligned bars) and repaints slowly under
+// heavy output; the WebGL renderer draws those glyphs itself. It needs a GL
+// context, which WebKitGTK only provides with GPU acceleration, so this
+// silently stays on the DOM renderer when none is available and falls back
+// when the context is lost.
+export function enableWebgl(term, WebglAddon) {
+  if (!term?.terminal || term.webgl || !WebglAddon) return false;
+  try {
+    const addon = new WebglAddon();
+    addon.onContextLoss(() => {
+      try { addon.dispose(); } catch { /* already gone */ }
+      term.webgl = null;
+    });
+    term.terminal.loadAddon(addon);
+    term.webgl = addon;
+    return true;
+  } catch (error) {
+    console.warn(`WebGL renderer unavailable for terminal ${term?.id}, using the DOM renderer:`, error?.message || error);
+    term.webgl = null;
+    return false;
+  }
+}
+
+export function disableWebgl(term) {
+  if (!term?.webgl) return;
+  try { term.webgl.dispose(); } catch { /* ignore */ }
+  term.webgl = null;
 }
 
 export function safelyDisposeTerminal(term, context = 'terminal') {

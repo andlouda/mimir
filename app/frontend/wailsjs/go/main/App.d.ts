@@ -119,6 +119,16 @@ export function GetTmuxPasteBufferJSON(arg1:number,arg2:string):Promise<string>;
 
 export function GetTmuxIntegrationMode():Promise<string>;
 
+export function GetGPUPolicy():Promise<string>;
+
+export function SetGPUPolicy(arg1:string):Promise<string>;
+
+export function GetWaylandFix():Promise<string>;
+
+export function SetWaylandFix(arg1:string):Promise<string>;
+
+export function IsWaylandSession():Promise<boolean>;
+
 export function SetTmuxIntegrationMode(arg1:string):Promise<string>;
 
 export function IsAgentDetectionEnabled():Promise<boolean>;

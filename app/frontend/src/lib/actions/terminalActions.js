@@ -1,7 +1,9 @@
 import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
-import { errorMessage, terminalFontSize } from '../stores/uiStore.js';
+import { errorMessage, terminalFontSize, terminalRenderer } from '../stores/uiStore.js';
+import { Unicode11Addon } from '@xterm/addon-unicode11';
+import { WebglAddon } from '@xterm/addon-webgl';
 import { sshProfiles } from '../stores/sshStore.js';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -16,7 +18,7 @@ import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/la
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
-import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize } from '../terminals/xtermLifecycle.js';
+import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
 import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';
@@ -24,6 +26,8 @@ import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';
 const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
 
 const XTERM_THEME = {
+  // xterm 6 draws the overview ruler's border in white unless themed.
+  overviewRulerBorder: '#1c2033',
   background: '#0c0e14',
   // xterm 6's own scrollbar slider; without these it falls back to the
   // foreground colour at 20% (a light grey bar).
@@ -123,6 +127,15 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
+  // Unicode 11 widths: without this, emoji and newer symbols (spinners,
+  // status glyphs of agent TUIs) are measured as one cell and overlap the
+  // next character.
+  try {
+    terminal.loadAddon(new Unicode11Addon());
+    terminal.unicode.activeVersion = '11';
+  } catch (error) {
+    console.warn('Unicode 11 widths unavailable:', error?.message || error);
+  }
   const searchAddon = new SearchAddon();
   terminal.loadAddon(searchAddon);
   terminal.loadAddon(new ClipboardAddon(undefined, createWriteOnlyClipboardProvider()));
@@ -214,7 +227,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
 
   const element = document.getElementById(`terminal-${id}`);
   if (element) {
-    if (safelyAttachTerminal(newTerminal, element)) {
+    if (safelyAttachTerminal(newTerminal, element, { renderer: get(terminalRenderer), WebglAddon })) {
       try {
         terminal.focus();
       } catch (error) {
@@ -393,7 +406,7 @@ export async function reinitializeTerminals() {
     if (!t.minimized) {
       const element = document.getElementById(`terminal-${t.id}`);
       if (element) {
-        if (safelyAttachTerminal(t, element)) {
+        if (safelyAttachTerminal(t, element, { renderer: get(terminalRenderer), WebglAddon })) {
           wireTerminalDom(t);
           // The container is new after a layout change: watch it, then fit.
           rebindTerminalResize(t);
@@ -680,3 +693,33 @@ terminalFontSize.subscribe((size) => {
     }
   }
 });
+
+// Renderer switch applies live to every open terminal.
+terminalRenderer.subscribe((mode) => {
+  for (const term of get(terminals)) {
+    if (!term?.terminal?.element) continue;
+    if (mode === 'dom') disableWebgl(term);
+    else enableWebgl(term, WebglAddon);
+  }
+});
+
+// The bundled font may finish loading after the first terminals measured
+// their cells; re-measure once it is ready so columns line up.
+export function refreshTerminalFonts() {
+  for (const term of get(terminals)) {
+    if (!term?.terminal) continue;
+    try {
+      const family = term.terminal.options.fontFamily;
+      term.terminal.options.fontFamily = family + ' ';
+      term.terminal.options.fontFamily = family;
+      safelyFitAndResizeTerminal(term, ResizeTerminal);
+    } catch (error) {
+      console.error(`Failed to refresh font of terminal ${term.id}:`, error);
+    }
+  }
+}
+try {
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    document.fonts.ready.then(() => refreshTerminalFonts()).catch(() => {});
+  }
+} catch { /* no Font Loading API */ }
