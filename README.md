@@ -35,7 +35,8 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
   pane, Ctrl+Shift+O restores the last minimized one (Ctrl+Shift+U also
   works outside Linux, where GTK reserves it), Ctrl+Shift+T opens a
   new terminal, Ctrl+Shift+N toggles notes, Ctrl+Shift+P templates,
-  Ctrl+Shift+C (or Ctrl+Insert) copies the selection
+  Ctrl+Shift+C (or Ctrl+Insert) copies the selection, Ctrl+plus /
+  Ctrl+minus / Ctrl+0 (or Ctrl+wheel) zoom every terminal's font
 - Terminal scrollback search (Ctrl+Shift+F)
 - 58 built-in command templates with discovery-driven variables
 - Workflow engine with playbooks, approval flow, and AI steps

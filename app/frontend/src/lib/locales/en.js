@@ -122,6 +122,7 @@ export default {
         desc_off: 'Local terminals start without tmux: no session persistence after a restart, everything native. SSH profiles keep their own tmux switch.',
         note: 'Invisible and classic are applied to running tmux terminals immediately; off takes effect for terminals opened from now on.',
       },
+      fontSize: { title: 'Terminal font size', desc: 'Zoom for every terminal, so more panes fit side by side. Also Ctrl + / Ctrl − / Ctrl 0, or Ctrl + mouse wheel over a terminal.', smaller: 'Smaller', larger: 'Larger', reset: 'Reset' },
       claudeHook: {
         title: 'Claude Code approvals',
         desc: 'Adds hooks to ~/.claude/settings.json so Claude Code tells Mimir when it waits for a permission or for input, and which session file belongs to which pane the moment a session starts (no more guessing between sessions in the same directory). Mimir then shows "approval" in the pane badge and the agents overview instead of guessing from the screen. Claude Code inside WSL reads its own settings.json, so it is listed as a separate host.',

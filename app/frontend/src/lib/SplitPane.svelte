@@ -1,4 +1,5 @@
 <script>
+  import { zoomTerminalFont } from './stores/uiStore.js';
   import { agentStates } from './stores/agentStore.js';
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
@@ -78,6 +79,13 @@
   function handleTerminalWheel(event, term) {
     const xterm = term?.terminal;
     if (!xterm) return;
+    // Ctrl + wheel zooms every terminal.
+    if (event.ctrlKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      zoomTerminalFont(event.deltaY < 0 ? 1 : -1);
+      return;
+    }
     if (xterm.buffer?.active?.type === 'alternate') {
       // Inside tmux (always the alternate screen). With the "invisible"
       // integration tmux has no mouse, so wheel events are turned into the

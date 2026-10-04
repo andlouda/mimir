@@ -4,7 +4,7 @@
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
-  import { tmuxIntegrationMode } from '../stores/uiStore.js';
+  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, resetTerminalFontSize, terminalFontSize, tmuxIntegrationMode, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onMount } from 'svelte';
@@ -84,6 +84,19 @@
   </div>
 
   <div class="ai-hub-grid">
+    <div class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">A</span>
+        <span class="settings-stepper" role="group" aria-label={$t('settings.cards.fontSize.title')}>
+          <button type="button" class="settings-inline-btn" on:click={() => zoomTerminalFont(-1)} disabled={$terminalFontSize <= TERMINAL_FONT_MIN} aria-label={$t('settings.cards.fontSize.smaller')}>−</button>
+          <span class="settings-stepper-value">{$terminalFontSize}px</span>
+          <button type="button" class="settings-inline-btn" on:click={() => zoomTerminalFont(1)} disabled={$terminalFontSize >= TERMINAL_FONT_MAX} aria-label={$t('settings.cards.fontSize.larger')}>+</button>
+          <button type="button" class="settings-inline-btn" on:click={resetTerminalFontSize}>{$t('settings.cards.fontSize.reset')}</button>
+        </span>
+      </div>
+      <strong>{$t('settings.cards.fontSize.title')}</strong>
+      <p>{$t('settings.cards.fontSize.desc')}</p>
+    </div>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2261;</span>
