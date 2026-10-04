@@ -26,6 +26,8 @@ import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';
 const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
 
 const XTERM_THEME = {
+  // xterm 6 draws the overview ruler's border in white unless themed.
+  overviewRulerBorder: '#1c2033',
   background: '#0c0e14',
   // xterm 6's own scrollbar slider; without these it falls back to the
   // foreground colour at 20% (a light grey bar).
