@@ -14,7 +14,7 @@ import { clearHoveredLink, createLinkProvider } from '../terminals/terminalLinks
 import { isGlobalShortcut } from './keyboardShortcuts.js';
 import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
-import { replaceLeaf, removeLeafFromTree, collectLeafIds } from '../terminals/layoutTree.js';
+import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
@@ -447,17 +447,8 @@ export async function addTerminal(terminalTypeParam, nameParam, minimized = fals
 
     const newLeaf = { type: 'leaf', terminalId: id };
     if (!minimized) {
-      const tree = get(layoutTree);
-      if (tree === null) {
-        layoutTree.set(newLeaf);
-      } else {
-        layoutTree.set({
-          type: 'split',
-          direction: 'horizontal',
-          ratio: 0.5,
-          children: [tree, newLeaf]
-        });
-      }
+      // Equal shares for every top-level pane (see appendLeaf).
+      layoutTree.set(appendLeaf(get(layoutTree), newLeaf));
     }
 
     const newTerminal = await createTerminalInstance(id, type, name, minimized, '', false, tmuxSessionName, '', 'fresh');
@@ -623,17 +614,7 @@ export async function terminalToForeground(id) {
   }));
 
   const newLeaf = { type: 'leaf', terminalId: id };
-  const tree = get(layoutTree);
-  if (tree === null) {
-    layoutTree.set(newLeaf);
-  } else {
-    layoutTree.set({
-      type: 'split',
-      direction: 'horizontal',
-      ratio: 0.5,
-      children: [tree, newLeaf]
-    });
-  }
+  layoutTree.set(appendLeaf(get(layoutTree), newLeaf));
 
   await reinitializeTerminals();
 }

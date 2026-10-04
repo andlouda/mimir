@@ -129,6 +129,8 @@ export function SetWaylandFix(arg1:string):Promise<string>;
 
 export function IsWaylandSession():Promise<boolean>;
 
+export function UpdateSessionLayout(arg1:string):Promise<void>;
+
 export function SetTmuxIntegrationMode(arg1:string):Promise<string>;
 
 export function IsAgentDetectionEnabled():Promise<boolean>;

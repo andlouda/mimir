@@ -25,6 +25,10 @@ type TerminalState struct {
 // SessionData holds the data for the entire session.
 type SessionData struct {
 	Terminals []TerminalState `json:"terminals"`
+	// Layout is the frontend's split tree, serialised by the frontend with
+	// stable leaf keys (resume id / tmux session / name) instead of the
+	// per-run terminal ids; empty when no layout was saved.
+	Layout string `json:"layout,omitempty"`
 }
 
 // getSessionFilePath returns the absolute path to the session file.

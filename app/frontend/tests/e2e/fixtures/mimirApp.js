@@ -279,6 +279,7 @@ export async function installMimirMocks(page, { workspaceAgent = false } = {}) {
           GetAvailableTerminalTypes: async () => [{ value: 'bash', label: 'Bash' }, { value: 'zsh', label: 'Zsh' }, { value: 'ssh', label: 'SSH' }],
           GetFunctionCatalogJSON: async () => JSON.stringify(functionCatalog),
           GetLoadedSessionData: async () => ({ terminals: [] }),
+          UpdateSessionLayout: asyncNoop,
           GetPendingUpdate: async () => '',
           GetPlaybooksJSON: async () => JSON.stringify(savedPlaybooks),
           GetRecording: async () => ({ id: 'rec-1', title: 'Recording', content: '' }),

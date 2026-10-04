@@ -36,6 +36,7 @@ type App struct {
 	TerminalManager       *terminal.Manager
 	TemplateManager       *template.Manager
 	loadedSessionData     session.SessionData
+	sessionLayout         string
 	activeTerminalStates  map[int]session.TerminalState
 	stateMu               sync.Mutex
 	aiSettings            AISettings
@@ -251,9 +252,23 @@ func (a *App) SaveCurrentSession() error {
 
 	data := session.SessionData{
 		Terminals: terminalsToSave,
+		Layout:    a.sessionLayout,
 	}
 
 	return session.SaveSession(data)
+}
+
+const sessionLayoutMax = 64 * 1024
+
+// UpdateSessionLayout stores the frontend's serialised split layout so the
+// next start can rebuild the arrangement instead of a flat chain.
+func (a *App) UpdateSessionLayout(layout string) {
+	if len(layout) > sessionLayoutMax {
+		return
+	}
+	a.stateMu.Lock()
+	a.sessionLayout = layout
+	a.stateMu.Unlock()
 }
 
 // UpdateTerminalState is called by the frontend to update the state of a terminal.

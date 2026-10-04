@@ -198,7 +198,8 @@
     border-left: 1px solid var(--border-subtle);
     width: 440px;
     min-width: 300px;
-    max-width: 50%;
+    /* Never squeeze the terminal area below ~320 px, whatever the window. */
+    max-width: min(50%, calc(100vw - 560px));
   }
 
   .notes-panel {

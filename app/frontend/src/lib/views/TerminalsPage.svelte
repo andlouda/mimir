@@ -147,7 +147,7 @@
       aria-label="Resize notes panel"
       on:mousedown={startNotesDrag}
     ></button>
-    <div class="notes-panel" style="width:{notesPanelWidth}px">
+    <div class="notes-panel" style="width:min({notesPanelWidth}px, calc(100vw - 560px))">
       <MarkdownNotes
         sshTerminals={terminals.filter(t => t.type === 'ssh' && !t.minimized)}
         on:close={closeNotesPanel}
