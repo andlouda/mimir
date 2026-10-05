@@ -307,7 +307,10 @@ func (a *App) UpdateTerminalState(id int, terminalType string, name string, mini
 			transcriptPath = path
 		}
 	}
+	// The background is set through its own call; keep it across updates.
+	background := a.activeTerminalStates[id].Background
 	a.activeTerminalStates[id] = session.TerminalState{
+		Background:      background,
 		Type:            terminalType,
 		Name:            name,
 		Minimized:       minimized,

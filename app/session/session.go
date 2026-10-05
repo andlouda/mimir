@@ -20,6 +20,9 @@ type TerminalState struct {
 	TranscriptPath  string `json:"transcriptPath,omitempty"`
 	RestoreClass    string `json:"restoreClass,omitempty"`
 	FolderID        string `json:"folderId,omitempty"`
+	// Background is the pane's background image setting as JSON (id,
+	// opacity, blur, fit), see app_backgrounds.go; empty for none.
+	Background string `json:"background,omitempty"`
 }
 
 // SessionData holds the data for the entire session.

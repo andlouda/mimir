@@ -3,6 +3,9 @@
   import { zoomTerminalFont } from './stores/uiStore.js';
   import { agentStates } from './stores/agentStore.js';
   import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
+  import TerminalBackgroundDialog from './TerminalBackgroundDialog.svelte';
+  import { backgroundLayerStyle } from './terminals/background.js';
+  let backgroundDialogId = null; // terminal id whose background is being edited
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
   import { tmuxScrollKeys } from './terminals/wheelScroll.js';
@@ -234,7 +237,7 @@
     const termId = contextMenu?.termId;
     contextMenu = null;
     // Hand the keyboard back to the pane the menu belonged to.
-    const term = termId != null ? $terminalMap.get(termId) : null;
+    const term = termId != null ? terminalMap.get(termId) : null;
     try { term?.terminal?.focus?.(); } catch { /* ignore */ }
   }
 
@@ -288,6 +291,11 @@
     const text = term.terminal?.getSelection?.() || '';
     closeContextMenu();
     if (text) sendTextToAgent(targetId, text);
+  }
+
+  function ctxBackground(term) {
+    closeContextMenu();
+    backgroundDialogId = term.id;
   }
 
   function ctxDispatch(eventName, detail) {
@@ -445,6 +453,9 @@
         on:pointerup|capture={(e) => handleTerminalPointerUp(e, term)}
         on:contextmenu={(e) => openContextMenu(e, term)}
       >
+        {#if term.background}
+          <div class="pane-background" style={backgroundLayerStyle(term.background)} aria-hidden="true"></div>
+        {/if}
         <div id="terminal-{term.id}" class="terminal"></div>
         {#if $draggingTerminalId !== null && $draggingTerminalId !== term.id}
           <div
@@ -513,6 +524,9 @@
             <div class="ctx-sep"></div>
             <button class="ctx-item" role="menuitem" on:click={() => ctxDispatch('openenv', { id: term.id, type: term.type })}>
               {$t('splitPane.ctxShowEnv')}
+            </button>
+            <button class="ctx-item" role="menuitem" on:click={() => ctxBackground(term)}>
+              {$t('splitPane.ctxBackground')}
             </button>
             <div class="ctx-sep"></div>
             <button class="ctx-item" role="menuitem" on:click={() => ctxDispatch('split', { id: term.id, direction: 'horizontal' })}>
@@ -669,7 +683,22 @@
   </div>
 {/if}
 
+{#if backgroundDialogId !== null && terminalMap.get(backgroundDialogId)}
+  <TerminalBackgroundDialog term={terminalMap.get(backgroundDialogId)} on:close={() => (backgroundDialogId = null)} />
+{/if}
+
 <style>
+  /* Image layer behind the (transparent) xterm canvas. */
+  .pane-background {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .terminal-container > .terminal {
+    position: relative;
+    z-index: 1;
+  }
   .split-container {
     display: flex;
     width: 100%;

@@ -31,6 +31,12 @@ Mimir is a local desktop terminal application. It may handle sensitive terminal 
   platforms, in which case derivation is password-only. A FIDO2 authenticator can be
   enrolled as an alternative unlock method (key *or* password). The master
   password remains as a recovery path if a hardware key is lost.
+- Pane background images are copied through the native file dialog into
+  `<config>/mimir/backgrounds/` under a content hash, after a size cap
+  (25 MB) and a content-type sniff (PNG, JPEG, WebP, GIF only; the file
+  name is not trusted). The webview loads them from the asset server at
+  `/mimir-bg/<hash>.<ext>`, which serves nothing but ids of exactly that
+  shape from that one directory, so no other local file is reachable.
 - Clipboard: programs may *write* the clipboard through OSC 52 (in plain
   terminals via xterm's clipboard addon, inside tmux sessions via
   `set-clipboard on`, which also passes on a nested tmux's selections);

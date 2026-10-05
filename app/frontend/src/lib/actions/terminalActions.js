@@ -26,7 +26,7 @@ import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';
 
 const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
 
-const XTERM_THEME = {
+export const XTERM_THEME = {
   // xterm 6 draws the overview ruler's border in white unless themed.
   overviewRulerBorder: '#1c2033',
   background: '#0c0e14',
@@ -134,7 +134,10 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     scrollback: 100000,
     // Also sets the width of xterm 6's scrollbar slider (default 14px).
     overviewRuler: { width: 8 },
-    theme: XTERM_THEME
+    theme: XTERM_THEME,
+    // Per-pane background images sit behind xterm (backgroundActions.js);
+    // transparency must be enabled at creation.
+    allowTransparency: true
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
@@ -218,6 +221,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     restoreDismissed: false,
     recording: false,
     folderId: '',
+    background: null,
     cleanupHandlers: []
   };
   terminals.update(list => [...list, newTerminal]);

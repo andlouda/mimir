@@ -402,6 +402,22 @@ export function IsWaylandSession() {
   return window['go']['main']['App']['IsWaylandSession']();
 }
 
+export function ImportTerminalBackground() {
+  return window['go']['main']['App']['ImportTerminalBackground']();
+}
+
+export function ListTerminalBackgroundsJSON() {
+  return window['go']['main']['App']['ListTerminalBackgroundsJSON']();
+}
+
+export function DeleteTerminalBackground(arg1) {
+  return window['go']['main']['App']['DeleteTerminalBackground'](arg1);
+}
+
+export function UpdateTerminalBackground(arg1, arg2) {
+  return window['go']['main']['App']['UpdateTerminalBackground'](arg1, arg2);
+}
+
 export function UpdateSessionLayout(arg1) {
   return window['go']['main']['App']['UpdateSessionLayout'](arg1);
 }
