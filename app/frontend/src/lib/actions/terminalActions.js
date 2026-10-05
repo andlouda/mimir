@@ -120,7 +120,7 @@ function finalizeTerminalRemoval(id) {
   // that became active.
   setTimeout(() => focusTerminal(get(activeTerminalId)), 0);
 
-  RemoveTerminalState(id);
+  Promise.resolve(RemoveTerminalState(id)).catch(() => {});
   scheduleSessionSave();
 }
 
@@ -306,9 +306,17 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   });
   newTerminal.cleanupHandlers.push(offDisconnected);
 
-  await ConfirmFrontendReady(id);
-  if (closedDuringInit.has(id)) { cleanupTerminalResources(newTerminal); return null; }
-  await InitializeTerminal(id);
+  // A pane closed (or a PTY that exited) during this handshake makes the
+  // backend reject these calls; that is the user's own action, not an
+  // error to show.
+  try {
+    await ConfirmFrontendReady(id);
+    if (closedDuringInit.has(id)) { cleanupTerminalResources(newTerminal); return null; }
+    await InitializeTerminal(id);
+  } catch (error) {
+    if (closedDuringInit.has(id)) { cleanupTerminalResources(newTerminal); return null; }
+    throw error;
+  }
   if (closedDuringInit.has(id)) { cleanupTerminalResources(newTerminal); return null; }
 
   startAgentWatch(id, type);
@@ -597,13 +605,13 @@ export function removeTerminal(id) {
     KillTmuxSession(term.tmuxSessionName).catch(() => {});
   }
   if (term && term.type === 'ssh' && term.disconnected) {
-    CloseSSHTerminalFull(id);
+    Promise.resolve(CloseSSHTerminalFull(id)).catch(() => {});
     safelyDisposeTerminal(term, 'disconnected terminal');
     finalizeTerminalRemoval(id);
     reinitializeTerminals();
     return;
   }
-  CloseTerminal(id);
+  Promise.resolve(CloseTerminal(id)).catch(() => {});
   setTimeout(() => {
     const stillExists = get(terminals).find(t => t.id === id);
     if (stillExists) {

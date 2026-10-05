@@ -173,6 +173,11 @@ export function createKeydownHandler({
     if (event.isComposing || event.keyCode === 229) return;
     const cycling = event.ctrlKey && (event.key === 'Tab' || event.key === 'ArrowLeft' || event.key === 'ArrowRight');
     if (event.repeat && !cycling) return;
+    // Inside a text field (notes, agent note, profile forms) Ctrl+Shift+Arrow
+    // is word selection and Ctrl+-/= belong to the field, not to Mimir;
+    // stealing them moved the caret into a terminal mid-typing.
+    const inTextField = !!event.target?.closest?.('input, textarea, select, [contenteditable="true"]');
+    if (inTextField && ((event.ctrlKey && event.shiftKey && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) || isZoomShortcut(event))) return;
 
     if (event.ctrlKey && event.key === 'Tab') {
       event.preventDefault();

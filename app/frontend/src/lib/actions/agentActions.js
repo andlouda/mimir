@@ -62,6 +62,9 @@ export async function runAgentDetection(id) {
   if (!get(agentDetectionEnabled)) return null;
   const type = terminalType(id);
   const raw = await app()['DetectAgentForTerminalJSON'](id, type);
+  // The pane was closed while the probe ran: its watch is gone, and a
+  // state written now would never be removed.
+  if (watch && !watches.has(id)) return null;
   const result = JSON.parse(raw || '{}');
   if (!result.detected) {
     const had = get(agentStates)[id];
