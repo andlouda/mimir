@@ -79,8 +79,8 @@ func cleanNotifyText(s string) string {
 		return r
 	}, s)
 	s = strings.Join(strings.Fields(s), " ")
-	if len(s) > notifyMaxLen {
-		s = strings.TrimSpace(s[:notifyMaxLen]) + "…"
+	if r := []rune(s); len(r) > notifyMaxLen {
+		s = strings.TrimSpace(string(r[:notifyMaxLen])) + "…"
 	}
 	return s
 }

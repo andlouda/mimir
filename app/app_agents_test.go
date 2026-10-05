@@ -52,8 +52,14 @@ func TestParsePSAcceptsWindowsProcessTable(t *testing.T) {
 		"2222\t1234\t\"C:\\Program Files\\nodejs\\node.exe\"  \"C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js\"\n" +
 		"3333\t1234\tC:\\Users\\me\\.local\\bin\\claude.exe --resume\n"
 	procs := agents.ParsePS(out)
+	// The quoted npm form (node + @anthropic-ai/claude-code/cli.js) is the
+	// common Windows install and must be recognised; it is the first child.
 	det, ok := agents.FindAgent(procs, 1234)
-	if !ok || det.Kind != agents.KindClaude || det.PID != 3333 {
-		t.Fatalf("expected the native claude.exe child to be detected, got %+v %v", det, ok)
+	if !ok || det.Kind != agents.KindClaude || det.PID != 2222 {
+		t.Fatalf("expected the npm claude child to be detected, got %+v %v", det, ok)
+	}
+	native := agents.ParsePS("4\t0\t\n1234\t800\tpowershell.exe\n3333\t1234\t\"C:\\Users\\Andre Louda\\.local\\bin\\claude.exe\" --resume\n")
+	if det, ok := agents.FindAgent(native, 1234); !ok || det.PID != 3333 {
+		t.Fatalf("expected the quoted native claude.exe child to be detected, got %+v %v", det, ok)
 	}
 }

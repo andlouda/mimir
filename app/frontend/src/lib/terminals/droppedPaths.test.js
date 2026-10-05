@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { droppedPathsText, isFileDrop, pathsFromUriList, shellQuotePath } from './droppedPaths.js';
+import { droppedPathsText, isFileDrop, pathsFromUriList, quotePathFor, shellQuotePath, toWslPath } from './droppedPaths.js';
 
 describe('dropped paths', () => {
   test('detects file drops by dataTransfer types', () => {
@@ -20,5 +20,16 @@ describe('dropped paths', () => {
     const text = droppedPathsText('file:///a/b.txt\nfile:///c%20d/e.txt');
     expect(text).toBe("/a/b.txt '/c d/e.txt'");
     expect(text.includes('\n')).toBe(false);
+  });
+
+  test('quotes per pane type: cmd, PowerShell, WSL', () => {
+    expect(quotePathFor('C:/Users/Andre Louda/a.txt', 'cmd')).toBe('"C:/Users/Andre Louda/a.txt"');
+    expect(quotePathFor('C:/plain/a.txt', 'cmd')).toBe('C:/plain/a.txt');
+    expect(quotePathFor("C:/Users/it's/a.txt", 'powershell')).toBe("'C:/Users/it''s/a.txt'");
+    expect(toWslPath('C:/Users/Andre Louda/a.txt')).toBe('/mnt/c/Users/Andre Louda/a.txt');
+    expect(toWslPath('D:\\data\\x.log')).toBe('/mnt/d/data/x.log');
+    expect(toWslPath('/already/posix')).toBe('/already/posix');
+    expect(quotePathFor('C:/Users/Andre Louda/a.txt', 'wsl')).toBe("'/mnt/c/Users/Andre Louda/a.txt'");
+    expect(droppedPathsText('file:///C:/Users/Andre%20Louda/a.txt', 'cmd')).toBe('"C:/Users/Andre Louda/a.txt"');
   });
 });

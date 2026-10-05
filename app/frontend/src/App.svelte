@@ -421,8 +421,9 @@
   function handleWindowDrop(event) {
     if (!isFileDrop(event.dataTransfer)) return;
     event.preventDefault();
-    const text = droppedPathsText(event.dataTransfer.getData('text/uri-list'));
     const id = $activeTerminalId;
+    const target = id != null ? $terminals.find((t) => t.id === id) : null;
+    const text = droppedPathsText(event.dataTransfer.getData('text/uri-list'), target?.type || '');
     if (text && id != null && $currentPage === 'terminals') {
       WriteToTerminal(id, text).catch((error) => console.error('Could not paste dropped paths:', error));
     }

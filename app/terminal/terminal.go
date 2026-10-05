@@ -25,7 +25,7 @@ import (
 	ssh "golang.org/x/crypto/ssh"
 )
 
-const conptyBashRcBase = "source ~/.bashrc 2>/dev/null || true\nPS1='\\W \\$ '\n"
+const conptyBashRcBase = "source ~/.bashrc 2>/dev/null || true\n"
 
 // conptyBashHistoryHook emits OSC 7337 on every prompt. A new command carries
 // its command line; an unchanged prompt still reports the current cwd (an
@@ -50,6 +50,7 @@ PROMPT_COMMAND="__mimir_precmd;${PROMPT_COMMAND}"
 // (an empty-command beacon) so cwd-dependent features work before any command
 // has been run.
 const conptyPowerShellHistoryHook = `$global:__mimir_last_cmd = ''
+$global:__mimir_prev_prompt = $function:global:prompt
 function global:prompt {
   $success = $?
   $nativeExit = $global:LASTEXITCODE
@@ -91,7 +92,9 @@ func powerShellProfileContent(withBeacon bool) string {
 		}
 		return ""
 	}
-	text := `"PS $((Get-Location).Path)> "`
+	// Shell mode: the beacon runs, then whatever prompt the user's own
+	// $PROFILE defined (oh-my-posh, Starship, ...) draws the line.
+	text := `(& $global:__mimir_prev_prompt)`
 	if mimir {
 		text = `"$env:USERNAME ❯ "`
 	}
@@ -121,6 +124,10 @@ func sanitizeTmuxName(name string) string {
 
 func conptyBashRcBase64() string {
 	rcContent := conptyBashRcBase
+	// Same rule as the unix path: Mimir's short prompt only in "mimir" mode.
+	if PromptMode() == PromptModeMimir {
+		rcContent += "PS1='\\W \\$ '\n"
+	}
 	if isHistoryEnabled() || shellHookConsent() {
 		rcContent += conptyBashHistoryHook
 	}
@@ -157,7 +164,8 @@ func conptyPowerShellCommand() string {
 		log.Printf("history: failed to write PowerShell hook profile: %v", err)
 		return "powershell.exe"
 	}
-	return fmt.Sprintf("powershell.exe -NoLogo -NoExit -ExecutionPolicy Bypass -File %s", strconv.Quote(profilePath))
+	// Plain double quotes: strconv.Quote would double every backslash.
+	return fmt.Sprintf("powershell.exe -NoLogo -NoExit -ExecutionPolicy Bypass -File \"%s\"", profilePath)
 }
 
 // conptySession wraps a Windows ConPTY and implements TerminalSession.

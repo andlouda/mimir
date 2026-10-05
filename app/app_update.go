@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"mimir/executil"
 	"mimir/update"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -202,6 +203,7 @@ try {
 `, psQuote(logPath), os.Getpid(), psQuote(pending.BinaryPath), psQuote(exe), psQuote(markerPath), psQuote(pendingDir), psQuote(exe), psQuote(markerPath), psQuote(exe))
 
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", script)
+	executil.HideConsoleWindow(cmd)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start windows update helper: %w", err)
 	}
