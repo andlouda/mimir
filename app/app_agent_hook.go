@@ -61,6 +61,25 @@ type agentPrompt struct {
 	at    time.Time
 }
 
+// markPromptAnswered remembers which prompt (by its arrival time) the user
+// answered from Mimir, so the watcher stops re-offering it until the
+// session file moves on.
+func (a *App) markPromptAnswered(terminalID int, at time.Time) {
+	a.agentMu.Lock()
+	defer a.agentMu.Unlock()
+	if a.agentAnswered == nil {
+		a.agentAnswered = make(map[int]time.Time)
+	}
+	a.agentAnswered[terminalID] = at
+}
+
+func (a *App) promptAnswered(terminalID int, at time.Time) bool {
+	a.agentMu.Lock()
+	defer a.agentMu.Unlock()
+	t, ok := a.agentAnswered[terminalID]
+	return ok && t.Equal(at)
+}
+
 func (a *App) setAgentPrompt(terminalID int, ev *agents.HookEvent, at time.Time) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
@@ -97,6 +116,7 @@ func (a *App) AnswerAgentPermission(terminalID int, allow bool) error {
 	if !ok || p.event.NotificationType != "permission_prompt" {
 		return fmt.Errorf("no permission prompt pending for this terminal")
 	}
+	a.markPromptAnswered(terminalID, p.at)
 	if time.Since(p.at) > agentHookMaxAge {
 		return fmt.Errorf("the permission prompt is too old to answer from here")
 	}

@@ -41,19 +41,22 @@ type App struct {
 	activeTerminalStates map[int]session.TerminalState
 	// pendingRestore / unrestored: saved terminals without a live pane yet
 	// (see app_session_restore.go); both are still written on save.
-	pendingRestore        []session.TerminalState
-	unrestored            []session.TerminalState
-	stateMu               sync.Mutex
-	aiSettings            AISettings
-	aiMu                  sync.Mutex
-	functionCatalog       []FunctionCatalogEntry
-	functionCatalogJSON   string
-	functionCatalogMu     sync.Mutex
-	PlaybookStore         *workflow.PlaybookStore
-	sshProfileStore       *ssh.ProfileStore
-	sshSecretStore        *ssh.SecretStore
-	agentStates           map[int]agentTerminalState
-	agentPrompts          map[int]agentPrompt
+	pendingRestore      []session.TerminalState
+	unrestored          []session.TerminalState
+	stateMu             sync.Mutex
+	aiSettings          AISettings
+	aiMu                sync.Mutex
+	functionCatalog     []FunctionCatalogEntry
+	functionCatalogJSON string
+	functionCatalogMu   sync.Mutex
+	PlaybookStore       *workflow.PlaybookStore
+	sshProfileStore     *ssh.ProfileStore
+	sshSecretStore      *ssh.SecretStore
+	agentStates         map[int]agentTerminalState
+	agentPrompts        map[int]agentPrompt
+	// agentAnswered: arrival time of the prompt answered per pane, see
+	// markPromptAnswered.
+	agentAnswered         map[int]time.Time
 	agentWatchers         map[int]*agentWatcher
 	agentMu               sync.Mutex
 	knownHostStore        *ssh.KnownHostStore
