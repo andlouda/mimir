@@ -75,10 +75,11 @@ func (a *App) startAgentWatcher(terminalID int, terminalType string, state agent
 		existing.cancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	a.agentWatchers[terminalID] = &agentWatcher{cancel: cancel, kind: state.kind, pid: state.pid}
+	w := &agentWatcher{cancel: cancel, kind: state.kind, pid: state.pid}
+	a.agentWatchers[terminalID] = w
 	a.agentMu.Unlock()
 
-	go a.watchAgentSession(ctx, terminalID, terminalType, state)
+	go a.watchAgentSession(ctx, w, terminalID, terminalType, state)
 }
 
 func (a *App) stopAgentWatcher(terminalID int) {
@@ -89,9 +90,33 @@ func (a *App) stopAgentWatcher(terminalID int) {
 		delete(a.agentWatchers, terminalID)
 	}
 	delete(a.agentPrompts, terminalID)
+	delete(a.agentAnswered, terminalID)
 }
 
-func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalType string, state agentTerminalState) {
+// ownsAgentWatcher reports whether w is still the pane's current watcher.
+// A replaced goroutine (agent restarted with a new pid) may run one more
+// tick after cancel; it must not clear what its successor stored.
+func (a *App) ownsAgentWatcher(terminalID int, w *agentWatcher) bool {
+	a.agentMu.Lock()
+	defer a.agentMu.Unlock()
+	return a.agentWatchers[terminalID] == w
+}
+
+// releaseAgentWatcher is stopAgentWatcher for the watcher's own exit: it
+// only removes its own entry and prompt.
+func (a *App) releaseAgentWatcher(terminalID int, w *agentWatcher) {
+	a.agentMu.Lock()
+	defer a.agentMu.Unlock()
+	if a.agentWatchers[terminalID] != w {
+		return
+	}
+	w.cancel()
+	delete(a.agentWatchers, terminalID)
+	delete(a.agentPrompts, terminalID)
+	delete(a.agentAnswered, terminalID)
+}
+
+func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID int, terminalType string, state agentTerminalState) {
 	fs, home, cleanup, err := a.agentFS(terminalID, state.source)
 	if err != nil {
 		log.Printf("agent watch %d: %v", terminalID, err)
@@ -107,7 +132,7 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 	defer ticker.Stop()
 
 	if state.kind == agents.KindOpenCode {
-		a.watchOpenCode(ctx, terminalID, state, fs, home, ticker)
+		a.watchOpenCode(ctx, w, terminalID, state, fs, home, ticker)
 		return
 	}
 
@@ -129,7 +154,7 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		// periodic re-lookup then no longer swaps it for the newest file.
 		bound bool
 	)
-	defer a.setAgentPrompt(terminalID, nil, time.Time{})
+	defer a.releaseAgentWatcher(terminalID, w)
 	eventsDir := ""
 	if state.kind == agents.KindClaude {
 		eventsDir = hookEventsDir(state.source, fs, home)
@@ -173,6 +198,9 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 	}
 
 	for {
+		if !a.ownsAgentWatcher(terminalID, w) {
+			return // replaced: the successor owns the pane's state now
+		}
 		// Stop when the terminal is gone.
 		alive := false
 		for _, id := range a.TerminalManager.SessionIDs() {
@@ -182,8 +210,7 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 			}
 		}
 		if !alive {
-			a.stopAgentWatcher(terminalID)
-			return
+			return // deferred release drops the entry and prompt
 		}
 		// Re-pick right away when another pane got bound to the file this
 		// one only guessed.
@@ -241,6 +268,12 @@ func (a *App) watchAgentSession(ctx context.Context, terminalID int, terminalTyp
 		if pending != nil && time.Since(pendingAt) > agentHookMaxAge {
 			pending = nil
 		}
+		// Answered from Mimir: stop showing it. The transcript may not
+		// move for minutes while the approved tool runs, so the file-based
+		// clearing above is not enough on its own.
+		if pending != nil && a.promptAnswered(terminalID, pendingAt) {
+			pending = nil
+		}
 		if pending != nil && pending.NotificationType == "permission_prompt" {
 			if _, held := a.heldPrompt(terminalID); !held {
 				a.setAgentPrompt(terminalID, pending, pendingAt)
@@ -290,7 +323,8 @@ func (a *App) emitAgentState(terminalID int, payload agentStatePayload) {
 
 // watchOpenCode polls the database's change stamp (main file + WAL) and
 // re-derives the state when it moves.
-func (a *App) watchOpenCode(ctx context.Context, terminalID int, state agentTerminalState, fs agents.FS, home string, ticker *time.Ticker) {
+func (a *App) watchOpenCode(ctx context.Context, w *agentWatcher, terminalID int, state agentTerminalState, fs agents.FS, home string, ticker *time.Ticker) {
+	defer a.releaseAgentWatcher(terminalID, w)
 	dbPath, err := openCodeDBFor(state.source, fs, home)
 	if err != nil {
 		return
@@ -305,8 +339,7 @@ func (a *App) watchOpenCode(ctx context.Context, terminalID int, state agentTerm
 				break
 			}
 		}
-		if !alive {
-			a.stopAgentWatcher(terminalID)
+		if !alive || !a.ownsAgentWatcher(terminalID, w) {
 			return
 		}
 		if stamp := agents.OpenCodeDBStamp(dbPath); stamp != lastStamp {
