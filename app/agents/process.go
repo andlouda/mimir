@@ -152,23 +152,39 @@ func FindAgent(procs []Process, rootPID int) (Detection, bool) {
 	return Detection{}, false
 }
 
-// MatchArgs checks a command line for a known agent binary. Only the first few
-// tokens are inspected: the executable itself and, for interpreter-launched
-// agents ("node .../bin/claude"), the script path.
+// interpreters are launchers whose first non-flag argument is the program
+// that actually runs ("node .../bin/claude", "python3 -m aider").
+var interpreters = map[string]bool{
+	"node": true, "nodejs": true, "bun": true, "deno": true,
+	"python": true, "python3": true, "py": true,
+	"cmd": true, "sh": true, "bash": true, "zsh": true,
+}
+
+// MatchArgs checks a command line for a known agent binary: the executable
+// itself, or the script after an interpreter. Later arguments are not
+// looked at, so "ssh hermes" or "less codex" are not agents.
 func MatchArgs(args string) (Descriptor, bool) {
 	tokens := strings.Fields(args)
-	limit := 3
-	if len(tokens) < limit {
-		limit = len(tokens)
+	if len(tokens) == 0 {
+		return Descriptor{}, false
 	}
-	for _, tok := range tokens[:limit] {
+	base := func(tok string) string {
+		return path.Base(strings.ReplaceAll(tok, "\\", "/"))
+	}
+	exe := base(tokens[0])
+	if d, ok := descriptorForBinary(exe); ok {
+		return d, true
+	}
+	if !interpreters[strings.ToLower(strings.TrimSuffix(exe, ".exe"))] {
+		return Descriptor{}, false
+	}
+	// The first non-flag token after the interpreter ("-m aider" counts).
+	for _, tok := range tokens[1:] {
 		if strings.HasPrefix(tok, "-") {
 			continue
 		}
-		base := path.Base(strings.ReplaceAll(tok, "\\", "/"))
-		if d, ok := descriptorForBinary(base); ok {
-			return d, true
-		}
+		d, ok := descriptorForBinary(base(tok))
+		return d, ok
 	}
 	return Descriptor{}, false
 }

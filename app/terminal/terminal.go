@@ -727,7 +727,9 @@ func (m *Manager) ReconnectSSH(id int) error {
 		return fmt.Errorf("no SSH metadata for terminal %d", id)
 	}
 
-	newSession, err := NewSSHSession(meta.Config)
+	cfg := meta.Config
+	cfg.ProxyClient = nil // closed with the old session; DialProxy makes a new one
+	newSession, err := NewSSHSession(cfg)
 	if err != nil {
 		return fmt.Errorf("SSH reconnect failed: %w", err)
 	}

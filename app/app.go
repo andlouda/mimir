@@ -223,12 +223,20 @@ func (a *App) applyPendingUpdateOnStartup() (bool, error) {
 // getTemplateContext gathers dynamic information for template execution.
 func (a *App) getTemplateContext() template.TemplateContext {
 	currentDir, _ := os.Getwd()
-	currentUser, _ := user.Current()
 	hostname, _ := os.Hostname()
+	// user.Current fails for uids without a passwd entry (containers,
+	// some LDAP/VDI setups); fall back to the environment instead of
+	// dereferencing nil.
+	username := ""
+	if currentUser, err := user.Current(); err == nil && currentUser != nil {
+		username = currentUser.Username
+	} else if username = os.Getenv("USER"); username == "" {
+		username = os.Getenv("USERNAME")
+	}
 
 	return template.TemplateContext{
 		CurrentDir: currentDir,
-		Username:   currentUser.Username,
+		Username:   username,
 		Hostname:   hostname,
 		// SelectedText: "", // Not yet implemented
 		// Clipboard:    "", // Not yet implemented
@@ -917,8 +925,12 @@ func (a *App) OpenPathInExplorer(path string) error {
 			Path:      path,
 			Reason:    err.Error(),
 		})
+		return err
 	}
-	return err
+	// Reap the launcher (xdg-open/open exit right away) so no zombie
+	// stays per click for the lifetime of Mimir.
+	go func() { _ = cmd.Wait() }()
+	return nil
 }
 
 func errorString(err error) string {

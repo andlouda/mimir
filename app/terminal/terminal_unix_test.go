@@ -63,16 +63,18 @@ func TestResolveUnixShellRejectsWindowsOnlyShell(t *testing.T) {
 	}
 }
 
-func TestLocalCommandProcessGroupFlag(t *testing.T) {
-	withGroup := localCommand("/bin/sh", []string{"-c", "true"}, []string{"TERM=xterm-256color"}, true)
-	if withGroup.SysProcAttr == nil || !withGroup.SysProcAttr.Setpgid {
-		t.Fatal("expected process group isolation to be enabled")
+func TestLocalCommandStartsInPtySessionOnly(t *testing.T) {
+	// pty.Start adds Setsid itself; Setpgid on top fails with EPERM, so
+	// the command must not ask for it.
+	cmd := localCommand("/bin/sh", []string{"-c", "true"}, []string{"TERM=xterm-256color"})
+	if cmd.SysProcAttr != nil && cmd.SysProcAttr.Setpgid {
+		t.Fatal("Setpgid must not be requested under a pty")
 	}
-
-	withoutGroup := localCommand("/bin/sh", []string{"-c", "true"}, []string{"TERM=xterm-256color"}, false)
-	if withoutGroup.SysProcAttr != nil {
-		t.Fatal("expected process group isolation to be disabled")
+	_, ptmx, err := startLocalPty("/bin/sh", []string{"-c", "exit 0"}, []string{"TERM=xterm-256color"})
+	if err != nil {
+		t.Fatalf("startLocalPty: %v", err)
 	}
+	_ = ptmx.Close()
 }
 
 func TestTerminalRuntimeMetaZeroValue(t *testing.T) {

@@ -237,11 +237,15 @@ func LoadAISettings(store *mimirssh.SecretStore) (AISettings, error) {
 		}
 	}
 	if strings.TrimSpace(settings.APIKey) != "" {
-		_ = storeAIAPIKey(store, settings.APIKey)
-		withoutSecret := settings
-		withoutSecret.APIKey = ""
-		if payload, err := json.MarshalIndent(withoutSecret, "", "  "); err == nil {
-			_ = safeio.AtomicWriteFile(filePath, payload, 0600)
+		// Move the key into the secret store; the file keeps it until the
+		// store really has it (the encrypted-file backend is locked at
+		// start-up), otherwise the key would be gone after the unlock.
+		if err := storeAIAPIKey(store, settings.APIKey); err == nil {
+			withoutSecret := settings
+			withoutSecret.APIKey = ""
+			if payload, err := json.MarshalIndent(withoutSecret, "", "  "); err == nil {
+				_ = safeio.AtomicWriteFile(filePath, payload, 0600)
+			}
 		}
 	}
 

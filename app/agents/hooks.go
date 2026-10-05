@@ -330,6 +330,10 @@ type HookEventFile struct {
 // closed pane) are garbage-collected after this.
 const hookEventMaxAge = 10 * time.Minute
 
+// hookEventHardMaxAge is measured with the local clock and only clears
+// events nobody will ever match (pane closed long ago).
+const hookEventHardMaxAge = 24 * time.Hour
+
 // ScanHookEvents reads all payloads in dir, oldest first. Unparseable or
 // stale files are removed when fs can delete; a missing directory is not an
 // error.
@@ -339,13 +343,23 @@ func ScanHookEvents(fs FS, dir string) []HookEventFile {
 		return nil
 	}
 	remover, _ := fs.(Remover)
+	// Mtimes of SSH/WSL hosts come from their clocks; judge age against the
+	// newest event in the directory so a skewed remote clock does not
+	// throw every event away before it is matched. A local hard cap
+	// still clears leftovers.
+	var newest time.Time
+	for _, e := range entries {
+		if !e.IsDir && strings.HasSuffix(e.Name, ".json") && e.ModTime.After(newest) {
+			newest = e.ModTime
+		}
+	}
 	var out []HookEventFile
 	for _, e := range entries {
 		if e.IsDir || !strings.HasSuffix(e.Name, ".json") {
 			continue
 		}
 		p := fs.Join(dir, e.Name)
-		stale := time.Since(e.ModTime) > hookEventMaxAge
+		stale := newest.Sub(e.ModTime) > hookEventMaxAge || time.Since(e.ModTime) > hookEventHardMaxAge
 		data, err := fs.ReadHead(p, 64*1024)
 		if err != nil {
 			continue

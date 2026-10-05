@@ -167,13 +167,19 @@ func (s *KnownHostStore) AddHostKey(host string, port int, key gossh.PublicKey) 
 	addr := hostPort(host, port)
 	line := knownhosts.Line([]string{addr}, key)
 
-	f, err := os.OpenFile(s.filePath, os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return fmt.Errorf("failed to open known_hosts: %w", err)
+	// Rewrite atomically: a crash during a plain append leaves a partial
+	// line, after which the whole file fails to parse and every host
+	// looks unknown again.
+	existing, err := os.ReadFile(s.filePath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read known_hosts: %w", err)
 	}
-	defer f.Close()
-
-	if _, err := fmt.Fprintln(f, line); err != nil {
+	content := string(existing)
+	if content != "" && !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	content += line + "\n"
+	if err := safeio.AtomicWriteFile(s.filePath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write known_hosts: %w", err)
 	}
 	return nil
