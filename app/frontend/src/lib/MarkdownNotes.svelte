@@ -2,6 +2,7 @@
   import { createEventDispatcher, onDestroy, onMount } from 'svelte';
   import { marked } from 'marked';
   import { t } from './i18n.js';
+  import { notesOpenRequest } from './stores/uiStore.js';
   import { sanitizeHtml } from './util.js';
   import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
   let editorEl = null;
@@ -57,6 +58,13 @@
   onMount(() => {
     loadNotes();
   });
+
+  // An import ("Notes" on a file) names the note to show right away.
+  $: if ($notesOpenRequest) {
+    const requested = $notesOpenRequest;
+    $notesOpenRequest = '';
+    loadNotes().then(() => openNote(requested)).catch((err) => console.error('Failed to open imported note:', err));
+  }
 
   async function loadNotes() {
     loading = true;

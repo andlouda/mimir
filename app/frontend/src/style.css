@@ -107,6 +107,28 @@ html, body, #app {
   cursor: grabbing;
 }
 
+/* Narrow panes: the header keeps name, minimize and close; the optional
+   buttons and badges go first instead of pushing minimize/close out of
+   the header (nine panes at 1024 px left no way to close one). */
+.terminal-header {
+  container-type: inline-size;
+  container-name: pane-header;
+}
+@container pane-header (max-width: 260px) {
+  .header-controls .transcript-btn,
+  .header-controls .record-btn:not(.recording),
+  .header-controls .split-btn,
+  .header-controls .header-sep {
+    display: none;
+  }
+}
+@container pane-header (max-width: 150px) {
+  .header-left .tmux-badge,
+  .header-left .rc-badge {
+    display: none;
+  }
+}
+
 .header-left {
   display: flex;
   align-items: center;

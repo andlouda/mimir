@@ -62,8 +62,10 @@
     ].join(' ').toLowerCase();
   }
 
-  function selectEntry(entry) {
+  let selectedIndex = -1; // position in visibleLogs: entries can share kind, second and title
+  function selectEntry(entry, index) {
     selectedEntry = entry;
+    selectedIndex = index;
     copyMessage = '';
   }
 
@@ -149,6 +151,7 @@
       logs = JSON.parse(payload);
       if (!selectedEntry || !logs.find((entry) => entry.timestamp === selectedEntry.timestamp && entry.kind === selectedEntry.kind && entry.title === selectedEntry.title)) {
         selectedEntry = logs[0] || null;
+        selectedIndex = selectedEntry ? 0 : -1;
       }
       errorMessage = '';
     } catch (error) {
@@ -230,8 +233,8 @@
           <button
             type="button"
             class="log-card"
-            class:active-log={selectedEntry && selectedEntry.kind === entry.kind && selectedEntry.timestamp === entry.timestamp && selectedEntry.title === entry.title}
-            on:click={() => selectEntry(entry)}
+            class:active-log={selectedIndex === i}
+            on:click={() => selectEntry(entry, i)}
           >
             <div class="log-card-top">
               <span class="log-kind-pill">{kindLabel(entry.kind)}</span>

@@ -13,6 +13,25 @@ export function replaceLeaf(node, terminalId, replacement) {
 }
 
 export function removeLeafFromTree(node, terminalId) {
+  const axis = parentDirectionOf(node, terminalId);
+  const removed = removeLeafRaw(node, terminalId);
+  // The removed pane's share used to go to its sibling only (a row of
+  // 619/88/89 px after closing six of nine); hand it to every pane along
+  // the same axis. Splits of the other direction keep their ratio.
+  return axis ? equalizeChains(removed, axis) : removed;
+}
+
+function parentDirectionOf(node, terminalId) {
+  if (!node || node.type === 'leaf') return null;
+  for (const child of node.children) {
+    if (child.type === 'leaf' && child.terminalId === terminalId) return node.direction;
+    const found = parentDirectionOf(child, terminalId);
+    if (found) return found;
+  }
+  return null;
+}
+
+function removeLeafRaw(node, terminalId) {
   if (!node) return null;
   if (node.type === 'leaf') {
     return node.terminalId === terminalId ? null : node;
@@ -21,11 +40,22 @@ export function removeLeafFromTree(node, terminalId) {
   const right = node.children[1];
   if (left.type === 'leaf' && left.terminalId === terminalId) return right;
   if (right.type === 'leaf' && right.terminalId === terminalId) return left;
-  const newLeft = removeLeafFromTree(left, terminalId);
-  const newRight = removeLeafFromTree(right, terminalId);
+  const newLeft = removeLeafRaw(left, terminalId);
+  const newRight = removeLeafRaw(right, terminalId);
   if (newLeft === null) return newRight;
   if (newRight === null) return newLeft;
   return { ...node, children: [newLeft, newRight] };
+}
+
+// equalizeChains gives every member of a chain of `direction` splits (the
+// shape "+ New" builds: [[[a, b], c], d]) an equal share; splits of the
+// other direction are left as they are.
+export function equalizeChains(node, direction) {
+  if (!node || node.type === 'leaf') return node;
+  const children = node.children.map((c) => equalizeChains(c, direction));
+  if (node.direction !== direction) return { ...node, children };
+  const n = chainCount(children[0], direction);
+  return { ...node, children, ratio: n / (n + 1) };
 }
 
 export function collectLeafIds(node) {

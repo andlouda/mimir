@@ -137,7 +137,11 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     theme: XTERM_THEME,
     // Per-pane background images sit behind xterm (backgroundActions.js);
     // transparency must be enabled at creation.
-    allowTransparency: true
+    allowTransparency: true,
+    // The Unicode 11 addon registers a width provider through xterm's
+    // proposed API; without this flag it throws and widths stay at
+    // Unicode 6 (overlapping emoji and spinner glyphs in agent TUIs).
+    allowProposedApi: true
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
