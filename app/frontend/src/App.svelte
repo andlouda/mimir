@@ -388,7 +388,7 @@
   }
 
   async function restoreSSHTerminal(profile, saved) {
-    try {
+    {
       const startSSH = window['go']['main']['App']['StartSSHTerminal'];
       const id = await startSSH(profile.id);
       if (!id) return null;
@@ -404,8 +404,6 @@
       if (saved.background) applyTerminalBackground(newTerminal.id, parseBackground(saved.background));
       await reinitializeTerminals();
       return { id, minimized: !!saved.minimized, key: layoutKeyFor({ ...newTerminal, resumeId: newTerminal.resumeId || saved.resumeId || '', tmuxSessionName: saved.tmuxSessionName || '' }) };
-    } catch (e) {
-      console.warn(`Failed to restore SSH terminal for ${profile.name}: ${e.message || e}`);
     }
   }
 
@@ -491,6 +489,7 @@
       const savedSession = await GetLoadedSessionData();
       const savedTerminals = dedupeSavedSessionTerminals(savedSession?.terminals || []);
       const notRestored = [];
+      const unrestored = []; // saved entries that failed: kept by the backend for the next start
       const restored = []; // { id, minimized, key } in save order
       if (savedTerminals.length > 0) {
         for (const saved of savedTerminals) {
@@ -502,7 +501,8 @@
               let entry = null;
               if (saved.type === 'ssh' && saved.sshProfileId) {
                 const profile = $sshProfiles.find(p => p.id === saved.sshProfileId);
-                if (profile) entry = await restoreSSHTerminal(profile, saved);
+                if (!profile) throw new Error($tr('appTerminals.restoreProfileMissing'));
+                entry = await restoreSSHTerminal(profile, saved);
               } else if (['bash', 'zsh', 'wsl', 'cmd', 'powershell'].includes(saved.type)) {
                 entry = await restoreLocalTerminal(saved);
               }
@@ -512,8 +512,17 @@
             });
           } catch (error) {
             notRestored.push(`${saved.name || saved.type}: ${error?.message || error}`);
+            unrestored.push(saved);
           }
         }
+      }
+      // Tell the backend which entries did not come back: they stay in the
+      // session file and are tried again next time instead of vanishing.
+      try {
+        const finish = window['go']?.['main']?.['App']?.['FinishSessionRestore'];
+        if (typeof finish === 'function') await finish(JSON.stringify(unrestored));
+      } catch (error) {
+        console.warn('Could not report the restore outcome:', error);
       }
       // Rebuild the arrangement from the saved layout (keys → new ids);
       // anything visible that the layout does not mention is appended with
@@ -535,7 +544,7 @@
       $layoutTree = tree;
       if (restored.length) await reinitializeTerminals();
       enableLayoutPersistence();
-      if (notRestored.length) $errorMessage = `${$tr('appTerminals.restoreFailed')}\n${notRestored.join('\n')}`;
+      if (notRestored.length) $errorMessage = `${$tr('appTerminals.restoreFailed')}\n${notRestored.join('\n')}\n${$tr('appTerminals.restoreRetryHint')}`;
       if ($terminals.length === 0) doAddTerminal();
       else scheduleSessionSave(50);
       enableLayoutPersistence();

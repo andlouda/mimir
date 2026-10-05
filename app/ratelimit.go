@@ -26,6 +26,19 @@ func newRateLimiter(interval time.Duration, burst int) *rateLimiter {
 	}
 }
 
+// grant adds n extra tokens to key's current window, for work whose size
+// the backend itself knows to be bounded (restoring a saved session).
+func (r *rateLimiter) grant(key string, n int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	b, ok := r.limits[key]
+	if !ok {
+		b = &bucket{tokens: r.burst, lastReset: time.Now()}
+		r.limits[key] = b
+	}
+	b.tokens += n
+}
+
 func (r *rateLimiter) allow(key string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

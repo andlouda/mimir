@@ -284,6 +284,8 @@ export async function installMimirMocks(page, { workspaceAgent = false } = {}) {
           GetFunctionCatalogJSON: async () => JSON.stringify(functionCatalog),
           GetLoadedSessionData: async () => ({ terminals: [] }),
           UpdateSessionLayout: asyncNoop,
+          FinishSessionRestore: asyncNoop,
+          DiscardUnrestoredTerminal: asyncNoop,
           GetPendingUpdate: async () => '',
           GetPlaybooksJSON: async () => JSON.stringify(savedPlaybooks),
           GetRecording: async () => ({ id: 'rec-1', title: 'Recording', content: '' }),

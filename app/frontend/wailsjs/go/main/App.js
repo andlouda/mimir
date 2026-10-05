@@ -418,6 +418,14 @@ export function UpdateTerminalBackground(arg1, arg2) {
   return window['go']['main']['App']['UpdateTerminalBackground'](arg1, arg2);
 }
 
+export function FinishSessionRestore(arg1) {
+  return window['go']['main']['App']['FinishSessionRestore'](arg1);
+}
+
+export function DiscardUnrestoredTerminal(arg1) {
+  return window['go']['main']['App']['DiscardUnrestoredTerminal'](arg1);
+}
+
 export function UpdateSessionLayout(arg1) {
   return window['go']['main']['App']['UpdateSessionLayout'](arg1);
 }
