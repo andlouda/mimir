@@ -152,6 +152,35 @@ func FindAgent(procs []Process, rootPID int) (Detection, bool) {
 	return Detection{}, false
 }
 
+// splitCommandLine splits a command line into tokens, honouring double
+// quotes the way Windows command lines use them (`"C:\\Program Files\\x"`),
+// which strings.Fields would cut at the space.
+func splitCommandLine(args string) []string {
+	var out []string
+	var cur strings.Builder
+	inQuote, has := false, false
+	for _, r := range args {
+		switch {
+		case r == '"':
+			inQuote = !inQuote
+			has = true
+		case !inQuote && (r == ' ' || r == '\t' || r == '\n' || r == '\r'):
+			if has {
+				out = append(out, cur.String())
+				cur.Reset()
+				has = false
+			}
+		default:
+			cur.WriteRune(r)
+			has = true
+		}
+	}
+	if has {
+		out = append(out, cur.String())
+	}
+	return out
+}
+
 // interpreters are launchers whose first non-flag argument is the program
 // that actually runs ("node .../bin/claude", "python3 -m aider").
 var interpreters = map[string]bool{
@@ -164,7 +193,7 @@ var interpreters = map[string]bool{
 // itself, or the script after an interpreter. Later arguments are not
 // looked at, so "ssh hermes" or "less codex" are not agents.
 func MatchArgs(args string) (Descriptor, bool) {
-	tokens := strings.Fields(args)
+	tokens := splitCommandLine(args)
 	if len(tokens) == 0 {
 		return Descriptor{}, false
 	}
@@ -183,8 +212,35 @@ func MatchArgs(args string) (Descriptor, bool) {
 		if strings.HasPrefix(tok, "-") {
 			continue
 		}
-		d, ok := descriptorForBinary(base(tok))
-		return d, ok
+		if d, ok := descriptorForBinary(base(tok)); ok {
+			return d, true
+		}
+		return descriptorForScriptPath(tok)
+	}
+	return Descriptor{}, false
+}
+
+// genericScripts are entry points whose name says nothing; the npm
+// package directory above them does ("@anthropic-ai/claude-code/cli.js").
+var genericScripts = map[string]bool{"cli.js": true, "cli.mjs": true, "index.js": true, "index.mjs": true, "main.js": true, "bin.js": true}
+
+var packageDirs = map[string]Kind{
+	"claude-code": KindClaude,
+	"codex":       KindCodex,
+	"gemini-cli":  KindGemini,
+	"opencode":    KindOpenCode,
+	"opencode-ai": KindOpenCode,
+}
+
+func descriptorForScriptPath(tok string) (Descriptor, bool) {
+	norm := strings.ReplaceAll(tok, "\\", "/")
+	if !genericScripts[strings.ToLower(path.Base(norm))] {
+		return Descriptor{}, false
+	}
+	for _, seg := range strings.Split(strings.ToLower(norm), "/") {
+		if kind, ok := packageDirs[seg]; ok {
+			return Lookup(kind)
+		}
 	}
 	return Descriptor{}, false
 }

@@ -18,6 +18,7 @@ import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, Con
 import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
+import { quotePathFor } from '../terminals/droppedPaths.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
 import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
@@ -512,12 +513,15 @@ export async function addTerminal(terminalTypeParam, nameParam, minimized = fals
       let cdCommand = '';
       switch(type) {
         case 'cmd':
-          cdCommand = `cd /d "${initialPath}"`;
+          cdCommand = `cd /d ${quotePathFor(initialPath, 'cmd')}`;
           break;
         case 'powershell':
-          cdCommand = `Set-Location -LiteralPath "${initialPath}"`;
+          // Single quotes: no $ expansion or backtick escapes in the path.
+          cdCommand = `Set-Location -LiteralPath ${quotePathFor(initialPath, 'powershell')}`;
           break;
         case 'wsl':
+          cdCommand = `cd ${quotePathFor(initialPath, 'wsl')}`;
+          break;
         case 'bash':
         case 'zsh':
           cdCommand = `cd ${shellQuotePath(initialPath)}`;

@@ -42,11 +42,26 @@ func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to close temp file for %s: %w", path, err)
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
+	if err := renameWithRetry(tmpPath, path); err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to replace %s atomically: %w", path, err)
 	}
 	return nil
+}
+
+// renameWithRetry retries the rename briefly: on Windows an antivirus
+// scanner, the indexer or an editor holding the target makes it fail with
+// a sharing violation for a moment, which otherwise surfaces as a save
+// error for the session, profiles or notes.
+func renameWithRetry(from, to string) error {
+	var err error
+	for attempt := 0; attempt < renameAttempts; attempt++ {
+		if err = os.Rename(from, to); err == nil {
+			return nil
+		}
+		time.Sleep(renameBackoff * time.Duration(attempt+1))
+	}
+	return err
 }
 
 // SweepStaleTempFiles removes orphaned ".tmp-*" files left in dir by an

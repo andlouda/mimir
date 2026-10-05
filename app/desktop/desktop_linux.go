@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // The icon's basename inside the hicolor apps directory.
@@ -22,6 +23,27 @@ Categories=System;TerminalEmulator;Utility;
 StartupWMClass=mimir
 StartupNotify=true
 `
+
+// desktopExecQuote quotes a path for the Exec= key per the Desktop Entry
+// spec: reserved characters are backslash-escaped inside double quotes
+// and % is doubled so it is not read as a field code.
+func desktopExecQuote(p string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range p {
+		switch r {
+		case '"', '`', '$', '\\':
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		case '%':
+			b.WriteString("%%")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
 
 func Install(iconPNG []byte) error {
 	exePath, err := os.Executable()
@@ -59,7 +81,7 @@ func Install(iconPNG []byte) error {
 	iconPath := filepath.Join(iconDir, iconName+".png")
 	pixmapPath := filepath.Join(pixmapsDir, iconName+".png")
 	desktopPath := filepath.Join(appsDir, "mimir.desktop")
-	desktopContent := fmt.Sprintf(desktopTemplate, exePath)
+	desktopContent := fmt.Sprintf(desktopTemplate, desktopExecQuote(exePath))
 
 	iconChanged, err := writeIfChanged(iconPath, iconPNG, 0o644)
 	if err != nil {

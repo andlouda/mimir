@@ -32,13 +32,35 @@ function uriToPath(uri) {
   }
 }
 
-// Shell-quote for POSIX shells (and good enough for PowerShell paths with
-// spaces); plain paths stay plain.
+// Shell-quote for POSIX shells; plain paths stay plain.
 export function shellQuotePath(p) {
   if (/^[A-Za-z0-9_./:\\-]+$/.test(p)) return p;
   return `'${p.replace(/'/g, "'\\''")}'`;
 }
 
-export function droppedPathsText(uriList) {
-  return pathsFromUriList(uriList).map(shellQuotePath).join(' ');
+// C:/x or C:\x → /mnt/c/x for a WSL pane; other paths unchanged.
+export function toWslPath(p) {
+  const m = /^([A-Za-z]):[\\/](.*)$/.exec(p);
+  if (!m) return p;
+  return `/mnt/${m[1].toLowerCase()}/${m[2].replace(/\\/g, '/')}`;
+}
+
+// Quote a path for the shell behind a pane: cmd.exe knows only double
+// quotes, PowerShell takes single quotes with '' inside, POSIX shells the
+// usual single-quote form; WSL panes also get the /mnt/<drive> path.
+export function quotePathFor(p, terminalType) {
+  switch (terminalType) {
+    case 'cmd':
+      return /[\s&|<>^()]/.test(p) ? `"${p}"` : p;
+    case 'powershell':
+      return /^[A-Za-z0-9_./:\\-]+$/.test(p) ? p : `'${p.replace(/'/g, "''")}'`;
+    case 'wsl':
+      return shellQuotePath(toWslPath(p));
+    default:
+      return shellQuotePath(p);
+  }
+}
+
+export function droppedPathsText(uriList, terminalType = '') {
+  return pathsFromUriList(uriList).map((p) => quotePathFor(p, terminalType)).join(' ');
 }
