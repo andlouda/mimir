@@ -265,9 +265,11 @@
       $notesPanelWidth = Math.max(250, Math.min(800, window.innerWidth - 560, startWidth + (startX - ev.clientX)));
     };
     const onUp = () => {
-      localStorage.setItem('mimir-notes-width', String($notesPanelWidth));
+      // Listeners first: a storage failure must not leave the panel
+      // following the pointer.
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      try { localStorage.setItem('mimir-notes-width', String($notesPanelWidth)); } catch { /* storage unavailable */ }
       handleResize();
     };
     window.addEventListener('mousemove', onMove);
