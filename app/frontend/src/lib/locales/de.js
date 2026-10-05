@@ -414,6 +414,8 @@ export default {
   splitPane: {
     tmuxInvisible: 'unsichtbar (Maus bei Mimir)',
     tmuxClassic: 'klassisch (Maus bei tmux)',
+    ctxSendToAgent: 'An Agent senden',
+    ctxSendToAgentTitle: 'Fügt die Auswahl als Eingabe in die Pane des Agenten ein; Enter drückst du selbst',
     ctxCopyTmux: 'Letzte tmux-Auswahl kopieren',
     ctxCopyTmuxTitle: 'Holt den Text, den tmux zuletzt kopiert hat (sein Paste-Puffer), in die Zwischenablage — auch wenn das entfernte tmux Markierungen nicht selbst weiterreichen kann',
     ctxOpenLink: 'Link im Browser öffnen',
@@ -576,6 +578,9 @@ export default {
     powershellPlaceholder: 'z. B. Befehl hier',
   },
   markdownNotes: {
+    sendToAgent: 'Notiz (oder Auswahl) an einen Agenten senden',
+    sendNone: 'In keinem Terminal läuft ein Agent.',
+    sendFailed: 'Senden nicht möglich: die Agent-Pane ist minimiert oder leer.',
     backToList: 'Zurück zur Liste',
     title: 'Notizen',
     newNote: 'Neue Notiz',

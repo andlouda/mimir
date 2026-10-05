@@ -3,6 +3,25 @@
   import { marked } from 'marked';
   import { t } from './i18n.js';
   import { sanitizeHtml } from './util.js';
+  import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
+  let editorEl = null;
+  let showSendMenu = false;
+  // The selection in the editor, else the whole note.
+  function noteTextToSend() {
+    const el = editorEl;
+    if (el && el.selectionStart !== el.selectionEnd) return editorContent.slice(el.selectionStart, el.selectionEnd);
+    return editorContent;
+  }
+  function sendNoteTo(targetId) {
+    showSendMenu = false;
+    if (!sendTextToAgent(targetId, noteTextToSend())) errorMessage = $t('markdownNotes.sendFailed');
+  }
+  function sendNote() {
+    const targets = agentTargets();
+    if (targets.length === 0) { errorMessage = $t('markdownNotes.sendNone'); return; }
+    if (targets.length === 1) { sendNoteTo(targets[0].id); return; }
+    showSendMenu = !showSendMenu;
+  }
 
   const dispatch = createEventDispatcher();
 
@@ -266,6 +285,18 @@
           {/if}
         </div>
       {/if}
+      {#if activeNote}
+        <div class="import-wrap">
+          <button class="notes-icon-btn" on:click={sendNote} title={$t('markdownNotes.sendToAgent')} aria-label={$t('markdownNotes.sendToAgent')}>&#x2192;</button>
+          {#if showSendMenu}
+            <div class="import-menu">
+              {#each agentTargets() as target (target.id)}
+                <button class="import-menu-item" on:click={() => sendNoteTo(target.id)}>{target.label} · {target.name}</button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      {/if}
       <button class="notes-icon-btn notes-close-btn" on:click={requestClose} title={$t('markdownNotes.close')} aria-label={$t('markdownNotes.close')}>&times;</button>
     </div>
   </div>
@@ -372,6 +403,7 @@
         </div>
         <textarea
           class="note-editor-textarea"
+          bind:this={editorEl}
           bind:value={editorContent}
           on:input={handleEditorInput}
           on:keydown={handleEditorKeydown}

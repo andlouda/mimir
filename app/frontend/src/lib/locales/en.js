@@ -414,6 +414,8 @@ export default {
   splitPane: {
     tmuxInvisible: 'invisible (mouse handled by Mimir)',
     tmuxClassic: 'classic (mouse handled by tmux)',
+    ctxSendToAgent: 'Send to agent',
+    ctxSendToAgentTitle: 'Pastes the selection into the agent\'s pane as typed input; you still press Enter',
     ctxCopyTmux: 'Copy last tmux selection',
     ctxCopyTmuxTitle: 'Fetches the text tmux copied last (its paste buffer) and puts it on the clipboard — works even when the remote tmux cannot forward selections itself',
     ctxOpenLink: 'Open link in browser',
@@ -576,6 +578,9 @@ export default {
     powershellPlaceholder: 'e.g., command here',
   },
   markdownNotes: {
+    sendToAgent: 'Send note (or selection) to an agent',
+    sendNone: 'No agent is running in a terminal.',
+    sendFailed: 'Could not send: the agent pane is minimized or empty.',
     backToList: 'Back to list',
     title: 'Notes',
     newNote: 'New Note',

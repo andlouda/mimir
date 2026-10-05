@@ -52,6 +52,7 @@ Other OS versions may build or run but are not validated. Treat unlisted platfor
 - Workflow picker (Ctrl+Shift+W) for quick playbook execution
 - AI integration (OpenAI, Ollama, Anthropic) with guardrails
 - Local notes panel with markdown support
+- "Send to agent": a terminal selection (context menu) or a note goes into an agent's pane as typed input, never submitted for you
 - Optional command history capture and search
 - Terminal recording with scrubbed export and GIF generation
 - Self-update with SHA256 verification and staged install
