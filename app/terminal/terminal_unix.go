@@ -290,7 +290,10 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 	injectHook := isHistoryEnabled() || shellHookConsent()
 	switch terminalType {
 	case "bash", "wsl":
-		rcContent := "source ~/.bashrc 2>/dev/null || true\nPS1='\\W \\$ '\n"
+		rcContent := "source ~/.bashrc 2>/dev/null || true\n"
+		if PromptMode() == PromptModeMimir {
+			rcContent += "PS1='\\W \\$ '\n"
+		}
 		if injectHook {
 			rcContent += mimirBashHook
 		}
@@ -303,7 +306,10 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 		zdotdir := filepath.Join(mimirShellStateDir(), "zsh")
 		if err := os.MkdirAll(zdotdir, 0700); err == nil {
 			zshrcPath := filepath.Join(zdotdir, ".zshrc")
-			rcContent := "source ~/.zshrc 2>/dev/null || true\nPROMPT='%1~ %# '\n"
+			rcContent := "source ~/.zshrc 2>/dev/null || true\n"
+			if PromptMode() == PromptModeMimir {
+				rcContent += "PROMPT='%1~ %# '\n"
+			}
 			if injectHook {
 				rcContent += mimirZshHook
 			}

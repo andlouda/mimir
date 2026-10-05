@@ -123,6 +123,23 @@ export default {
         note: 'Unsichtbar und Klassisch werden sofort auf laufende tmux-Terminals angewendet; Aus gilt für Terminals, die ab jetzt geöffnet werden.',
       },
       fontSize: { title: 'Terminal-Schriftgröße', desc: 'Zoom für alle Terminals, damit mehr Panes nebeneinander passen. Auch Strg + / Strg − / Strg 0 oder Strg + Mausrad über einem Terminal.', smaller: 'Kleiner', larger: 'Größer', reset: 'Zurücksetzen' },
+      prompt: {
+        title: 'Shell-Prompt',
+        mimir: 'Mimirs Kurzprompt',
+        shell: 'Prompt der Shell behalten',
+        desc_mimir: 'Neue Terminals bekommen nach dem Laden deiner rc-Datei einen kurzen Prompt („dir $ “). Starship, oh-my-posh oder eine eigene PS1 werden ersetzt.',
+        desc_shell: 'Dein eigener Prompt bleibt, wie ihn deine rc-Datei setzt; Mimir hängt nur seinen cwd/History-Hook an.',
+        note: 'Gilt für Terminals, die ab jetzt gestartet werden. Der Hook, der das Arbeitsverzeichnis meldet, ist davon unabhängig.',
+      },
+      im: {
+        title: 'Eingabemethode (Linux)',
+        auto: 'Automatisch (Workaround für lateinische Locales)',
+        simple: 'Immer den einfachen GTK-Kontext',
+        system: 'Eingabemethode des Systems behalten',
+        desc: 'Die WebKitGTK-Webview verschluckt oder verdoppelt zusammengesetzte Zeichen (ä, Dead Keys) mit ibus/fcitx, deshalb kann Mimir GTKs einfachen Eingabekontext erzwingen. Das schaltet ibus/fcitx komplett ab, was CJK- und andere komplexe Locales brauchen. „Automatisch“ wendet den Workaround nur bei lateinischen Locales an, ein selbst exportiertes GTK_IM_MODULE gewinnt immer.',
+        effectiveOn: 'Aktuell: einfacher Kontext erzwungen.',
+        effectiveOff: 'Aktuell: System-Eingabemethode bleibt.',
+      },
       wayland: {
         title: 'Wayland-Kompatibilität (Linux-Webview)',
         auto: 'Automatisch (unter Wayland an)',

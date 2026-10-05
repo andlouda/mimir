@@ -123,6 +123,23 @@ export default {
         note: 'Invisible and classic are applied to running tmux terminals immediately; off takes effect for terminals opened from now on.',
       },
       fontSize: { title: 'Terminal font size', desc: 'Zoom for every terminal, so more panes fit side by side. Also Ctrl + / Ctrl − / Ctrl 0, or Ctrl + mouse wheel over a terminal.', smaller: 'Smaller', larger: 'Larger', reset: 'Reset' },
+      prompt: {
+        title: 'Shell prompt',
+        mimir: "Mimir's short prompt",
+        shell: "The shell's own prompt",
+        desc_mimir: 'New terminals get a short prompt ("dir $ ") after your rc file has run. Starship, oh-my-posh or a custom PS1 are replaced.',
+        desc_shell: 'Your own prompt stays as your rc file sets it; Mimir only appends its cwd/history hook.',
+        note: 'Applies to terminals started from now on. The hook that reports the working directory is independent of this.',
+      },
+      im: {
+        title: 'Input method (Linux)',
+        auto: 'Automatic (workaround for Latin-script locales)',
+        simple: 'Always use the simple GTK context',
+        system: 'Keep the system input method',
+        desc: 'The WebKitGTK webview drops or doubles composed characters (ä, dead keys) with ibus/fcitx, so Mimir can force GTK\'s simple input context. That disables ibus/fcitx entirely, which CJK and other complex-script locales need — "Automatic" applies the workaround only to Latin-script locales, and a GTK_IM_MODULE you exported yourself always wins.',
+        effectiveOn: 'Currently: simple context forced.',
+        effectiveOff: 'Currently: system input method kept.',
+      },
       wayland: {
         title: 'Wayland compatibility (Linux webview)',
         auto: 'Automatic (on under Wayland)',

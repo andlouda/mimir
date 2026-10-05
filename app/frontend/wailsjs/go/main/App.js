@@ -370,6 +370,26 @@ export function SetGPUPolicy(arg1) {
   return window['go']['main']['App']['SetGPUPolicy'](arg1);
 }
 
+export function GetPromptMode() {
+  return window['go']['main']['App']['GetPromptMode']();
+}
+
+export function SetPromptMode(arg1) {
+  return window['go']['main']['App']['SetPromptMode'](arg1);
+}
+
+export function GetIMModule() {
+  return window['go']['main']['App']['GetIMModule']();
+}
+
+export function SetIMModule(arg1) {
+  return window['go']['main']['App']['SetIMModule'](arg1);
+}
+
+export function IMModuleEffective() {
+  return window['go']['main']['App']['IMModuleEffective']();
+}
+
 export function GetWaylandFix() {
   return window['go']['main']['App']['GetWaylandFix']();
 }
