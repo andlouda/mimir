@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
 
 	"mimir/safeio"
@@ -47,13 +48,43 @@ type Template struct {
 	Favorite     bool                `json:"favorite"`
 	SourceFile   string              `json:"-"`
 	UserTemplate bool                `json:"-"`
+	// toolEnabledSet records that the JSON carried an explicit
+	// toolEnabled, so "false" is honoured instead of defaulted away.
+	toolEnabledSet bool
+}
+
+// UnmarshalJSON decodes a template and notes whether toolEnabled was given.
+func (t *Template) UnmarshalJSON(data []byte) error {
+	type plain Template
+	var p plain
+	if err := json.Unmarshal(data, &p); err != nil {
+		return err
+	}
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(data, &keys); err == nil {
+		_, p.toolEnabledSet = keys["toolEnabled"]
+	}
+	*t = Template(p)
+	return nil
 }
 
 // Manager manages templates.
 type Manager struct {
+	mu                sync.RWMutex
 	templates         []Template
 	embeddedTemplates fs.FS
 	userTemplateDir   string
+}
+
+// builtinValuePattern: values Mimir fills itself (CurrentDir, Username,
+// Hostname, ...) may contain spaces but no shell operators or quotes.
+var builtinValuePattern = regexp.MustCompile("^[^;&|<>$`\"'\\\n\r]*$")
+
+// snapshot returns a copy of the loaded templates for readers.
+func (m *Manager) snapshot() []Template {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return append([]Template(nil), m.templates...)
 }
 
 // NewManager creates a new template manager.
@@ -87,15 +118,22 @@ func normalizeTemplate(tmpl *Template) {
 	if tmpl.Commands == nil {
 		tmpl.Commands = map[string]string{}
 	}
-	if strings.TrimSpace(tmpl.DangerLevel) == "" {
+	explicitDanger := strings.TrimSpace(tmpl.DangerLevel) != ""
+	if !explicitDanger {
 		tmpl.DangerLevel = "low"
 	}
 	if strings.TrimSpace(tmpl.ToolClass) == "" {
 		tmpl.ToolClass = deriveToolClass(tmpl.DangerLevel, tmpl.Commands)
 	}
-	if !tmpl.ToolEnabled && tmpl.DangerLevel != "high" {
-		// For legacy templates without metadata we default to tool-enabled.
+	// Only a template whose author classified it (dangerLevel set) is
+	// offered to the AI by default; one without metadata is a manual
+	// template until it opts in with toolEnabled. An explicit
+	// "toolEnabled": false is kept either way.
+	if explicitDanger && !tmpl.ToolEnabled && !tmpl.toolEnabledSet && tmpl.DangerLevel != "high" {
 		tmpl.ToolEnabled = true
+	}
+	if tmpl.DangerLevel == "high" {
+		tmpl.ToolEnabled = false
 	}
 	if len(tmpl.Parameters) == 0 {
 		tmpl.Parameters = deriveTemplateParameters(tmpl.Commands)
@@ -227,11 +265,23 @@ func validateTemplateInputs(tmpl Template, command string, data map[string]strin
 				if matches == nil || matches[0] != 0 || matches[1] != len(value) {
 					return fmt.Errorf("template parameter %s failed validation", name)
 				}
-				continue
+				// A pattern narrows what is accepted; it never re-enables
+				// shell metacharacters, so the atom check still runs.
 			}
 		}
 
-		if value != "" && !defaultShellAtomPattern.MatchString(value) {
+		if value == "" {
+			continue
+		}
+		if _, isBuiltin := builtinTemplateVariables[name]; isBuiltin {
+			// Paths and user names may contain spaces ("C:\Users\John Doe");
+			// shell operators and quotes are still refused.
+			if !builtinValuePattern.MatchString(value) {
+				return fmt.Errorf("template variable %s contains unsafe shell characters", name)
+			}
+			continue
+		}
+		if !defaultShellAtomPattern.MatchString(value) {
 			return fmt.Errorf("template variable %s contains unsafe shell characters", name)
 		}
 	}
@@ -273,6 +323,12 @@ func loadTemplatesFromFS(source fs.FS, userTemplate bool) ([]Template, error) {
 
 // LoadTemplates loads bundled templates and user overrides from the private config dir.
 func (m *Manager) LoadTemplates() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.loadTemplatesLocked()
+}
+
+func (m *Manager) loadTemplatesLocked() error {
 	loadedTemplates, err := loadTemplatesFromFS(m.embeddedTemplates, false)
 	if err != nil {
 		return fmt.Errorf("failed to read embedded templates directory: %w", err)
@@ -316,7 +372,7 @@ func (m *Manager) userTemplatePath(filename string) string {
 
 // GetTemplates returns the loaded templates.
 func (m *Manager) GetTemplates() ([]Template, error) {
-	return m.templates, nil
+	return m.snapshot(), nil
 }
 
 // ReloadTemplates reloads the templates.
@@ -325,13 +381,14 @@ func (m *Manager) ReloadTemplates() ([]Template, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to reload templates: %w", err)
 	}
-	return m.templates, nil
+	return m.snapshot(), nil
 }
 
 // GetToolTemplates returns templates that are safe to expose as AI-invokable tools.
 func (m *Manager) GetToolTemplates() []Template {
-	tools := make([]Template, 0, len(m.templates))
-	for _, tmpl := range m.templates {
+	all := m.snapshot()
+	tools := make([]Template, 0, len(all))
+	for _, tmpl := range all {
 		if tmpl.ToolEnabled && tmpl.DangerLevel != "high" {
 			tools = append(tools, tmpl)
 		}
@@ -355,7 +412,7 @@ func (m *Manager) ApplyTemplate(id int, templateName string, terminalType string
 	var command string
 	var selectedTemplate Template
 	foundTemplate := false
-	for _, t := range m.templates {
+	for _, t := range m.snapshot() {
 		if t.Name == templateName {
 			selectedTemplate = t
 			normalizeTemplate(&selectedTemplate)
@@ -414,6 +471,8 @@ func (m *Manager) ApplyTemplate(id int, templateName string, terminalType string
 
 // SaveTemplate saves a template to a file and returns updated template list.
 func (m *Manager) SaveTemplate(templateJSON string) ([]Template, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var template Template
 	if err := json.Unmarshal([]byte(templateJSON), &template); err != nil {
 		return nil, fmt.Errorf("failed to parse template JSON: %w", err)
@@ -432,15 +491,17 @@ func (m *Manager) SaveTemplate(templateJSON string) ([]Template, error) {
 	}
 
 	// Reload templates
-	if err := m.LoadTemplates(); err != nil {
+	if err := m.loadTemplatesLocked(); err != nil {
 		return nil, err
 	}
 
-	return m.templates, nil
+	return append([]Template(nil), m.templates...), nil
 }
 
 // UpdateTemplate updates an existing template file and returns updated template list.
 func (m *Manager) UpdateTemplate(templateJSON string) ([]Template, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var template Template
 	if err := json.Unmarshal([]byte(templateJSON), &template); err != nil {
 		return nil, fmt.Errorf("failed to parse template JSON: %w", err)
@@ -459,15 +520,17 @@ func (m *Manager) UpdateTemplate(templateJSON string) ([]Template, error) {
 	}
 
 	// Reload templates
-	if err := m.LoadTemplates(); err != nil {
+	if err := m.loadTemplatesLocked(); err != nil {
 		return nil, err
 	}
 
-	return m.templates, nil
+	return append([]Template(nil), m.templates...), nil
 }
 
 // DeleteTemplate deletes a template file and returns updated template list.
 func (m *Manager) DeleteTemplate(templateName string) ([]Template, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	sanitizedName := m.sanitizeFilename(templateName)
 	if sanitizedName == "" {
 		return nil, fmt.Errorf("template name cannot be empty or contain only invalid characters")
@@ -484,15 +547,17 @@ func (m *Manager) DeleteTemplate(templateName string) ([]Template, error) {
 	}
 
 	// Reload templates
-	if err := m.LoadTemplates(); err != nil {
+	if err := m.loadTemplatesLocked(); err != nil {
 		return nil, err
 	}
 
-	return m.templates, nil
+	return append([]Template(nil), m.templates...), nil
 }
 
 // ToggleFavorite toggles the favorite status of a template and returns updated template list.
 func (m *Manager) ToggleFavorite(templateName string) ([]Template, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	// Find the template
 	var foundTemplate *Template
 	for i := range m.templates {
@@ -515,23 +580,25 @@ func (m *Manager) ToggleFavorite(templateName string) ([]Template, error) {
 		return nil, fmt.Errorf("failed to marshal template: %w", err)
 	}
 
-	filename := foundTemplate.SourceFile
-	if strings.TrimSpace(filename) == "" {
-		sanitizedName := m.sanitizeFilename(foundTemplate.Name)
-		filename = sanitizedName + ".json"
-	}
+	// One override file per template name (the same file Update/Delete
+	// use); an older override written under the bundled file's name
+	// would otherwise shadow later edits and survive a delete.
+	filename := m.sanitizeFilename(foundTemplate.Name) + ".json"
 	filePath := m.userTemplatePath(filename)
 
 	if err := safeio.AtomicWriteFile(filePath, templateJSON, 0600); err != nil {
 		return nil, fmt.Errorf("failed to write template file: %w", err)
 	}
+	if src := strings.TrimSpace(foundTemplate.SourceFile); src != "" && src != filename && filepath.Base(src) == src {
+		_ = os.Remove(m.userTemplatePath(src))
+	}
 
 	// Reload templates
-	if err := m.LoadTemplates(); err != nil {
+	if err := m.loadTemplatesLocked(); err != nil {
 		return nil, err
 	}
 
-	return m.templates, nil
+	return append([]Template(nil), m.templates...), nil
 }
 
 // sanitizeFilename removes invalid characters from filenames to prevent

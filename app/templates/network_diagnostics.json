@@ -2,6 +2,8 @@
   "name": "Network Diagnostics",
   "description": "Zeigt Adapter, IP-Konfiguration und offene Listener.",
   "category": "Network",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "ip addr show && echo && ss -tulpen",
     "cmd": "ipconfig /all && echo. && netstat -an | findstr LISTEN",

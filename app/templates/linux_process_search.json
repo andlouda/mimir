@@ -2,6 +2,8 @@
   "name": "Linux Process Search",
   "description": "Sucht auf Linux nach Prozessen anhand eines Namens oder Teilstrings.",
   "category": "Linux",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "ps aux | grep -i {{.ProcessName}} | grep -v grep",
     "wsl": "ps aux | grep -i {{.ProcessName}} | grep -v grep",

@@ -2,6 +2,8 @@
   "name": "Git Recent Commits",
   "description": "Listet die letzten 10 Commits kompakt auf.",
   "category": "Diagnostics",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "git log --oneline --decorate -10",
     "cmd": "git log --oneline --decorate -10",

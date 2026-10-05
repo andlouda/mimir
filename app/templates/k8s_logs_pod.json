@@ -2,6 +2,8 @@
   "name": "K8s Pod Logs",
   "description": "Zeigt Logs für einen Pod in einem Namespace an.",
   "category": "Kubernetes",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "parameters": [
     {
       "name": "Namespace",
@@ -21,11 +23,11 @@
     }
   ],
   "commands": {
-    "bash": "kubectl logs -f -n {{.Namespace}} {{.Pod}}",
-    "cmd": "kubectl logs -f -n {{.Namespace}} {{.Pod}}",
-    "powershell": "kubectl logs -f -n {{.Namespace}} {{.Pod}}",
-    "wsl": "kubectl logs -f -n {{.Namespace}} {{.Pod}}",
-    "zsh": "kubectl logs -f -n {{.Namespace}} {{.Pod}}"
+    "bash": "kubectl logs --tail=200 -n {{.Namespace}} {{.Pod}}",
+    "cmd": "kubectl logs --tail=200 -n {{.Namespace}} {{.Pod}}",
+    "powershell": "kubectl logs --tail=200 -n {{.Namespace}} {{.Pod}}",
+    "wsl": "kubectl logs --tail=200 -n {{.Namespace}} {{.Pod}}",
+    "zsh": "kubectl logs --tail=200 -n {{.Namespace}} {{.Pod}}"
   },
   "favorite": false
 }

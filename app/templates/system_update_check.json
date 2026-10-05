@@ -2,6 +2,8 @@
   "name": "System Update Check",
   "description": "Prüft verfügbare Paket- oder Windows-Updates.",
   "category": "System",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "if command -v apt >/dev/null 2>&1; then apt list --upgradable; elif command -v dnf >/dev/null 2>&1; then dnf check-update; elif command -v yum >/dev/null 2>&1; then yum check-update; else echo 'Package manager not supported'; fi",
     "cmd": "powershell \"try { Get-Module -ListAvailable PSWindowsUpdate -ErrorAction Stop; Get-WUList } catch { Write-Host 'PSWindowsUpdate module not installed. Install with: Install-Module PSWindowsUpdate' }\"",

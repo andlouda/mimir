@@ -2,6 +2,8 @@
   "name": "Docker Images",
   "description": "Listet lokal verfügbare Docker-Images auf.",
   "category": "Containers",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "docker images",
     "cmd": "docker images",

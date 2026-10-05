@@ -2,6 +2,8 @@
   "name": "Windows Disk Report",
   "description": "Zeigt freien und belegten Speicher der Windows-Laufwerke an.",
   "category": "Windows",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "cmd": "wmic logicaldisk get caption,freespace,size",
     "powershell": "Get-Volume | Select-Object DriveLetter, FileSystemLabel, SizeRemaining, Size"

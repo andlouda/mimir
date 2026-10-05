@@ -2,6 +2,8 @@
   "name": "Docker Containers",
   "description": "Zeigt laufende Docker-Container an.",
   "category": "Containers",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "docker ps",
     "cmd": "docker ps",

@@ -2,6 +2,8 @@
   "name": "Website Performance",
   "description": "Misst Antwortzeit und HTTP-Status für eine Website.",
   "category": "Network",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "cmd": "powershell \"Measure-Command { Invoke-WebRequest -Uri 'http://localhost:8000' -Method GET }\"",
     "powershell": "Measure-Command { Invoke-WebRequest -Uri 'http://localhost:8000' -Method GET }",

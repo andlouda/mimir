@@ -2,6 +2,8 @@
   "name": "K8s Get Pods",
   "description": "Listet Pods in einem angegebenen Namespace auf.",
   "category": "Kubernetes",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "kubectl get pods -n {{.Namespace}}",
     "cmd": "kubectl get pods -n {{.Namespace}}",

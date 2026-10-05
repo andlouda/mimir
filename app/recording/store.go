@@ -357,7 +357,9 @@ func (s *Store) ExportTrimmedGIF(id string, cuts []CutRegion) (string, error) {
 
 // ExportTrimmedGIFTo generates a trimmed GIF at the selected output path.
 func (s *Store) ExportTrimmedGIFTo(id string, cuts []CutRegion, gifPath string) error {
-	trimmed, err := s.ExportTrimmed(id, cuts, false)
+	// Always from the scrubbed cast: a token redacted in the shared .cast
+	// must not be rendered into the shared GIF.
+	trimmed, err := s.ExportTrimmed(id, cuts, true)
 	if err != nil {
 		return err
 	}
@@ -411,26 +413,8 @@ func (s *Store) ExportGIF(id string) (string, error) {
 
 // ExportGIFTo generates a GIF from the recording at the selected output path.
 func (s *Store) ExportGIFTo(id string, gifPath string) error {
-	bin := aggPath()
-	if bin == "" {
-		return fmt.Errorf("recording: agg is not installed")
-	}
-	if strings.TrimSpace(gifPath) == "" {
-		return fmt.Errorf("recording: gif output path is empty")
-	}
-
-	s.mu.Lock()
-	path, err := s.resolvePath(id)
-	s.mu.Unlock()
-	if err != nil {
-		return err
-	}
-
-	if err := runAgg(bin, path, gifPath); err != nil {
-		os.Remove(gifPath)
-		return err
-	}
-	return nil
+	// Same path as the trimmed export with no cuts: scrubbed first.
+	return s.ExportTrimmedGIFTo(id, nil, gifPath)
 }
 
 // scratchDir returns an app-owned, 0700 temp directory for intermediate

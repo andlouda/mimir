@@ -62,11 +62,14 @@ type PendingApproval struct {
 
 // State is the mutable runtime shape for a workflow run.
 type State struct {
-	WorkflowID      string              `json:"workflowId"`
-	StepIndex       int                 `json:"stepIndex"`
-	Inputs          map[string]string   `json:"inputs,omitempty"`
-	Outputs         map[string]string   `json:"outputs,omitempty"`
-	Discovery       map[string][]string `json:"discovery,omitempty"`
+	WorkflowID string              `json:"workflowId"`
+	StepIndex  int                 `json:"stepIndex"`
+	Inputs     map[string]string   `json:"inputs,omitempty"`
+	Outputs    map[string]string   `json:"outputs,omitempty"`
+	Discovery  map[string][]string `json:"discovery,omitempty"`
+	// DiscoveryByTool indexes the same results by the discovery tool that
+	// produced them, for filling tool parameters that name that tool.
+	DiscoveryByTool map[string][]string `json:"discoveryByTool,omitempty"`
 	Events          []Event             `json:"events,omitempty"`
 	PendingApproval *PendingApproval    `json:"pendingApproval,omitempty"`
 	ApprovedSteps   map[string]bool     `json:"approvedSteps,omitempty"`

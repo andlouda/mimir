@@ -2,6 +2,8 @@
   "name": "Windows Process Search",
   "description": "Sucht auf Windows nach Prozessen anhand eines Namens oder Teilstrings.",
   "category": "Windows",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "cmd": "tasklist | findstr /i {{.ProcessName}}",
     "powershell": "Get-Process | Where-Object { $_.ProcessName -match '{{.ProcessName}}' } | Select-Object Name, Id, CPU, WorkingSet"

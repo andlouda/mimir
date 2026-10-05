@@ -1387,6 +1387,23 @@ func (a *App) RunAITemplateTool(id int, goal string, terminalType string, termin
 		return message, nil
 	}
 
+	// The engine turns a failing tool into a warning event and continues;
+	// for a single AI tool run that would read as success.
+	if state != nil {
+		for _, ev := range state.Events {
+			if ev.Type == "step_warning" && ev.Metadata["error"] != "" {
+				failure := fmt.Errorf("tool %s failed: %s", selectedTool.Name(), ev.Metadata["error"])
+				a.logAIInteraction(AIInteractionLogEntry{
+					Provider: settings.Provider, Model: settings.Model, BaseURL: settings.BaseURL,
+					Mode: "run_template_tool", TerminalID: id, TerminalType: terminalType, TerminalName: terminalName,
+					Goal: goal, Prompt: prompt, Template: selectedTool.Name(), Variables: selection.Variables,
+					Reason: selection.Reason, Error: failure.Error(),
+				})
+				return "", failure
+			}
+		}
+	}
+
 	entry := AIInteractionLogEntry{
 		Provider:          settings.Provider,
 		Model:             settings.Model,

@@ -2,6 +2,8 @@
   "name": "Linux File Permissions",
   "description": "Zeigt Besitzer, Rechte und Dateityp einer Datei oder eines Ordners.",
   "category": "Linux",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "stat {{.Path}}",
     "wsl": "stat {{.Path}}",

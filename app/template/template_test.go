@@ -2,6 +2,7 @@ package template
 
 import (
 	"bytes"
+	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -321,8 +322,21 @@ func TestNormalizeTemplateDefaultsCategory(t *testing.T) {
 	if tmpl.Commands == nil {
 		t.Fatal("expected commands map to be initialized")
 	}
-	if !tmpl.ToolEnabled {
-		t.Fatal("expected tool enabled by default")
+	if tmpl.ToolEnabled {
+		t.Fatal("a template without dangerLevel must not be an AI tool by default")
+	}
+	classified := Template{Name: "x", DangerLevel: "low"}
+	normalizeTemplate(&classified)
+	if !classified.ToolEnabled {
+		t.Fatal("a classified low-risk template is tool-enabled by default")
+	}
+	var explicit Template
+	if err := json.Unmarshal([]byte(`{"name":"y","dangerLevel":"low","toolEnabled":false,"commands":{}}`), &explicit); err != nil {
+		t.Fatal(err)
+	}
+	normalizeTemplate(&explicit)
+	if explicit.ToolEnabled {
+		t.Fatal("an explicit toolEnabled:false must be kept")
 	}
 }
 
@@ -354,7 +368,7 @@ func TestGetToolTemplatesFiltersHighDanger(t *testing.T) {
 	}
 }
 
-func TestToggleFavoriteUsesSourceFile(t *testing.T) {
+func TestToggleFavoriteWritesCanonicalOverride(t *testing.T) {
 	tmpDir := t.TempDir()
 	templatesDir := filepath.Join(tmpDir, "templates")
 	if err := os.MkdirAll(templatesDir, 0700); err != nil {
@@ -384,11 +398,17 @@ func TestToggleFavoriteUsesSourceFile(t *testing.T) {
 		t.Fatalf("toggle favorite: %v", err)
 	}
 
-	updated, err := os.ReadFile(templatePath)
+	// The override lives under the template's canonical file name (the
+	// one Update/Delete use); the file under the old name is gone.
+	canonical := filepath.Join(templatesDir, manager.sanitizeFilename("Prompt Current Folder Only")+".json")
+	updated, err := os.ReadFile(canonical)
 	if err != nil {
-		t.Fatalf("read template file: %v", err)
+		t.Fatalf("read canonical template file: %v", err)
+	}
+	if _, err := os.Stat(templatePath); !os.IsNotExist(err) {
+		t.Fatalf("stale override under the source name must be removed")
 	}
 	if !bytes.Contains(updated, []byte(`"favorite": false`)) {
-		t.Fatalf("expected favorite to be written to source file, got: %s", string(updated))
+		t.Fatalf("expected favorite to be written to the canonical file, got: %s", string(updated))
 	}
 }

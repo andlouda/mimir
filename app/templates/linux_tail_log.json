@@ -2,10 +2,12 @@
   "name": "Linux Tail Log",
   "description": "Folgt einer Logdatei live.",
   "category": "Linux",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
-    "bash": "tail -f {{.LogPath}}",
-    "wsl": "tail -f {{.LogPath}}",
-    "zsh": "tail -f {{.LogPath}}"
+    "bash": "tail -n 200 {{.LogPath}}",
+    "wsl": "tail -n 200 {{.LogPath}}",
+    "zsh": "tail -n 200 {{.LogPath}}"
   },
   "favorite": false
 }
