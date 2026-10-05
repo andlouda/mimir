@@ -849,6 +849,7 @@ export default {
     noMatches: 'No matches',
   },
   agentPanel: {
+    boundShort: 'bound to this pane',
     unverifiedNoTmux: 'Newest session file chosen by time (no tmux here to confirm it against the pane)',
     chooseSession: 'choose session',
     sessionPickLabel: 'Session for this pane',

@@ -2,6 +2,7 @@ package agents
 
 import (
 	"encoding/json"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -460,13 +461,28 @@ func cleanUserText(text string, user bool) string {
 	if !user {
 		return text
 	}
-	for _, prefix := range []string{"<command-name>", "<local-command-", "<system-reminder>", "<command-message>"} {
+	// Records Claude Code or its harness store as "user" content without
+	// the person having typed them: slash-command echoes, injected
+	// reminders, background-task notifications, hand-backs of subagents.
+	for _, prefix := range []string{
+		"<command-name>", "<local-command-", "<system-reminder>", "<command-message>",
+		"<task-notification>", "[SYSTEM NOTIFICATION", "<agent-message", "[Request interrupted",
+		"<local-command-stdout>", "Caveat: The messages below were generated",
+	} {
 		if strings.HasPrefix(text, prefix) {
 			return ""
 		}
 	}
-	return text
+	// Pasted blocks keep their text, not the wrapper tags.
+	text = pastedContentTag.ReplaceAllString(text, "")
+	// Trailing reminders appended to a real prompt are not the prompt.
+	if i := strings.Index(text, "<system-reminder>"); i > 0 {
+		text = text[:i]
+	}
+	return strings.TrimSpace(text)
 }
+
+var pastedContentTag = regexp.MustCompile(`</?pasted_content[^>]*>`)
 
 // newestSessions lists recent session files of every project directory,
 // newest first.

@@ -849,6 +849,7 @@ export default {
     noMatches: 'Keine Treffer',
   },
   agentPanel: {
+    boundShort: 'an diese Pane gebunden',
     unverifiedNoTmux: 'Jüngste Sitzungsdatei nach Zeit gewählt (ohne tmux keine Bestätigung über die Pane möglich)',
     chooseSession: 'Sitzung wählen',
     sessionPickLabel: 'Sitzung für diese Pane',

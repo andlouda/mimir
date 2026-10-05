@@ -580,7 +580,8 @@ func (a *App) GetAgentTranscriptJSON(terminalID int, terminalType string, limit 
 		transcript = agents.PaneTranscript(state.kind, label, state.cwd, paneText)
 		logAgentEvent("agent_transcript_fallback", fmt.Sprintf("%s via %s: pane capture (%v)", state.kind, state.source, err))
 	} else {
-		logAgentEvent("agent_transcript_read", fmt.Sprintf("%s via %s: %d messages, verified=%v", state.kind, state.source, len(transcript.Messages), transcript.Verified))
+		transcript.Bound = state.sessionFile != "" || state.boundFile != ""
+		logAgentEvent("agent_transcript_read", fmt.Sprintf("%s via %s: %d messages, verified=%v bound=%v", state.kind, state.source, len(transcript.Messages), transcript.Verified, transcript.Bound))
 	}
 
 	payload, err := json.Marshal(transcript)

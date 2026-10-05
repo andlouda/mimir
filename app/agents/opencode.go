@@ -303,6 +303,7 @@ func ReadOpenCodeTranscript(dbPath, cwd string, limit int, sessionID ...string) 
 		Tasks:       tasks,
 		Candidates:  len(sessions),
 		Verified:    pinned,
+		Meta:        SessionMeta{Title: trimTitle(sess.Title)},
 	}, nil
 }
 
