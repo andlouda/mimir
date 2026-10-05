@@ -32,13 +32,17 @@ import (
 
 // App struct
 type App struct {
-	ctx                   context.Context
-	TerminalManager       *terminal.Manager
-	TemplateManager       *template.Manager
-	loadedSessionData     session.SessionData
-	sessionLayout         string
-	sessionHandedOut      bool
-	activeTerminalStates  map[int]session.TerminalState
+	ctx                  context.Context
+	TerminalManager      *terminal.Manager
+	TemplateManager      *template.Manager
+	loadedSessionData    session.SessionData
+	sessionLayout        string
+	sessionHandedOut     bool
+	activeTerminalStates map[int]session.TerminalState
+	// pendingRestore / unrestored: saved terminals without a live pane yet
+	// (see app_session_restore.go); both are still written on save.
+	pendingRestore        []session.TerminalState
+	unrestored            []session.TerminalState
 	stateMu               sync.Mutex
 	aiSettings            AISettings
 	aiMu                  sync.Mutex
@@ -249,6 +253,7 @@ func (a *App) GetLoadedSessionData() session.SessionData {
 	a.sessionHandedOut = true
 	if first {
 		data := a.loadedSessionData
+		a.beginRestore(data.Terminals)
 		a.stateMu.Unlock()
 		return data
 	}
@@ -257,6 +262,7 @@ func (a *App) GetLoadedSessionData() session.SessionData {
 		live.Terminals = append(live.Terminals, st)
 	}
 	a.activeTerminalStates = make(map[int]session.TerminalState)
+	a.beginRestore(live.Terminals)
 	a.stateMu.Unlock()
 	if a.TerminalManager != nil {
 		for _, id := range a.TerminalManager.SessionIDs() {
@@ -274,6 +280,7 @@ func (a *App) SaveCurrentSession() error {
 	for _, state := range a.activeTerminalStates {
 		terminalsToSave = append(terminalsToSave, state)
 	}
+	terminalsToSave = append(terminalsToSave, a.retainedTerminalStates()...)
 	a.stateMu.Unlock()
 
 	data := session.SessionData{

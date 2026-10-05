@@ -788,6 +788,8 @@ export default {
   },
   appTerminals: {
     restoreFailed: 'Some terminals from the last session could not be restored:',
+    restoreRetryHint: 'They stay in the session and are tried again at the next start (an SSH terminal is dropped once its profile is deleted).',
+    restoreProfileMissing: 'SSH profile no longer exists',
     defaultTerminalType: 'Default terminal type',
     newTerminal: '+ New',
     aiExplainTitle: 'Summarizes the visible terminal output and explains errors or important signals.',

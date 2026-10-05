@@ -149,6 +149,10 @@ export function DeleteTerminalBackground(arg1:string):Promise<void>;
 
 export function UpdateTerminalBackground(arg1:number,arg2:string):Promise<void>;
 
+export function FinishSessionRestore(arg1:string):Promise<void>;
+
+export function DiscardUnrestoredTerminal(arg1:string):Promise<void>;
+
 export function SetTmuxIntegrationMode(arg1:string):Promise<string>;
 
 export function IsAgentDetectionEnabled():Promise<boolean>;
