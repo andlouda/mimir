@@ -261,6 +261,9 @@ func (a *App) GetLoadedSessionData() session.SessionData {
 	for _, st := range a.activeTerminalStates {
 		live.Terminals = append(live.Terminals, st)
 	}
+	// Entries kept from the last restore (host down, start still pending)
+	// go along, or the reload would lose them.
+	live.Terminals = append(live.Terminals, a.retainedTerminalStates()...)
 	a.activeTerminalStates = make(map[int]session.TerminalState)
 	a.beginRestore(live.Terminals)
 	a.stateMu.Unlock()
@@ -276,16 +279,25 @@ func (a *App) GetLoadedSessionData() session.SessionData {
 // SaveCurrentSession collects and saves the current state of all active terminals.
 func (a *App) SaveCurrentSession() error {
 	a.stateMu.Lock()
+	// Before the frontend has taken the loaded session there is nothing
+	// live to save: quitting now (a staged update is applied at startup,
+	// a crash of the webview) must not overwrite the file with an empty
+	// list. The file on disk is still the most recent state.
+	if !a.sessionHandedOut {
+		a.stateMu.Unlock()
+		return nil
+	}
 	var terminalsToSave []session.TerminalState
 	for _, state := range a.activeTerminalStates {
 		terminalsToSave = append(terminalsToSave, state)
 	}
 	terminalsToSave = append(terminalsToSave, a.retainedTerminalStates()...)
+	layout := a.sessionLayout
 	a.stateMu.Unlock()
 
 	data := session.SessionData{
 		Terminals: terminalsToSave,
-		Layout:    a.sessionLayout,
+		Layout:    layout,
 	}
 
 	return session.SaveSession(data)

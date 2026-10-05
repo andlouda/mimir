@@ -83,6 +83,49 @@ func TestFinishSessionRestoreDropsEmptyAndDiscard(t *testing.T) {
 	a.FinishSessionRestore("not json") // must not panic or retain anything
 }
 
+func TestSaveBeforeHandOutDoesNotTouchTheFile(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("HOME", cfg)
+	t.Setenv("APPDATA", cfg)
+	if err := session.SaveSession(session.SessionData{Terminals: []session.TerminalState{{Type: "bash", Name: "keep", ResumeID: "r1"}}}); err != nil {
+		t.Fatal(err)
+	}
+	a := newRestoreTestApp(session.TerminalState{Type: "bash", Name: "keep", ResumeID: "r1"})
+	// Quit before the frontend asked for the session (update applied at
+	// startup): the file must keep its content.
+	if err := a.SaveCurrentSession(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := session.LoadSession()
+	if err != nil || len(loaded.Terminals) != 1 || loaded.Terminals[0].Name != "keep" {
+		t.Fatalf("session overwritten: %+v err=%v", loaded, err)
+	}
+}
+
+func TestUnreadableReportKeepsPending(t *testing.T) {
+	a := newRestoreTestApp(session.TerminalState{Type: "bash", Name: "one", ResumeID: "r1"})
+	_ = a.GetLoadedSessionData()
+	a.FinishSessionRestore("{broken")
+	a.stateMu.Lock()
+	kept := a.retainedTerminalStates()
+	a.stateMu.Unlock()
+	if len(kept) != 1 {
+		t.Fatalf("pending dropped on a bad report: %v", savedNames(kept))
+	}
+}
+
+func TestReloadKeepsRetainedEntries(t *testing.T) {
+	a := newRestoreTestApp(session.TerminalState{Type: "ssh", Name: "down", SSHProfileID: "p1"})
+	_ = a.GetLoadedSessionData()
+	a.FinishSessionRestore(`[{"type":"ssh","name":"down","sshProfileId":"p1"}]`)
+	a.UpdateTerminalState(3, "bash", "live", false, "", "", "r9", "fresh", "")
+	second := a.GetLoadedSessionData() // webview reload
+	if got := savedNames(second.Terminals); len(got) != 2 {
+		t.Fatalf("reload handed out %v, want live + retained", got)
+	}
+}
+
 func TestRestoreWidensStartCap(t *testing.T) {
 	var saved []session.TerminalState
 	for i := 0; i < 6; i++ {

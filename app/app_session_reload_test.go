@@ -21,6 +21,7 @@ func TestLoadedSessionHandedOutOnce(t *testing.T) {
 	a.UpdateTerminalState(7, "bash", "live one", false, "", "mimir-a", "", "fresh", "")
 	a.UpdateTerminalState(8, "zsh", "live two", true, "", "mimir-b", "", "fresh", "")
 	a.UpdateSessionLayout(`{"type":"leaf","key":"t:mimir-a"}`)
+	a.FinishSessionRestore("[]") // restore done, nothing left pending
 	second := a.GetLoadedSessionData()
 	if len(second.Terminals) != 2 || second.Layout == "" {
 		t.Fatalf("a reload must get the live terminals and layout, got %+v", second)

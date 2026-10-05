@@ -70,7 +70,9 @@ func (a *App) FinishSessionRestore(unrestoredJSON string) {
 	var failed []session.TerminalState
 	if unrestoredJSON != "" {
 		if err := json.Unmarshal([]byte(unrestoredJSON), &failed); err != nil {
+			// Keep everything pending rather than drop it on a bad report.
 			log.Printf("session: unreadable restore report: %v", err)
+			return
 		}
 	}
 	kept := failed[:0]
