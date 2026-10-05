@@ -54,7 +54,7 @@
 
     <button type="button" class="ai-hub-card" on:click={onOpenLogs}>
       <div class="ai-hub-card-top">
-        <span class="ai-hub-icon">&#x1F4DC;</span>
+        <span class="ai-hub-icon">&#x2261;</span>
         <span class="ai-hub-link">{$t('aiHub.cards.logs.action')}</span>
       </div>
       <strong>{$t('aiHub.cards.logs.title')}</strong>

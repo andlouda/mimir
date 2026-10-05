@@ -435,6 +435,7 @@ export default {
     ctxSendToAgentTitle: 'Fügt die Auswahl als Eingabe in die Pane des Agenten ein; Enter drückst du selbst',
     ctxCopyTmux: 'Letzte tmux-Auswahl kopieren',
     ctxCopyTmuxTitle: 'Holt den Text, den tmux zuletzt kopiert hat (sein Paste-Puffer), in die Zwischenablage — auch wenn das entfernte tmux Markierungen nicht selbst weiterreichen kann',
+    searchNoMatch: 'kein Treffer',
     ctxOpenLink: 'Link im Browser öffnen',
     ctxCopyLink: 'Link kopieren',
     ctxCopyJoined: 'Als eine Zeile kopieren',

@@ -239,7 +239,7 @@
           tabindex="0"
           role="button"
         >
-          {file.isDir ? '📁' : '📄'} {file.name}
+          <span class="file-glyph" aria-hidden="true">{file.isDir ? '▸' : '▫'}</span> {file.name}
         </span>
         <div class="file-actions">
           {#if file.isDir}
@@ -565,4 +565,5 @@
   }
   .file-list-loading { padding: 6px 12px; font-size: 12px; color: var(--text-secondary); }
   .file-list-stale { opacity: 0.6; }
+  .file-glyph { display: inline-block; width: 1.1em; color: var(--text-secondary); }
 </style>
