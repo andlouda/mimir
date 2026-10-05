@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -61,6 +62,15 @@ func (a *App) StartUpdateDownload() string {
 	updateDownloading = true
 	updateDownloadMu.Unlock()
 
+	// The helper replaces the running binary in place: refuse early when
+	// that directory is read-only (/usr/bin, /opt owned by root, an
+	// AppImage's squashfs), instead of staging and failing at restart.
+	if err := executableDirWritable(); err != nil {
+		updateDownloadMu.Lock()
+		updateDownloading = false
+		updateDownloadMu.Unlock()
+		return fmt.Sprintf(`{"error":%q}`, err.Error())
+	}
 	info, err := update.CheckGitHubRelease(a.ctx, UpdateRepository, AppVersion)
 	if err != nil {
 		updateDownloadMu.Lock()
@@ -93,6 +103,26 @@ func (a *App) StartUpdateDownload() string {
 	}()
 
 	return `{"started":true}`
+}
+
+// executableDirWritable probes whether a file can be created next to the
+// running binary, which is what the update helper has to do.
+func executableDirWritable() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve executable: %w", err)
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	probe, err := os.CreateTemp(filepath.Dir(exe), ".mimir-update-probe-*")
+	if err != nil {
+		return fmt.Errorf("cannot self-update: %s is not writable (%v); install the new release by hand", filepath.Dir(exe), err)
+	}
+	name := probe.Name()
+	_ = probe.Close()
+	_ = os.Remove(name)
+	return nil
 }
 
 // RestartApp launches a new instance of the application and quits the current one.
@@ -165,9 +195,11 @@ try {
   Log 'started updated Mimir'
 } catch {
   Log ('failed: ' + $_.Exception.Message)
+  Remove-Item -LiteralPath %s -Force -ErrorAction SilentlyContinue
+  Start-Process -FilePath %s
   exit 1
 }
-`, psQuote(logPath), os.Getpid(), psQuote(pending.BinaryPath), psQuote(exe), psQuote(markerPath), psQuote(pendingDir), psQuote(exe))
+`, psQuote(logPath), os.Getpid(), psQuote(pending.BinaryPath), psQuote(exe), psQuote(markerPath), psQuote(pendingDir), psQuote(exe), psQuote(markerPath), psQuote(exe))
 
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", script)
 	if err := cmd.Start(); err != nil {
@@ -205,6 +237,8 @@ while :; do
   i=$((i + 1))
   if [ "$i" -ge 60 ]; then
     printf '%%s failed to copy staged binary\n' "$(date -Iseconds)" >> "$log"
+    rm -f %s
+    nohup %s >/dev/null 2>&1 &
     exit 1
   fi
   sleep 0.25
@@ -213,7 +247,7 @@ rm -f %s
 rm -rf %s
 nohup %s >/dev/null 2>&1 &
 printf '%%s started updated Mimir\n' "$(date -Iseconds)" >> "$log"
-`, shQuote(logPath), os.Getpid(), shQuote(pending.BinaryPath), shQuote(exe), shQuote(exe), shQuote(markerPath), shQuote(pendingDir), shQuote(exe))
+`, shQuote(logPath), os.Getpid(), shQuote(pending.BinaryPath), shQuote(exe), shQuote(exe), shQuote(markerPath), shQuote(exe), shQuote(markerPath), shQuote(pendingDir), shQuote(exe))
 
 	cmd := exec.Command("sh", "-c", script)
 	if err := cmd.Start(); err != nil {

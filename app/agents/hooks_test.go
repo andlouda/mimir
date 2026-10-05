@@ -131,3 +131,22 @@ func TestScanHookEventsAndMatch(t *testing.T) {
 		t.Fatalf("ppid parsing wrong")
 	}
 }
+
+func TestScanHookEventsToleratesRemoteClockSkew(t *testing.T) {
+	// A host whose clock runs 30 minutes behind writes events whose mtimes
+	// look "old" to the local clock; they must still be delivered.
+	dir := t.TempDir()
+	good := `{"session_id":"abc","transcript_path":"/h/.claude/projects/-p/abc.jsonl","cwd":"/p","hook_event_name":"Notification","notification_type":"permission_prompt","message":"x"}`
+	behind := time.Now().Add(-30 * time.Minute)
+	fresh := filepath.Join(dir, "1700000100-77-1.json")
+	_ = os.WriteFile(fresh, []byte(good), 0o600)
+	_ = os.Chtimes(fresh, behind, behind)
+	older := filepath.Join(dir, "1700000000-77-2.json")
+	_ = os.WriteFile(older, []byte(good), 0o600)
+	_ = os.Chtimes(older, behind.Add(-20*time.Minute), behind.Add(-20*time.Minute))
+
+	events := ScanHookEvents(LocalFS{}, dir)
+	if len(events) != 1 || events[0].Path != fresh {
+		t.Fatalf("the newest event must survive clock skew, the 20 min older one not: %+v", events)
+	}
+}

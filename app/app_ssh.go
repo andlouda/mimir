@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -31,8 +32,10 @@ type pendingSSHHostKey struct {
 	key  gossh.PublicKey
 }
 
-func sshTmuxBootstrapCommand(profileID string, shellCommand string, tmuxMode string) string {
-	sessionName := sshTmuxSessionName(profileID)
+// sshTmuxBootstrapCommand builds the remote command for the tmux session
+// named sessionName; the caller stores the same name in the terminal's
+// metadata so every later "tmux -t" targets the session that exists.
+func sshTmuxBootstrapCommand(sessionName string, shellCommand string, tmuxMode string) string {
 	tmuxShell := ""
 	if shellCommand != "" {
 		tmuxShell = " " + shellQuote(shellCommand)
@@ -200,7 +203,7 @@ func (a *App) dialJumpHost(profileID string, profile ssh.Profile) (*gossh.Client
 		HostKeyCallback: a.hostKeyCallback(profileID, profile.JumpHost, profile.JumpPort),
 		Timeout:         10 * time.Second,
 	}
-	client, err := gossh.Dial("tcp", fmt.Sprintf("%s:%d", profile.JumpHost, profile.JumpPort), clientCfg)
+	client, err := gossh.Dial("tcp", net.JoinHostPort(profile.JumpHost, strconv.Itoa(profile.JumpPort)), clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("jump host connection failed: %w", err)
 	}
@@ -266,6 +269,9 @@ func (a *App) GetSSHProfiles() []ssh.Profile {
 
 // SaveSSHProfile creates a new SSH profile from JSON and returns all profiles.
 func (a *App) SaveSSHProfile(profileJSON string) ([]ssh.Profile, error) {
+	if a.sshProfileStore == nil {
+		return nil, fmt.Errorf("SSH profile store not initialized")
+	}
 	var p ssh.Profile
 	if err := json.Unmarshal([]byte(profileJSON), &p); err != nil {
 		return nil, fmt.Errorf("invalid profile JSON: %w", err)
@@ -275,6 +281,9 @@ func (a *App) SaveSSHProfile(profileJSON string) ([]ssh.Profile, error) {
 
 // UpdateSSHProfile updates an existing SSH profile from JSON and returns all profiles.
 func (a *App) UpdateSSHProfile(profileJSON string) ([]ssh.Profile, error) {
+	if a.sshProfileStore == nil {
+		return nil, fmt.Errorf("SSH profile store not initialized")
+	}
 	var p ssh.Profile
 	if err := json.Unmarshal([]byte(profileJSON), &p); err != nil {
 		return nil, fmt.Errorf("invalid profile JSON: %w", err)
@@ -284,6 +293,9 @@ func (a *App) UpdateSSHProfile(profileJSON string) ([]ssh.Profile, error) {
 
 // DeleteSSHProfile deletes a profile and its stored password, returns remaining profiles.
 func (a *App) DeleteSSHProfile(profileID string) ([]ssh.Profile, error) {
+	if a.sshProfileStore == nil {
+		return nil, fmt.Errorf("SSH profile store not initialized")
+	}
 	if a.sshSecretStore != nil {
 		_ = a.sshSecretStore.DeletePassword(profileID)
 		_ = a.sshSecretStore.DeletePassword(profileID + jumpHostSecretSuffix)
@@ -383,7 +395,7 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 	tmuxStatus := "disabled"
 	if tmuxEnabled {
 		tmuxSessionName = sshTmuxSessionName(profileID)
-		command = sshTmuxBootstrapCommand(profileID, command, integrationMode)
+		command = sshTmuxBootstrapCommand(tmuxSessionName, command, integrationMode)
 		tmuxMode = "auto"
 		tmuxStatus = "pending"
 	}
@@ -403,6 +415,9 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 		RCMode:          profile.RCMode,
 		RCStatus:        profile.RCMode,
 		ProxyClient:     proxyClient,
+		// A reconnect must dial the jump host again: the old proxy client
+		// is closed together with the session.
+		DialProxy: func() (*gossh.Client, error) { return a.dialJumpHost(profileID, profile) },
 	}
 	if tmuxEnabled {
 		if tmuxAvailable, version, probeErr := probeRemoteTmux(cfg); tmuxAvailable {
@@ -484,7 +499,13 @@ func (a *App) RejectSSHHostKey(profileID string) {
 
 // ReconnectSSHTerminal re-establishes an SSH connection for a disconnected terminal.
 func (a *App) ReconnectSSHTerminal(id int) error {
-	return a.TerminalManager.ReconnectSSH(id)
+	if err := a.TerminalManager.ReconnectSSH(id); err != nil {
+		return err
+	}
+	// The agent watcher holds an SFTP client of the dead connection; drop
+	// it, the next detection pass starts a fresh one.
+	a.stopAgentWatcher(id)
+	return nil
 }
 
 // CloseSSHTerminalFull fully removes a disconnected SSH terminal from the manager.

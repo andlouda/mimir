@@ -5,7 +5,6 @@ package terminal
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -322,34 +321,24 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 	return launch
 }
 
-func localCommand(path string, args []string, env []string, setProcessGroup bool) *exec.Cmd {
+func localCommand(path string, args []string, env []string) *exec.Cmd {
+	// pty.Start puts the child into its own session (setsid), which also
+	// makes it a process-group leader; asking for Setpgid on top fails
+	// with EPERM on Linux, so every start used to run twice.
 	cmd := exec.Command(path, args...)
 	cmd.Env = env
-	if setProcessGroup {
-		// Create a new process group so signals from the child shell
-		// (e.g. SIGHUP on PTY close) don't propagate to the parent. Some Linux
-		// desktop/VM combinations reject Setpgid under forkpty; callers retry
-		// without it on EPERM.
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	}
 	return cmd
 }
 
 func startLocalPty(path string, args []string, env []string) (*exec.Cmd, *os.File, error) {
-	cmd := localCommand(path, args, env, true)
+	cmd := localCommand(path, args, env)
 	ptmx, err := pty.Start(cmd)
-	if err == nil {
-		return cmd, ptmx, nil
-	}
-	if !errors.Is(err, syscall.EPERM) {
+	if err != nil {
 		return cmd, nil, err
 	}
-
-	cmd = localCommand(path, args, env, false)
-	ptmx, retryErr := pty.Start(cmd)
-	if retryErr != nil {
-		return cmd, nil, fmt.Errorf("%w; retry without process group failed: %v", err, retryErr)
-	}
+	// Reap the shell when it exits; nothing else waits on it and a
+	// closed terminal otherwise leaves a zombie until Mimir quits.
+	go func() { _ = cmd.Wait() }()
 	return cmd, ptmx, nil
 }
 
@@ -806,7 +795,9 @@ func (m *Manager) ReconnectSSH(id int) error {
 		return fmt.Errorf("no SSH metadata for terminal %d", id)
 	}
 
-	newSession, err := NewSSHSession(meta.Config)
+	cfg := meta.Config
+	cfg.ProxyClient = nil // closed with the old session; DialProxy makes a new one
+	newSession, err := NewSSHSession(cfg)
 	if err != nil {
 		return fmt.Errorf("SSH reconnect failed: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -36,6 +37,8 @@ type SSHConnectConfig struct {
 	RCMode          string
 	RCStatus        string
 	ProxyClient     *ssh.Client
+	// DialProxy re-dials the jump host when ProxyClient is nil (reconnect).
+	DialProxy func() (*ssh.Client, error)
 }
 
 // SSHSession implements TerminalSession over an SSH connection.
@@ -61,7 +64,7 @@ func enableTCPKeepalive(conn net.Conn) {
 
 // NewSSHSession dials the remote host, authenticates, requests a PTY and starts a shell.
 func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 
 	hostKeyCallback := cfg.HostKeyCallback
 	if hostKeyCallback == nil {
@@ -76,6 +79,13 @@ func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
 	}
 
 	var client *ssh.Client
+	if cfg.ProxyClient == nil && cfg.DialProxy != nil {
+		proxy, err := cfg.DialProxy()
+		if err != nil {
+			return nil, err
+		}
+		cfg.ProxyClient = proxy
+	}
 	if cfg.ProxyClient != nil {
 		conn, err := cfg.ProxyClient.Dial("tcp", addr)
 		if err != nil {
@@ -242,13 +252,16 @@ func (s *SSHSession) Resize(rows, cols uint16) error {
 
 	done := make(chan error, 1)
 	go func() {
+		// Take the lock only to read the session: WindowChange can block
+		// on a stalled connection, and Close() needs the lock to unblock it.
 		s.mu.Lock()
-		defer s.mu.Unlock()
-		if s.closed {
+		closed, session := s.closed, s.session
+		s.mu.Unlock()
+		if closed {
 			done <- nil
 			return
 		}
-		done <- s.session.WindowChange(int(rows), int(cols))
+		done <- session.WindowChange(int(rows), int(cols))
 	}()
 	select {
 	case err := <-done:

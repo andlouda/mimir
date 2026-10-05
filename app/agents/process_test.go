@@ -43,6 +43,11 @@ func TestMatchArgs(t *testing.T) {
 		"/home/u/.local/bin/aider --model x":     KindAider,
 		"bash":                                   "",
 		"vim claude-notes.md":                    "",
+		"ssh hermes":                             "",
+		"less codex":                             "",
+		"ping gemini -c 3":                       "",
+		"npm run claude":                         "",
+		"bash /opt/scripts/run-codex.sh":         "",
 		"node /x/gemini":                         KindGemini,
 		"/usr/local/bin/hermes chat":             KindHermes,
 	}
