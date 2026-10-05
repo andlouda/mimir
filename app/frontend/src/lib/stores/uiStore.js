@@ -74,6 +74,9 @@ export const tmuxIntegrationMode = writable('invisible');
 export const errorMessage = writable('');
 export const showAIMenu = writable(false);
 export const notesPanelOpen = writable(false);
+// Filename the notes panel should open as soon as it is shown (set by
+// "open in notes" after an import; cleared by the panel).
+export const notesOpenRequest = writable('');
 export const notesPanelWidth = writable(initialNotesPanelWidth());
 export const showFolderManager = writable(false);
 export const historyTrackingEnabled = writable(false);

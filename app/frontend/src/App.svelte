@@ -17,7 +17,7 @@
   import './styles/template-manager.css';
   import './styles/workflow-builder.css';
   import { terminals, activeTerminalId, layoutTree, terminalMap, visibleTerminalCount } from './lib/stores/terminalStore.js';
-  import { loadPromptMode, currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, showFolderManager, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState, tmuxIntegrationMode } from './lib/stores/uiStore.js';
+  import { loadPromptMode, currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, showFolderManager, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState, tmuxIntegrationMode, notesOpenRequest } from './lib/stores/uiStore.js';
   import { templates, templateToEdit, templatePromptState, showTemplatePicker, showWorkflowPicker, workflowPickerPlaybooks, workflowPickerLoading } from './lib/stores/templateStore.js';
   import { updateInfo, updateChecking, updateDownloading, updateProgress, updateInstalled } from './lib/stores/updateStore.js';
   import { recordingList, aggAvailable, aggStatus, downloadingAgg, aggDownloadInfo, terminalSessionFoldersOpen, customFolders, newFolderName } from './lib/stores/sessionStore.js';
@@ -242,11 +242,13 @@
   async function handleOpenInNotes(event) {
     const { path, remote, terminalId } = event.detail;
     try {
+      let imported = '';
       if (remote && terminalId) {
-        await window['go']['main']['App']['ImportNoteFromRemote'](terminalId, path);
+        imported = await window['go']['main']['App']['ImportNoteFromRemote'](terminalId, path);
       } else {
-        await window['go']['main']['App']['ImportNoteFromLocal'](path);
+        imported = await window['go']['main']['App']['ImportNoteFromLocal'](path);
       }
+      if (imported) $notesOpenRequest = imported;
       $notesPanelOpen = true;
       if ($currentPage !== 'terminals') {
         await openPage('terminals');

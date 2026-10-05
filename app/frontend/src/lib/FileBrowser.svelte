@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { ListDirectory, GetFileContent, OpenPathInExplorer, GetCurrentDirectory, RemoteListDirectory, RemoteGetFileContent, RemoteGetHomeDir } from '../../wailsjs/go/main/App';
   import { t } from './i18n.js';
+  import { modalFocus } from './actions/modalFocus.js';
 
   const dispatch = createEventDispatcher();
 
@@ -261,8 +262,9 @@
   </ul>
 
   {#if showFileContentModal}
-    <div class="modal-overlay" on:click={() => showFileContentModal = false} on:keydown={(e) => { if (e.key === 'Escape') showFileContentModal = false; }} tabindex="0" role="button">
-      <div class="modal-content" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown={(e) => e.stopPropagation()}>
+    <!-- Escape is handled on the dialog itself: the overlay never had focus. -->
+    <div class="modal-overlay" on:click={() => showFileContentModal = false} role="presentation">
+      <div class="modal-content" role="dialog" aria-modal="true" tabindex="-1" use:modalFocus on:click|stopPropagation on:keydown={(e) => { e.stopPropagation(); if (e.key === 'Escape') showFileContentModal = false; }}>
         <h3>{$t('fileBrowser.fileContent')}</h3>
         <div class="modal-path">{activeFilePath}</div>
         <pre>{fileContent}</pre>

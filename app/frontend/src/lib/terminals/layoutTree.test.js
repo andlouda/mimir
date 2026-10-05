@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { appendLeaf, collectLeafIds, rebuildLayout, serializeLayout } from './layoutTree.js';
+import { appendLeaf, collectLeafIds, rebuildLayout, removeLeafFromTree, serializeLayout } from './layoutTree.js';
 
 const leaf = (id) => ({ type: 'leaf', terminalId: id });
 
@@ -48,5 +48,30 @@ describe('layout persistence', () => {
     expect(rebuildLayout({ type: 'leaf', key: 'gone' }, () => null)).toBeNull();
     expect(rebuildLayout('garbage', () => 1)).toBeNull();
     expect(serializeLayout(leaf(9), () => null)).toBeNull();
+  });
+});
+
+describe('closing a pane redistributes its share', () => {
+  test('a row of three equal panes stays equal after one closes', () => {
+    let tree = null;
+    for (const id of [1, 2, 3, 4]) tree = appendLeaf(tree, { type: 'leaf', terminalId: id });
+    tree = removeLeafFromTree(tree, 2);
+    // [[1, 3], 4]: the outer split gives 4 one third, the inner split halves the rest.
+    expect(tree.ratio).toBeCloseTo(2 / 3);
+    expect(tree.children[0].ratio).toBeCloseTo(1 / 2);
+    expect(collectLeafIds(tree)).toEqual([1, 3, 4]);
+  });
+
+  test('a split of another direction keeps its own ratio', () => {
+    const tree = {
+      type: 'split', direction: 'horizontal', ratio: 0.5,
+      children: [
+        { type: 'split', direction: 'vertical', ratio: 0.3, children: [{ type: 'leaf', terminalId: 1 }, { type: 'leaf', terminalId: 2 }] },
+        { type: 'split', direction: 'horizontal', ratio: 0.5, children: [{ type: 'leaf', terminalId: 3 }, { type: 'leaf', terminalId: 4 }] },
+      ],
+    };
+    const next = removeLeafFromTree(tree, 4);
+    expect(collectLeafIds(next)).toEqual([1, 2, 3]);
+    expect(next.children[0].ratio).toBeCloseTo(0.3);
   });
 });
