@@ -141,6 +141,14 @@ export function IsWaylandSession():Promise<boolean>;
 
 export function UpdateSessionLayout(arg1:string):Promise<void>;
 
+export function ImportTerminalBackground():Promise<string>;
+
+export function ListTerminalBackgroundsJSON():Promise<string>;
+
+export function DeleteTerminalBackground(arg1:string):Promise<void>;
+
+export function UpdateTerminalBackground(arg1:number,arg2:string):Promise<void>;
+
 export function SetTmuxIntegrationMode(arg1:string):Promise<string>;
 
 export function IsAgentDetectionEnabled():Promise<boolean>;

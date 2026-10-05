@@ -62,6 +62,8 @@ func main() {
 		Height: 922,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
+			// Pane background images from the config dir (app_backgrounds.go).
+			Handler: backgroundHandler(),
 		},
 		// Same as --bg-void / the xterm background (#0c0e14): the window must
 		// not flash a different colour on launch or resize.

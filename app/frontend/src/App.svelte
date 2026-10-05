@@ -41,6 +41,8 @@
   import { createSSHActions, loadSSHProfiles, openSSHProfilePicker } from './lib/actions/sshActions.js';
   import { addTerminal, splitTerminal, removeTerminal, toggleRecording, reconnectSSH, toggleMinimize, startEditingName, saveTerminalName, handleResize, reinitializeTerminals, createTerminalInstance, cleanupTerminalResources } from './lib/actions/terminalActions.js';
   import { persistTerminalState, scheduleSessionSave, loadTranscriptExcerpt, clearSessionSaveTimer, layoutKeyFor, enableLayoutPersistence } from './lib/actions/sessionActions.js';
+  import { applyTerminalBackground } from './lib/actions/backgroundActions.js';
+  import { parseBackground } from './lib/terminals/background.js';
 
   const isWindowsPlatform = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
   const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
@@ -380,6 +382,7 @@
     const folderId = saved.folderId || '';
     $terminals = $terminals.map((t) => t.id === newTerminal.id ? { ...t, restoredTranscript, restoreClass, restoreDismissed: false, folderId } : t);
     persistTerminalState({ ...newTerminal, restoreClass, folderId });
+    if (saved.background) applyTerminalBackground(newTerminal.id, parseBackground(saved.background));
     await reinitializeTerminals();
     return { id, minimized: !!saved.minimized, key: layoutKeyFor({ ...newTerminal, resumeId: newTerminal.resumeId || saved.resumeId || '', tmuxSessionName }) };
   }
@@ -398,6 +401,7 @@
       const folderId = saved.folderId || '';
       $terminals = $terminals.map((t) => t.id === newTerminal.id ? { ...t, restoredTranscript, restoreClass, restoreDismissed: false, folderId } : t);
       persistTerminalState({ ...newTerminal, type: 'ssh', sshProfileId: profile.id, restoreClass, folderId });
+      if (saved.background) applyTerminalBackground(newTerminal.id, parseBackground(saved.background));
       await reinitializeTerminals();
       return { id, minimized: !!saved.minimized, key: layoutKeyFor({ ...newTerminal, resumeId: newTerminal.resumeId || saved.resumeId || '', tmuxSessionName: saved.tmuxSessionName || '' }) };
     } catch (e) {

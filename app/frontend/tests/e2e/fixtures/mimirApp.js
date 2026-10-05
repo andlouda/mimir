@@ -248,6 +248,10 @@ export async function installMimirMocks(page, { workspaceAgent = false } = {}) {
         App: {
           AcceptSSHHostKey: asyncNoop,
           AppendTerminalTranscript: asyncNoop,
+          UpdateTerminalBackground: asyncNoop,
+          DeleteTerminalBackground: asyncNoop,
+          ListTerminalBackgroundsJSON: async () => '[]',
+          ImportTerminalBackground: async () => '',
           ApplyTemplate: asyncNoop,
           ApplyTemplateWithVariables: asyncNoop,
           CheckForUpdates: async () => JSON.stringify({
