@@ -2,6 +2,7 @@
   import { registerOverlay, isGlobalShortcut } from './actions/keyboardShortcuts.js';
   import { zoomTerminalFont } from './stores/uiStore.js';
   import { agentStates } from './stores/agentStore.js';
+  import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
   import { tmuxScrollKeys } from './terminals/wheelScroll.js';
@@ -147,6 +148,7 @@
     // when it applies, because otherwise "copy" just looks broken.
     const mouseTracking = term.terminal?.modes?.mouseTrackingMode && term.terminal.modes.mouseTrackingMode !== 'none';
     contextMenu = {
+      agentTargets: selection.length > 0 ? agentTargets(term.id) : [],
       termId: term.id,
       x: Math.max(0, Math.min(event.clientX, window.innerWidth - CTX_MENU_WIDTH)),
       y: Math.max(0, Math.min(event.clientY, window.innerHeight - CTX_MENU_HEIGHT)),
@@ -279,6 +281,13 @@
   function ctxSelectAll(term) {
     closeContextMenu();
     term.terminal?.selectAll?.();
+  }
+
+  // Selection → the agent's pane as typed input (bracketed paste, no Enter).
+  function ctxSendToAgent(term, targetId) {
+    const text = term.terminal?.getSelection?.() || '';
+    closeContextMenu();
+    if (text) sendTextToAgent(targetId, text);
   }
 
   function ctxDispatch(eventName, detail) {
@@ -474,6 +483,18 @@
               <button class="ctx-item" role="menuitem" on:click={() => ctxCopyJoined(term)} title={$t('splitPane.ctxCopyJoinedTitle')}>
                 {$t('splitPane.ctxCopyJoined')}
               </button>
+            {/if}
+            {#if contextMenu.agentTargets.length === 1}
+              <button class="ctx-item" role="menuitem" on:click={() => ctxSendToAgent(term, contextMenu.agentTargets[0].id)} title={$t('splitPane.ctxSendToAgentTitle')}>
+                {$t('splitPane.ctxSendToAgent')} → {contextMenu.agentTargets[0].label} · {contextMenu.agentTargets[0].name}
+              </button>
+            {:else if contextMenu.agentTargets.length > 1}
+              <div class="ctx-hint">{$t('splitPane.ctxSendToAgent')}</div>
+              {#each contextMenu.agentTargets as target (target.id)}
+                <button class="ctx-item ctx-item-sub" role="menuitem" on:click={() => ctxSendToAgent(term, target.id)} title={$t('splitPane.ctxSendToAgentTitle')}>
+                  → {target.label} · {target.name}
+                </button>
+              {/each}
             {/if}
             {#if term.tmuxActive && term.tmuxMouse}
               <button class="ctx-item" role="menuitem" on:click={() => ctxCopyTmuxBuffer(term)} title={$t('splitPane.ctxCopyTmuxTitle')}>
