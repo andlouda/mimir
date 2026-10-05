@@ -29,8 +29,16 @@ func TestLoadedSessionHandedOutOnce(t *testing.T) {
 	if len(a.activeTerminalStates) != 0 {
 		t.Fatalf("live states must be cleared so the restore registers fresh ids")
 	}
+	// A reload while that restore is still running hands the pending
+	// entries out again instead of losing them ...
 	third := a.GetLoadedSessionData()
-	if len(third.Terminals) != 0 {
-		t.Fatalf("nothing is handed out twice: %+v", third)
+	if len(third.Terminals) != 2 {
+		t.Fatalf("pending entries must survive a reload mid-restore: %+v", third)
+	}
+	// ... and once the restore has reported, nothing is handed out twice.
+	a.FinishSessionRestore("[]")
+	fourth := a.GetLoadedSessionData()
+	if len(fourth.Terminals) != 0 {
+		t.Fatalf("nothing is handed out twice: %+v", fourth)
 	}
 }
