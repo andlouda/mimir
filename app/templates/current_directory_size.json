@@ -2,6 +2,8 @@
   "name": "Current Directory Size",
   "description": "Zeigt die Gesamtgröße des aktuellen Verzeichnisses an.",
   "category": "Storage",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "du -sh .",
     "cmd": "powershell \"(Get-ChildItem . -Recurse -File | Measure-Object Length -Sum).Sum / 1MB\"",

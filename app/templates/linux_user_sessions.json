@@ -2,6 +2,8 @@
   "name": "Linux User Sessions",
   "description": "Zeigt angemeldete Benutzer und deren Sessions an.",
   "category": "Linux",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "who && echo && w",
     "wsl": "who && echo && w",

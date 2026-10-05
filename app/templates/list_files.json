@@ -2,6 +2,8 @@
   "name": "List Files",
   "description": "Lists files in the current directory.",
   "category": "Navigation",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "ls -la",
     "cmd": "dir",

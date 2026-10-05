@@ -2,6 +2,8 @@
   "name": "Windows Scheduled Task Search",
   "description": "Sucht geplante Tasks anhand eines Namensfragments.",
   "category": "Windows",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "cmd": "powershell \"Get-ScheduledTask | Where-Object {$_.TaskName -match '{{.TaskName}}'} | Select-Object TaskName, State, TaskPath\"",
     "powershell": "Get-ScheduledTask | Where-Object {$_.TaskName -match '{{.TaskName}}'} | Select-Object TaskName, State, TaskPath"

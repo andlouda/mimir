@@ -2,6 +2,7 @@
   "name": "Ollama Run Chat",
   "description": "Startet einen lokalen Chat mit einem Standardmodell über Ollama.",
   "category": "AI",
+  "dangerLevel": "low",
   "toolEnabled": false,
   "commands": {
     "bash": "ollama run llama3.2",

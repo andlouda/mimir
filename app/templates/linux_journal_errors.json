@@ -2,6 +2,8 @@
   "name": "Linux Journal Errors",
   "description": "Zeigt aktuelle Fehler aus dem systemd-Journal an.",
   "category": "Linux",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "journalctl -p err -n 50 --no-pager",
     "wsl": "journalctl -p err -n 50 --no-pager",

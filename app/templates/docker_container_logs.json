@@ -2,6 +2,8 @@
   "name": "Docker Container Logs",
   "description": "Zeigt Logs für einen einzelnen Container an.",
   "category": "Containers",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "parameters": [
     {
       "name": "Container",
@@ -13,11 +15,11 @@
     }
   ],
   "commands": {
-    "bash": "docker logs -f {{.Container}}",
-    "cmd": "docker logs -f {{.Container}}",
-    "powershell": "docker logs -f {{.Container}}",
-    "wsl": "docker logs -f {{.Container}}",
-    "zsh": "docker logs -f {{.Container}}"
+    "bash": "docker logs --tail 200 {{.Container}}",
+    "cmd": "docker logs --tail 200 {{.Container}}",
+    "powershell": "docker logs --tail 200 {{.Container}}",
+    "wsl": "docker logs --tail 200 {{.Container}}",
+    "zsh": "docker logs --tail 200 {{.Container}}"
   },
   "favorite": false
 }

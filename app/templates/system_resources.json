@@ -2,6 +2,8 @@
   "name": "System Resources",
   "description": "Zeigt aktuelle CPU-, RAM- und Prozessauslastung an.",
   "category": "System",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "ps aux --sort=-%cpu | head -10 && echo && free -h",
     "cmd": "tasklist /FO TABLE && echo. && systeminfo | findstr /C:\"Total Physical Memory\" /C:\"Available Physical Memory\"",

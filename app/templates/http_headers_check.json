@@ -2,6 +2,8 @@
   "name": "HTTP Headers Check",
   "description": "Holt nur die Response-Header einer URL ab.",
   "category": "Network",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "curl -I https://openai.com",
     "cmd": "curl -I https://openai.com",

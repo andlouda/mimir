@@ -10,6 +10,11 @@ import (
 )
 
 var immutableBlockedCommandFragments = []string{
+	"rm",
+	"del",
+	"kill",
+	"git push --force",
+	"git push -f",
 	"rm -rf",
 	"rm -f",
 	"remove-item",
@@ -103,17 +108,45 @@ func ApplyImmutableGuardrails(cfg Config) Config {
 	return cfg
 }
 
+// blockedFragmentRegexps match the fragments as whole words ("kill" in
+// "kill -9 {{.Pid}}" but not in "killswitch"; "rm" not in "alarm"), with
+// any whitespace between the words. Substring matching needed the exact
+// spacing of the list and let "taskkill /F", "kill -9" or "rm {{.File}}"
+// through.
+var blockedFragmentRegexps = func() []*regexp.Regexp {
+	out := make([]*regexp.Regexp, 0, len(immutableBlockedCommandFragments))
+	for _, fragment := range immutableBlockedCommandFragments {
+		words := strings.Fields(fragment)
+		if len(words) == 0 {
+			continue
+		}
+		quoted := make([]string, len(words))
+		for i, w := range words {
+			quoted[i] = regexp.QuoteMeta(w)
+		}
+		out = append(out, regexp.MustCompile(`(?i)(^|[^a-z0-9_.-])`+strings.Join(quoted, `\s+`)+`([^a-z0-9_-]|$)`))
+	}
+	return out
+}()
+
+// blockedFragment returns the first blocked fragment found in command.
+func blockedFragment(command string) (string, bool) {
+	for i, re := range blockedFragmentRegexps {
+		if re.MatchString(command) {
+			return strings.TrimSpace(immutableBlockedCommandFragments[i]), true
+		}
+	}
+	return "", false
+}
+
 func TemplateAllowedForAI(tmpl template.Template) bool {
 	if strings.TrimSpace(strings.ToLower(tmpl.DangerLevel)) != "low" {
 		return false
 	}
 
 	for _, command := range tmpl.Commands {
-		lower := strings.ToLower(command)
-		for _, fragment := range immutableBlockedCommandFragments {
-			if strings.Contains(lower, fragment) {
-				return false
-			}
+		if _, blocked := blockedFragment(command); blocked {
+			return false
 		}
 	}
 	return true
@@ -137,11 +170,8 @@ func ValidateSelectedToolWithDiscovery(tool tools.Tool, variables map[string]str
 	}
 
 	for _, command := range inspectable.CommandMap() {
-		lower := strings.ToLower(command)
-		for _, fragment := range immutableBlockedCommandFragments {
-			if strings.Contains(lower, fragment) {
-				return fmt.Errorf("selected tool %s contains blocked command fragment %q", tool.ID(), fragment)
-			}
+		if fragment, blocked := blockedFragment(command); blocked {
+			return fmt.Errorf("selected tool %s contains blocked command fragment %q", tool.ID(), fragment)
 		}
 	}
 
@@ -215,6 +245,19 @@ func ValidateParameterValue(param tools.Parameter, value string, terminalType st
 			return fmt.Errorf("parameter %s contains blocked fragment %q", param.Name, fragment)
 		}
 	}
+	// Guardrail 5 (no secret material) is enforced here, not only in the
+	// prompt: the AI must not point a read-only tool at keys or configs.
+	for _, p := range strictSensitiveLinePatterns {
+		if p.name == "secret_path" && p.pattern.MatchString(trimmed) {
+			return fmt.Errorf("parameter %s points at secret material", param.Name)
+		}
+	}
+	// A value that starts a new flag can change what a tool does
+	// ("-exec" into find, "--delete" into rsync); the AI fills values,
+	// not options.
+	if strings.HasPrefix(trimmed, "-") {
+		return fmt.Errorf("parameter %s must not start with a flag", param.Name)
+	}
 
 	return nil
 }
@@ -245,11 +288,8 @@ func ValidateCommandSuggestion(mode string, output string) error {
 		return fmt.Errorf("AI returned markdown fences for single-command mode")
 	}
 
-	lower := strings.ToLower(trimmed)
-	for _, fragment := range immutableBlockedCommandFragments {
-		if strings.Contains(lower, fragment) {
-			return fmt.Errorf("AI returned a blocked command fragment %q", fragment)
-		}
+	if fragment, blocked := blockedFragment(trimmed); blocked {
+		return fmt.Errorf("AI returned a blocked command fragment %q", fragment)
 	}
 	for _, fragment := range []string{";", "&&", "||", "|", ">", "<"} {
 		if strings.Contains(trimmed, fragment) {
@@ -263,6 +303,7 @@ func ValidateCommandSuggestion(mode string, output string) error {
 			return fmt.Errorf("AI returned a command with command substitution")
 		}
 	}
+	lower := strings.ToLower(trimmed)
 	if strings.Contains(lower, "curl ") && strings.Contains(lower, "sh") {
 		return fmt.Errorf("AI returned a pipe-to-shell style command")
 	}

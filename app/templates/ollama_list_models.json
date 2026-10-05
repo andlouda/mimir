@@ -2,6 +2,8 @@
   "name": "Ollama List Models",
   "description": "Zeigt lokal installierte Ollama-Modelle an.",
   "category": "AI",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "ollama list",
     "cmd": "ollama list",

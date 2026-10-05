@@ -2,11 +2,20 @@
   "name": "K8s Describe Resource",
   "description": "Beschreibt eine Kubernetes-Ressource wie pod, deploy, svc oder ingress.",
   "category": "Kubernetes",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "parameters": [
     {
       "name": "ResourceType",
       "required": true,
-      "options": ["pod", "deployment", "service", "ingress", "configmap", "secret"],
+      "options": [
+        "pod",
+        "deployment",
+        "service",
+        "ingress",
+        "configmap",
+        "secret"
+      ],
       "source": "user_only"
     },
     {

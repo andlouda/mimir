@@ -2,6 +2,8 @@
   "name": "Port Scanner",
   "description": "Zeigt offene Ports auf localhost oder lokale Listener an.",
   "category": "Network",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "if command -v nmap >/dev/null 2>&1; then nmap -sT localhost; else ss -tulpen; fi",
     "cmd": "netstat -an | findstr LISTEN",

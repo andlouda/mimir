@@ -2,6 +2,8 @@
   "name": "Git Status Short",
   "description": "Zeigt den kompakten Git-Status des aktuellen Repositories an.",
   "category": "Diagnostics",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "git status --short --branch",
     "cmd": "git status --short --branch",

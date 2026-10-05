@@ -2,6 +2,7 @@
   "name": "OpenAI Models List",
   "description": "Listet verfügbare OpenAI-Modelle über die API. Erfordert OPENAI_API_KEY.",
   "category": "AI",
+  "dangerLevel": "low",
   "toolEnabled": false,
   "commands": {
     "bash": "curl -s https://api.openai.com/v1/models -H \"Authorization: Bearer $OPENAI_API_KEY\" | jq '.data[].id'",

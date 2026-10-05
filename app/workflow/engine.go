@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"mimir/activitylog"
@@ -237,16 +238,16 @@ func (e *RunToolExecutor) Execute(runCtx RunContext, state *State, step Step) er
 	for key, value := range step.Inputs {
 		inputs[key] = value
 	}
-	// Fill empty inputs from preceding discovery results.
-	if state.Discovery != nil {
-		for key, value := range inputs {
-			if value == "" {
-				for _, discoveryValues := range state.Discovery {
-					if len(discoveryValues) > 0 {
-						inputs[key] = discoveryValues[0]
-						break
-					}
-				}
+	// Fill empty inputs from the discovery step that feeds this very
+	// parameter (its DiscoveryTool). Taking "any" discovery result put a
+	// namespace into a pod parameter depending on map order.
+	if len(state.DiscoveryByTool) > 0 {
+		for _, param := range tool.Parameters() {
+			if inputs[param.Name] != "" || strings.TrimSpace(param.DiscoveryTool) == "" {
+				continue
+			}
+			if values := state.DiscoveryByTool[param.DiscoveryTool]; len(values) > 0 {
+				inputs[param.Name] = values[0]
 			}
 		}
 	}
@@ -395,6 +396,10 @@ func (e *RunDiscoveryExecutor) Execute(runCtx RunContext, state *State, step Ste
 		})
 	} else {
 		state.Discovery[step.ID] = append([]string(nil), values...)
+		if state.DiscoveryByTool == nil {
+			state.DiscoveryByTool = map[string][]string{}
+		}
+		state.DiscoveryByTool[step.DiscoveryTool] = append([]string(nil), values...)
 		state.Outputs[step.ID] = fmt.Sprintf("%d discovery values", len(values))
 		state.Events = append(state.Events, Event{
 			StepID:  step.ID,

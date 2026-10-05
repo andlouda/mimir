@@ -2,6 +2,8 @@
   "name": "Disk Usage Summary",
   "description": "Zeigt belegten und freien Speicher aller Datenträger an.",
   "category": "Storage",
+  "dangerLevel": "low",
+  "toolEnabled": true,
   "commands": {
     "bash": "df -h",
     "cmd": "wmic logicaldisk get size,freespace,caption",

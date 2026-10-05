@@ -183,13 +183,23 @@ func (s *Store) Insert(entry CommandEntry) error {
 		entry.StartedAt = time.Now().UTC().Format(time.RFC3339)
 	}
 
-	// Time-based dedup: skip if same command+session within last 10 seconds
+	// Time-based dedup: skip if same command+session within last 10 seconds.
+	// The cutoff is rendered in the stored RFC3339 form; SQLite's
+	// datetime() yields "YYYY-MM-DD HH:MM:SS", and comparing that string
+	// with "YYYY-MM-DDTHH:MM:SSZ" made every later row of the same day
+	// look recent, so repeated commands were dropped for the rest of the day.
+	cutoff := ""
+	if t, err := time.Parse(time.RFC3339, entry.StartedAt); err == nil {
+		cutoff = t.Add(-10 * time.Second).UTC().Format(time.RFC3339)
+	} else {
+		cutoff = time.Now().UTC().Add(-10 * time.Second).Format(time.RFC3339)
+	}
 	var recentCount int
 	_ = s.db.QueryRow(`
 		SELECT COUNT(*) FROM command_history
 		WHERE session_id = ? AND command = ?
-		  AND started_at > datetime(?, '-10 seconds')`,
-		entry.SessionID, entry.Command, entry.StartedAt,
+		  AND started_at > ?`,
+		entry.SessionID, entry.Command, cutoff,
 	).Scan(&recentCount)
 	if recentCount > 0 {
 		return nil
