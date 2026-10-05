@@ -27,6 +27,7 @@
   import { loadAgentWorkspace } from './lib/stores/agentWorkspaceStore.js';
   import { groupedSidebarTerminals } from './lib/terminals/sidebarGroups';
   import { dedupeSavedSessionTerminals } from './lib/util';
+  import { droppedPathsText, isFileDrop } from './lib/terminals/droppedPaths.js';
   import { appendLeaf, rebuildLayout, collectLeafIds } from './lib/terminals/layoutTree.js';
   import { generateTmuxSessionName } from './lib/terminals/tmuxLifecycle';
   import { checkForUpdates, downloadUpdate, openUpdatePage, restartApp } from './lib/actions/updateActions.js';
@@ -404,6 +405,30 @@
     }
   }
 
+  // A file dropped onto the window would navigate the webview away and
+  // unmount every terminal. Cancel that everywhere; when the drop carries
+  // file URIs, paste the quoted paths into the active terminal instead.
+  function handleWindowDragOver(event) {
+    if (isFileDrop(event.dataTransfer)) {
+      event.preventDefault();
+      try { event.dataTransfer.dropEffect = 'copy'; } catch { /* ignore */ }
+    }
+  }
+  function handleWindowDrop(event) {
+    if (!isFileDrop(event.dataTransfer)) return;
+    event.preventDefault();
+    const text = droppedPathsText(event.dataTransfer.getData('text/uri-list'));
+    const id = $activeTerminalId;
+    if (text && id != null && $currentPage === 'terminals') {
+      WriteToTerminal(id, text).catch((error) => console.error('Could not paste dropped paths:', error));
+    }
+  }
+  // WebView2 / WebKitGTK zoom the page on Ctrl+wheel outside the panes;
+  // Mimir's own terminal zoom (SplitPane) is the only zoom.
+  function handleWindowWheel(event) {
+    if (event.ctrlKey) event.preventDefault();
+  }
+
   function handleNativeContextMenu(event) {
     const t = event.target;
     const editable = t && (t.closest?.('input, textarea, [contenteditable="true"]'));
@@ -433,6 +458,9 @@
     // terminal; keep it to text fields, Mimir draws its own menu in panes.
     window.addEventListener('contextmenu', handleNativeContextMenu);
     window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('drop', handleWindowDrop);
+    window.addEventListener('wheel', handleWindowWheel, { passive: false });
     await loadSSHProfiles();
     try {
       await loadAvailableTerminalTypes();
@@ -530,6 +558,9 @@
     window.removeEventListener('error', handleGlobalError);
     window.removeEventListener('contextmenu', handleNativeContextMenu);
     window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.removeEventListener('dragover', handleWindowDragOver);
+    window.removeEventListener('drop', handleWindowDrop);
+    window.removeEventListener('wheel', handleWindowWheel);
     window.removeEventListener('unhandledrejection', handleGlobalError);
     offUpdateProgress();
     $terminals.forEach((term) => cleanupTerminalResources(term));

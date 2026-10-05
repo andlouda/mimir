@@ -63,7 +63,7 @@ The release workflow runs on tags matching `v*` and uploads artifacts plus `chec
 Linux build dependencies for Wails:
 
 ```bash
-sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config build-essential
+sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config build-essential
 ```
 
 Node modules are platform-specific. Do not reuse a Windows `node_modules` directory in WSL.

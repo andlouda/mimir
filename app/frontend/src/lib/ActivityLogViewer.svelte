@@ -1,4 +1,5 @@
 <script>
+  import { ClipboardSetText } from '../../wailsjs/runtime';
   import { createEventDispatcher, onMount } from 'svelte';
   import { t } from './i18n.js';
 
@@ -79,7 +80,7 @@
       return;
     }
     try {
-      await navigator.clipboard.writeText(compactJSON(selectedEntry.raw));
+      await ClipboardSetText(compactJSON(selectedEntry.raw));
       copyMessage = 'JSON copied.';
     } catch (error) {
       copyMessage = `Copy failed: ${error.message || error}`;

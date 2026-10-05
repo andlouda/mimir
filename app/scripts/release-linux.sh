@@ -69,7 +69,9 @@ if [[ "$UPDATE_REPOSITORY" != "" ]]; then
   LDFLAGS="$LDFLAGS -X main.UpdateRepository=$UPDATE_REPOSITORY"
 fi
 # -s: skip Wails' own frontend build; frontend/dist is already built above.
-wails build -s -ldflags "$LDFLAGS"
+# webkit2_41: link against the WebKitGTK 4.1 ABI, the only one current
+# distributions ship (Fedora 40+, Debian 13, Ubuntu 24.04+); 4.0 is gone there.
+wails build -s -tags webkit2_41 -ldflags "$LDFLAGS"
 
 BINARY_PATH="$PROJECT_ROOT/build/bin/mimir"
 if [[ ! -x "$BINARY_PATH" ]]; then
