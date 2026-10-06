@@ -430,7 +430,7 @@ export default {
   },
   background: {
     title: 'Pane background',
-    hint: 'A picture behind this pane. Changes apply immediately; keep the visibility low so output stays readable.',
+    hint: 'A picture behind this pane. Changes apply immediately; keep the visibility low so output stays readable. With the WebGL renderer a picture makes the pane a little slower to draw.',
     images: 'Imported images',
     none: 'No image',
     import: 'Import image…',
