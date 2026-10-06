@@ -434,6 +434,10 @@ export function RefreshTmuxClient(arg1, arg2) {
   return window['go']['main']['App']['RefreshTmuxClient'](arg1, arg2);
 }
 
+export function GetAgentPaneScreenJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentPaneScreenJSON'](arg1, arg2);
+}
+
 export function UpdateSessionLayout(arg1) {
   return window['go']['main']['App']['UpdateSessionLayout'](arg1);
 }

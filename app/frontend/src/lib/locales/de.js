@@ -914,6 +914,8 @@ export default {
     viewScreen: 'Bildschirm',
     viewScreenTitle: 'Was tmux in dieser Pane zeigt (immer verfügbar, behält die Umbrüche des Agenten)',
     screenHintFullscreen: 'Der Agent läuft im Vollbild: erfassbar ist nur, was gerade in der Pane sichtbar ist, dahinter gibt es keinen Verlauf. Frühere Antworten stehen unter Snippets und History.',
+    screenMirrorHint: 'Die Pane, wie tmux sie zeigt, mit Farben und dem Layout des Agenten; scrollt wie ein Terminal. Aktualisiert über den Neuladen-Knopf.',
+    stateHint: 'Was der Agent selbst über diese Sitzung festhält: Titel, Prompts, Kosten und nach einer Kontext-Kompaktierung seine eigene Zusammenfassung. Mimir liest das nur.',
     screenHint: 'tmux-Inhalt der Pane ab dem letzten Start des Agenten. Weiche Umbrüche sind zusammengefügt; Umbrüche, die der Agent selbst gezeichnet hat, bleiben.',
     verified: 'Sitzungsdatei gegen die Pane bestätigt',
     unverified: 'Sitzungsdatei nicht gegen die Pane bestätigt — bei Zweifel die Bildschirm-Ansicht prüfen',

@@ -145,6 +145,8 @@ export function GetTmuxHistoryJSON(arg1:number,arg2:string,arg3:number):Promise<
 
 export function RefreshTmuxClient(arg1:number,arg2:string):Promise<void>;
 
+export function GetAgentPaneScreenJSON(arg1:number,arg2:string):Promise<string>;
+
 export function ImportTerminalBackground():Promise<string>;
 
 export function ListTerminalBackgroundsJSON():Promise<string>;
