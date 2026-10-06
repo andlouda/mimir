@@ -284,6 +284,8 @@ export async function installMimirMocks(page, { workspaceAgent = false } = {}) {
           GetFunctionCatalogJSON: async () => JSON.stringify(functionCatalog),
           GetLoadedSessionData: async () => ({ terminals: [] }),
           UpdateSessionLayout: asyncNoop,
+          GetTmuxHistoryJSON: async () => JSON.stringify({ alternate: false, lines: [] }),
+          RefreshTmuxClient: asyncNoop,
           FinishSessionRestore: asyncNoop,
           DiscardUnrestoredTerminal: asyncNoop,
           GetPendingUpdate: async () => '',

@@ -112,6 +112,10 @@ export default {
       check: 'Prüfen',
     },
     cards: {
+      tmuxRefill: {
+        title: 'tmux-Verlauf nach Größenänderung',
+        desc: 'Wird eine tmux-Pane breiter, wird ihr Verlauf neu geladen, damit ältere Zeilen in der neuen Breite umbrechen. tmux selbst lässt sie in der alten Breite abgeschnitten. Aus: der Verlauf bleibt, wie er gezeichnet wurde.',
+      },
       tmuxMode: {
         title: 'tmux-Integration',
         invisible: 'Unsichtbar (empfohlen)',

@@ -112,6 +112,10 @@ export default {
       check: 'Check',
     },
     cards: {
+      tmuxRefill: {
+        title: 'tmux history after resize',
+        desc: 'After a tmux pane was widened, its history is loaded again so older lines wrap at the new width. tmux itself keeps them cut at the old width. Off: the history stays as it was drawn.',
+      },
       tmuxMode: {
         title: 'tmux integration',
         invisible: 'Invisible (recommended)',
