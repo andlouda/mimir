@@ -7,6 +7,7 @@ import {
   StartSSHTerminal,
 } from '../../../wailsjs/go/main/App';
 import { activeTerminalId, layoutTree } from '../stores/terminalStore.js';
+import { appendLeaf } from '../terminals/layoutTree.js';
 import {
   hostKeyVerifyState,
   showSSHProfileModal,
@@ -30,20 +31,10 @@ export function openSSHProfilePicker() {
   showSSHProfileModal.set(true);
 }
 
+// Same balanced insert as "+ New": the new pane takes an equal share
+// instead of halving every existing pane.
 function appendTerminalLeaf(id) {
-  const newLeaf = { type: 'leaf', terminalId: id };
-  const currentTree = get(layoutTree);
-  if (currentTree === null) {
-    layoutTree.set(newLeaf);
-    return;
-  }
-
-  layoutTree.set({
-    type: 'split',
-    direction: 'horizontal',
-    ratio: 0.5,
-    children: [currentTree, newLeaf],
-  });
+  layoutTree.set(appendLeaf(get(layoutTree), { type: 'leaf', terminalId: id }));
 }
 
 export function parseHostKeyVerifyError(errorMessageText, profile) {
@@ -79,6 +70,7 @@ export function createSSHActions({ createTerminalInstance, persistTerminalState,
       appendTerminalLeaf(id);
 
       const newTerminal = await createTerminalInstance(id, 'ssh', `SSH: ${profile.name}`, false, profile.id, false, '', '', 'fresh');
+      if (!newTerminal) return; // closed (or the connection ended) while it was still starting
       activeTerminalId.set(id);
       persistTerminalState?.({ ...newTerminal, type: 'ssh', minimized: false, sshProfileId: profile.id });
       await reinitializeTerminals?.();

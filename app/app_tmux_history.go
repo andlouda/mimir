@@ -62,6 +62,11 @@ func parseTmuxHistory(output string) tmuxHistoryPayload {
 	tail = strings.TrimPrefix(tail, "\n")
 	tail = strings.ReplaceAll(tail, "\r\n", "\n")
 	lines := strings.Split(tail, "\n")
+	// capture-pane pads every row to the pane width; the padding would
+	// wrap into blank rows once written at the new width.
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " ")
+	}
 	for len(lines) > 0 && strings.TrimSpace(stripSGR(lines[len(lines)-1])) == "" {
 		lines = lines[:len(lines)-1]
 	}

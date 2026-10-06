@@ -382,6 +382,7 @@
     const newTerminal = await createTerminalInstance(
       id, saved.type, saved.name, saved.minimized, '', true, tmuxSessionName, saved.resumeId || '', restoreClass,
     );
+    if (!newTerminal) throw new Error($tr('appTerminals.restoreExited'));
     const restoredTranscript = await loadTranscriptExcerpt(newTerminal.resumeId);
     const folderId = saved.folderId || '';
     $terminals = $terminals.map((t) => t.id === newTerminal.id ? { ...t, restoredTranscript, restoreClass, restoreDismissed: false, folderId } : t);
@@ -401,6 +402,7 @@
       const newTerminal = await createTerminalInstance(
         id, 'ssh', name, saved.minimized, profile.id, true, saved.tmuxSessionName || '', saved.resumeId || '', restoreClass,
       );
+      if (!newTerminal) throw new Error($tr('appTerminals.restoreExited'));
       const restoredTranscript = await loadTranscriptExcerpt(newTerminal.resumeId);
       const folderId = saved.folderId || '';
       $terminals = $terminals.map((t) => t.id === newTerminal.id ? { ...t, restoredTranscript, restoreClass, restoreDismissed: false, folderId } : t);
@@ -468,29 +470,38 @@
     window.addEventListener('dragover', handleWindowDragOver);
     window.addEventListener('drop', handleWindowDrop);
     window.addEventListener('wheel', handleWindowWheel, { passive: false });
-    await loadSSHProfiles();
-    try {
-      await loadAvailableTerminalTypes();
-      await loadTemplatesFromBackend();
-      await loadCustomFolders();
-      $historyTrackingEnabled = await IsHistoryTrackingEnabled();
-      await loadAgentDetectionSetting();
-      await loadAgentAnnotations();
-      await loadPromptMode();
-      loadAgentWorkspace().catch(() => {}); // Errors remain visible in the workspace.
-      try {
-        $tmuxIntegrationMode = await window['go']['main']['App']['GetTmuxIntegrationMode']();
-      } catch (error) {
-        console.warn('Could not load tmux integration mode:', error);
-      }
-      await loadAISettingsConfig();
-
-      try {
+    // Every start-up loader runs on its own: a broken AI config or a
+    // missing template must not skip the session restore below (which
+    // used to leave the saved panes unrestored and then overwritten).
+    const loaderErrors = [];
+    const loaders = [
+      ['SSH profiles', loadSSHProfiles],
+      ['terminal types', loadAvailableTerminalTypes],
+      ['templates', loadTemplatesFromBackend],
+      ['folders', loadCustomFolders],
+      ['history setting', async () => { $historyTrackingEnabled = await IsHistoryTrackingEnabled(); }],
+      ['agent detection', loadAgentDetectionSetting],
+      ['agent annotations', loadAgentAnnotations],
+      ['prompt mode', loadPromptMode],
+      ['tmux mode', async () => { $tmuxIntegrationMode = await window['go']['main']['App']['GetTmuxIntegrationMode'](); }, { quiet: true }],
+      ['AI settings', loadAISettingsConfig],
+      ['pending update', async () => {
         const pendingRaw = await window['go']['main']['App']['GetPendingUpdate']();
         const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
         if (pending?.version) $updateInstalled = true;
-      } catch (_) {}
-
+      }],
+    ];
+    for (const [label, load, opts] of loaders) {
+      try {
+        await load();
+      } catch (error) {
+        console.warn(`Start-up loader failed (${label}):`, error);
+        if (!opts?.quiet) loaderErrors.push(`${label}: ${error?.message || error}`);
+      }
+    }
+    loadAgentWorkspace().catch(() => {}); // Errors remain visible in the workspace.
+    if (loaderErrors.length) $errorMessage = `${$tr('appTerminals.loadersFailed')}\n${loaderErrors.join('\n')}`;
+    try {
       const savedSession = await GetLoadedSessionData();
       const savedTerminals = dedupeSavedSessionTerminals(savedSession?.terminals || []);
       const notRestored = [];
@@ -554,7 +565,8 @@
       else scheduleSessionSave(50);
       enableLayoutPersistence();
     } catch (error) {
-      $errorMessage = `Failed to load templates or session: ${error.message || error}`;
+      $errorMessage = `${$tr('appTerminals.restoreCrashed')} ${error.message || error}`;
+      if ($terminals.length === 0) doAddTerminal();
     }
   });
 
