@@ -55,6 +55,12 @@
     }
   }
 
+  // Card descriptions are folded away; a click on the title opens them.
+  let openCards = new Set();
+  function toggleCard(key) {
+    if (openCards.has(key)) openCards.delete(key); else openCards.add(key);
+    openCards = openCards;
+  }
   let hookHosts = null;
   let hookBusy = '';
   onMount(async () => {
@@ -138,8 +144,10 @@
           <button type="button" class="settings-inline-btn" on:click={resetTerminalFontSize}>{$t('settings.cards.fontSize.reset')}</button>
         </span>
       </div>
-      <strong>{$t('settings.cards.fontSize.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('fontSize')} on:click|preventDefault|stopPropagation={() => toggleCard('fontSize')}><strong>{$t('settings.cards.fontSize.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('fontSize') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('fontSize')}
       <p>{$t('settings.cards.fontSize.desc')}</p>
+      {/if}
     </div>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
@@ -149,8 +157,10 @@
           <option value="dom">{$t('settings.cards.renderer.dom')}</option>
         </select>
       </div>
-      <strong>{$t('settings.cards.renderer.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('renderer')} on:click|preventDefault|stopPropagation={() => toggleCard('renderer')}><strong>{$t('settings.cards.renderer.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('renderer') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('renderer')}
       <p>{$t(`settings.cards.renderer.desc_${$terminalRenderer}`)}</p>
+      {/if}
     </label>
     {#if isLinux}
       <label class="ai-hub-card settings-toggle-card">
@@ -162,8 +172,10 @@
             <option value="always">{$t('settings.cards.gpu.always')}</option>
           </select>
         </div>
-        <strong>{$t('settings.cards.gpu.title')}</strong>
+        <button type="button" class="settings-card-title" aria-expanded={openCards.has('gpu')} on:click|preventDefault|stopPropagation={() => toggleCard('gpu')}><strong>{$t('settings.cards.gpu.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('gpu') ? '▾' : '▸'}</span></button>
+        {#if openCards.has('gpu')}
         <p>{$t('settings.cards.gpu.desc')}</p>
+        {/if}
         {#if gpuPolicy !== gpuSaved}<p class="settings-note">{$t('settings.cards.gpu.restart')}</p>{/if}
       </label>
       <label class="ai-hub-card settings-toggle-card">
@@ -175,8 +187,10 @@
             <option value="off">{$t('settings.cards.wayland.off')}</option>
           </select>
         </div>
-        <strong>{$t('settings.cards.wayland.title')}</strong>
+        <button type="button" class="settings-card-title" aria-expanded={openCards.has('wayland')} on:click|preventDefault|stopPropagation={() => toggleCard('wayland')}><strong>{$t('settings.cards.wayland.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('wayland') ? '▾' : '▸'}</span></button>
+        {#if openCards.has('wayland')}
         <p>{$t('settings.cards.wayland.desc')}{isWayland ? ' ' + $t('settings.cards.wayland.detected') : ''}</p>
+        {/if}
         {#if waylandFix !== waylandSaved}<p class="settings-note">{$t('settings.cards.gpu.restart')}</p>{/if}
       </label>
       <label class="ai-hub-card settings-toggle-card">
@@ -188,9 +202,11 @@
             <option value="system">{$t('settings.cards.im.system')}</option>
           </select>
         </div>
-        <strong>{$t('settings.cards.im.title')}</strong>
+        <button type="button" class="settings-card-title" aria-expanded={openCards.has('im')} on:click|preventDefault|stopPropagation={() => toggleCard('im')}><strong>{$t('settings.cards.im.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('im') ? '▾' : '▸'}</span></button>
+        {#if openCards.has('im')}
         <p>{$t('settings.cards.im.desc')}</p>
         <p class="settings-note">{imEffective ? $t('settings.cards.im.effectiveOn') : $t('settings.cards.im.effectiveOff')}{imModule !== imSaved ? ' ' + $t('settings.cards.gpu.restart') : ''}</p>
+        {/if}
       </label>
     {/if}
     <label class="ai-hub-card settings-toggle-card">
@@ -201,9 +217,11 @@
           <option value="shell">{$t('settings.cards.prompt.shell')}</option>
         </select>
       </div>
-      <strong>{$t('settings.cards.prompt.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('prompt')} on:click|preventDefault|stopPropagation={() => toggleCard('prompt')}><strong>{$t('settings.cards.prompt.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('prompt') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('prompt')}
       <p>{$t(`settings.cards.prompt.desc_${$promptMode}`)}</p>
       <p class="settings-note">{$t('settings.cards.prompt.note')}</p>
+      {/if}
     </label>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
@@ -214,32 +232,40 @@
           <option value="off">{$t('settings.cards.tmuxMode.off')}</option>
         </select>
       </div>
-      <strong>{$t('settings.cards.tmuxMode.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('tmuxMode')} on:click|preventDefault|stopPropagation={() => toggleCard('tmuxMode')}><strong>{$t('settings.cards.tmuxMode.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('tmuxMode') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('tmuxMode')}
       <p>{$t(`settings.cards.tmuxMode.desc_${$tmuxIntegrationMode}`)}</p>
       <p class="settings-note">{$t('settings.cards.tmuxMode.note')}</p>
+      {/if}
     </label>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2731;</span>
         <input type="checkbox" bind:checked={$agentDetectionEnabled} />
       </div>
-      <strong>{$t('settings.cards.agentDetection.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('agentDetection')} on:click|preventDefault|stopPropagation={() => toggleCard('agentDetection')}><strong>{$t('settings.cards.agentDetection.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('agentDetection') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('agentDetection')}
       <p>{$t('settings.cards.agentDetection.desc')}</p>
+      {/if}
     </label>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x266A;</span>
         <input type="checkbox" bind:checked={$agentNotificationsEnabled} />
       </div>
-      <strong>{$t('settings.cards.agentNotify.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('agentNotify')} on:click|preventDefault|stopPropagation={() => toggleCard('agentNotify')}><strong>{$t('settings.cards.agentNotify.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('agentNotify') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('agentNotify')}
       <p>{$t('settings.cards.agentNotify.desc')}</p>
+      {/if}
     </label>
     <div class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2731;</span>
       </div>
-      <strong>{$t('settings.cards.claudeHook.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('claudeHook')} on:click|preventDefault|stopPropagation={() => toggleCard('claudeHook')}><strong>{$t('settings.cards.claudeHook.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('claudeHook') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('claudeHook')}
       <p>{$t('settings.cards.claudeHook.desc')}</p>
+      {/if}
       {#if hookHosts}
         <ul class="settings-host-list">
           {#each hookHosts as row (row.host)}
@@ -257,68 +283,81 @@
       {:else}
         <p class="settings-note">…</p>
       {/if}
-      <p class="settings-note">{$t('settings.cards.claudeHook.note')}</p>
+      {#if openCards.has('claudeHook')}<p class="settings-note">{$t('settings.cards.claudeHook.note')}</p>{/if}
     </div>
-    <button type="button" class="ai-hub-card" on:click={onOpenAISettings}>
+    <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x269B;</span>
-        <span class="ai-hub-link">{$t('settings.actions.configure')}</span>
+        <button type="button" class="ai-hub-link" on:click={onOpenAISettings}>{$t('settings.actions.configure')}</button>
       </div>
-      <strong>{$t('settings.cards.aiSettings.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('aiSettings')} on:click|preventDefault|stopPropagation={() => toggleCard('aiSettings')}><strong>{$t('settings.cards.aiSettings.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('aiSettings') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('aiSettings')}
       <p>{$t('settings.cards.aiSettings.desc')}</p>
-    </button>
+      {/if}
+    </div>
 
-    <button type="button" class="ai-hub-card" on:click={onManageTemplates}>
+    <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#9998;</span>
-        <span class="ai-hub-link">{$t('settings.actions.manage')}</span>
+        <button type="button" class="ai-hub-link" on:click={onManageTemplates}>{$t('settings.actions.manage')}</button>
       </div>
-      <strong>{$t('settings.cards.templates.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('templates')} on:click|preventDefault|stopPropagation={() => toggleCard('templates')}><strong>{$t('settings.cards.templates.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('templates') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('templates')}
       <p>{$t('settings.cards.templates.desc')}</p>
-    </button>
+      {/if}
+    </div>
 
-    <button type="button" class="ai-hub-card" on:click={onToggleNotes}>
+    <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x270E;</span>
-        <span class="ai-hub-link">{notesPanelOpen ? $t('settings.actions.close') : $t('settings.actions.open')}</span>
+        <button type="button" class="ai-hub-link" on:click={onToggleNotes}>{notesPanelOpen ? $t('settings.actions.close') : $t('settings.actions.open')}</button>
       </div>
-      <strong>{$t('settings.cards.notes.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('notes')} on:click|preventDefault|stopPropagation={() => toggleCard('notes')}><strong>{$t('settings.cards.notes.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('notes') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('notes')}
       <p>{$t('settings.cards.notes.desc')}</p>
-    </button>
+      {/if}
+    </div>
 
-    <button type="button" class="ai-hub-card" on:click={() => { showFolderManager = !showFolderManager; }}>
+    <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2302;</span>
-        <span class="ai-hub-link">{showFolderManager ? $t('settings.actions.close') : $t('settings.actions.manage')}</span>
+        <button type="button" class="ai-hub-link" on:click={() => { showFolderManager = !showFolderManager; }}>{showFolderManager ? $t('settings.actions.close') : $t('settings.actions.manage')}</button>
       </div>
-      <strong>{$t('settings.cards.folders.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('folders')} on:click|preventDefault|stopPropagation={() => toggleCard('folders')}><strong>{$t('settings.cards.folders.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('folders') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('folders')}
       <p>{$t('settings.cards.folders.desc')}</p>
-    </button>
+      {/if}
+    </div>
 
-    <button type="button" class="ai-hub-card" on:click={onToggleHistory}>
+    <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2261;</span>
-        <span class="ai-hub-link">{historyTrackingEnabled ? $t('settings.actions.enabled') : $t('settings.actions.disabled')}</span>
+        <button type="button" class="ai-hub-link" on:click={onToggleHistory}>{historyTrackingEnabled ? $t('settings.actions.enabled') : $t('settings.actions.disabled')}</button>
       </div>
-      <strong>{$t('settings.cards.history.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('history')} on:click|preventDefault|stopPropagation={() => toggleCard('history')}><strong>{$t('settings.cards.history.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('history') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('history')}
       <p>{historyTrackingEnabled ? $t('settings.cards.history.enabledDesc') : $t('settings.cards.history.disabledDesc')}</p>
-    </button>
+      {/if}
+    </div>
 
-    <button type="button" class="ai-hub-card" on:click={onInstallAgg} disabled={aggAvailable}>
+    <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x25B8;</span>
-        <span class="ai-hub-link">{aggAvailable ? $t('settings.actions.installed') : $t('settings.actions.install')}</span>
+        <button type="button" class="ai-hub-link" on:click={onInstallAgg} disabled={aggAvailable}>{aggAvailable ? $t('settings.actions.installed') : $t('settings.actions.install')}</button>
       </div>
-      <strong>{$t('settings.cards.agg.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('agg')} on:click|preventDefault|stopPropagation={() => toggleCard('agg')}><strong>{$t('settings.cards.agg.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('agg') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('agg')}
       <p>{#if aggAvailable}{$t('settings.cards.agg.installedDesc')}{:else if aggStatus === 'incompatible'}{$t('settings.cards.agg.incompatibleDesc')}{:else}{$t('settings.cards.agg.missingDesc')}{/if}</p>
-    </button>
+      {/if}
+    </div>
 
-    <button type="button" class="ai-hub-card" on:click={onCheckUpdates} disabled={updateChecking}>
+    <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x21E7;</span>
-        <span class="ai-hub-link">{updateChecking ? $t('settings.actions.checking') : (updateInfo?.updateAvailable ? $t('settings.actions.available') : $t('settings.actions.check'))}</span>
+        <button type="button" class="ai-hub-link" on:click={onCheckUpdates} disabled={updateChecking}>{updateChecking ? $t('settings.actions.checking') : (updateInfo?.updateAvailable ? $t('settings.actions.available') : $t('settings.actions.check'))}</button>
       </div>
-      <strong>{$t('settings.cards.updates.title')}</strong>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('updates')} on:click|preventDefault|stopPropagation={() => toggleCard('updates')}><strong>{$t('settings.cards.updates.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('updates') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('updates')}
       <p>
         {#if updateInfo?.error}
           {updateInfo.error}
@@ -332,7 +371,8 @@
           {$t('settings.cards.updates.defaultDesc')}
         {/if}
       </p>
-    </button>
+      {/if}
+    </div>
   </div>
 
   <div class="shortcuts-panel">
@@ -437,6 +477,26 @@
 </div>
 
 <style>
+  .settings-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .settings-card-title strong { font-weight: 600; }
+  .settings-card-chevron { color: var(--text-muted); font-size: 0.8rem; flex-shrink: 0; }
+  .ai-hub-card p { margin-top: 0.55rem; }
+  /* An opened description must not stretch the neighbours in the row. */
+  :global(.ai-hub-grid) { align-items: start; }
+
   .sha256-hash {
     font-size: 0.7rem;
     word-break: break-all;

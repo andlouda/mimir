@@ -142,6 +142,20 @@
     letter-spacing: 0.06em;
   }
 
+  /* The card's action is a button of its own (the card itself folds the
+     description open), so it needs a plain button reset. */
+  button.ai-hub-link {
+    background: none;
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--text-secondary);
+  }
+  button.ai-hub-link:hover:not(:disabled) { color: var(--accent); border-color: var(--border-accent); }
+  button.ai-hub-link:disabled { opacity: 0.55; cursor: default; }
+
   .ai-hub-card strong {
     display: block;
     margin-bottom: 0.35rem;
