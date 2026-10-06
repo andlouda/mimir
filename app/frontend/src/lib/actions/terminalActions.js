@@ -35,11 +35,15 @@ const scrollbackRefill = createScrollbackRefill({
 });
 setResizedListener((id, prevCols, cols) => {
   const term = get(terminals).find((t) => t.id === id);
-  if (term) scrollbackRefill.onResized(term, prevCols, cols);
+  if (!term) return;
+  // A Claude pane that will be re-rendered with --resume needs no
+  // history refill: the restart prints everything again anyway.
+  if (claudeRerenderOnResized(id, prevCols, cols)) return;
+  scrollbackRefill.onResized(term, prevCols, cols);
 });
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { quotePathFor } from '../terminals/droppedPaths.js';
-import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
+import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch, claudeRerenderOnResized } from './agentActions.js';
 import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl, setResizedListener } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';

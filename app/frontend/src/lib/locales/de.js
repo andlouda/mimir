@@ -116,6 +116,10 @@ export default {
         title: 'tmux-Verlauf nach Größenänderung',
         desc: 'Wird eine tmux-Pane breiter, wird ihr Verlauf neu geladen, damit ältere Zeilen in der neuen Breite umbrechen. tmux selbst lässt sie in der alten Breite abgeschnitten. Aus: der Verlauf bleibt, wie er gezeichnet wurde.',
       },
+      claudeRerender: {
+        title: 'Claude: nach Verbreitern neu zeichnen',
+        desc: 'Claude Code bricht seine Ausgabe in der Breite des Moments um, mit harten Zeilenumbrüchen, die kein Terminal zurücknehmen kann. Ist eine Claude-Pane um 20 Spalten oder mehr gewachsen und Claude untätig, beendet Mimir Claude mit /exit und startet denselben Befehl mit --resume neu; die Konversation wird dann in der neuen Breite ausgegeben. Während Claude antwortet oder auf eine Freigabe wartet, passiert nichts. Im Agent-Panel gibt es dieselbe Aktion als Link.',
+      },
       tmuxMode: {
         title: 'tmux-Integration',
         invisible: 'Unsichtbar (empfohlen)',
@@ -853,6 +857,9 @@ export default {
     noMatches: 'Keine Treffer',
   },
   agentPanel: {
+    rerender: 'Neu zeichnen',
+    rerenderTitle: 'Claude Code mit --resume neu starten, damit die Konversation in der aktuellen Pane-Breite ausgegeben wird',
+    rerendered: 'Claude mit --resume neu gestartet',
     boundShort: 'an diese Pane gebunden',
     unverifiedNoTmux: 'Jüngste Sitzungsdatei nach Zeit gewählt (ohne tmux keine Bestätigung über die Pane möglich)',
     chooseSession: 'Sitzung wählen',
