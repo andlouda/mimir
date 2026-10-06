@@ -78,6 +78,15 @@ export const tmuxScrollbackRefill = writable(initialScrollbackRefill());
 tmuxScrollbackRefill.subscribe((on) => {
   try { localStorage.setItem(SCROLLBACK_REFILL_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
 });
+// Where new panes go: 'auto' (stack while an agent is visible) | 'row' | 'column'.
+const PANE_PLACEMENT_KEY = 'mimir-pane-placement';
+function initialPanePlacement() {
+  try { const v = localStorage.getItem(PANE_PLACEMENT_KEY); return v === 'row' || v === 'column' ? v : 'auto'; } catch { return 'auto'; }
+}
+export const panePlacement = writable(initialPanePlacement());
+panePlacement.subscribe((mode) => {
+  try { localStorage.setItem(PANE_PLACEMENT_KEY, mode); } catch { /* ignore */ }
+});
 // tmux integration for new terminals: 'invisible' | 'classic' | 'off'
 // (loaded from the backend at start-up; see terminal/tmux_options.go).
 export const tmuxIntegrationMode = writable('invisible');

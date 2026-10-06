@@ -116,6 +116,13 @@ export default {
         title: 'tmux history after resize',
         desc: 'After a tmux pane was widened, its history is loaded again so older lines wrap at the new width. tmux itself keeps them cut at the old width. Off: the history stays as it was drawn.',
       },
+      panePlacement: {
+        title: 'New panes',
+        auto: 'Below while an agent runs (recommended)',
+        row: 'Side by side',
+        column: 'Below each other',
+        desc: 'Side by side narrows every pane. Claude Code and other TUIs wrap their output at the width they had at the time, with hard line breaks that no terminal can undo later; after the pane is wide again, that output stays narrow. Stacking new panes below costs rows, not width.',
+      },
       tmuxMode: {
         title: 'tmux integration',
         invisible: 'Invisible (recommended)',
@@ -476,6 +483,9 @@ export default {
     startRecording: 'Start Recording',
     stopRecording: 'Stop Recording',
     restoredTranscript: 'Restored Transcript',
+    restoredContinued: 'continued from the last session',
+    restoredNewShell: 'New shell: the previous output is only a preview, the old process is gone',
+    restoredNewShellShort: 'new shell',
     closeRestored: 'Close restored context',
     openTranscript: 'Open transcript',
     openTranscriptTitle: 'View the saved transcript for this terminal',
@@ -791,6 +801,9 @@ export default {
     statusPending: 'Pending',
   },
   appTerminals: {
+    loadersFailed: 'Some settings could not be loaded at start-up:',
+    restoreCrashed: 'Session restore failed:',
+    restoreExited: 'the terminal ended while it was starting',
     restoreFailed: 'Some terminals from the last session could not be restored:',
     restoreRetryHint: 'They stay in the session and are tried again at the next start (an SSH terminal is dropped once its profile is deleted).',
     restoreProfileMissing: 'SSH profile no longer exists',
