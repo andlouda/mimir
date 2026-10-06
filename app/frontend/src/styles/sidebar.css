@@ -251,6 +251,22 @@
   .sidebar-agent-main { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
   .sidebar-agent-head { display: flex; gap: 0.4rem; align-items: baseline; min-width: 0; }
   .sidebar-agent-label { font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+  /* Offline sessions below the live agents */
+  .sidebar-recent { margin-top: 0.25rem; }
+  .sidebar-recent-hint { padding: 0.2rem 0.75rem 0.3rem 1.6rem; color: var(--text-muted); font-size: 0.7rem; font-style: italic; }
+  .sidebar-recent-error { color: #f87171; font-style: normal; }
+  .sidebar-recent-row { display: flex; align-items: center; gap: 0.25rem; padding: 0 0.35rem 0 0.9rem; overflow: hidden; }
+  /* The generic list rule gives every button the full width; these two share a row. */
+  .sidebar-list li.sidebar-recent-row button.sidebar-recent-main { width: auto; flex: 1; min-width: 0; }
+  .sidebar-list li.sidebar-recent-row button.sidebar-recent-delete, .sidebar-list li.sidebar-recent-row .sidebar-recent-confirm button { width: auto; flex: 0 0 auto; }
+  .sidebar-recent-row:hover { background: rgba(99, 179, 237, 0.06); }
+  .sidebar-recent-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; background: none; border: 0; color: inherit; font: inherit; text-align: left; padding: 0.25rem 0.3rem; cursor: pointer; }
+  .sidebar-recent-title { font-size: 0.74rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-recent-meta { font-size: 0.64rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-recent-delete { opacity: 0; background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; padding: 0.1rem 0.3rem; border-radius: 3px; }
+  .sidebar-recent-row:hover .sidebar-recent-delete, .sidebar-recent-delete:focus-visible { opacity: 1; }
+  .sidebar-recent-delete:hover { color: #f87171; }
+  .sidebar-recent-confirm { display: inline-flex; gap: 0.2rem; flex-shrink: 0; }
   .sidebar-agent-code { font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.04em; color: var(--accent); background: var(--accent-glow); border: 1px solid var(--border-dim); border-radius: 3px; padding: 0 0.3rem; flex-shrink: 0; }
   .sidebar-agent-title { color: var(--text-secondary); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* Agent chip on a terminal entry: same code and dot as the agent row. */

@@ -493,7 +493,7 @@ export function handleResize() {
   });
 }
 
-export async function addTerminal(terminalTypeParam, nameParam, minimized = false, initialPath = '', { selectedTerminalType, openSSHProfilePicker } = {}) {
+export async function addTerminal(terminalTypeParam, nameParam, minimized = false, initialPath = '', { selectedTerminalType, openSSHProfilePicker, runCommand = '' } = {}) {
   const type = typeof terminalTypeParam === 'string' ? terminalTypeParam : selectedTerminalType;
 
   if (type === 'ssh') {
@@ -557,6 +557,12 @@ export async function addTerminal(terminalTypeParam, nameParam, minimized = fals
       if (cdCommand) {
         await WriteToTerminal(id, cdCommand + '\r');
       }
+    }
+    // A command the user asked for by clicking (resume a session): typed
+    // and run after the shell had a moment to start.
+    if (runCommand && !containsControlChars(runCommand)) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await WriteToTerminal(id, runCommand + '\r');
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

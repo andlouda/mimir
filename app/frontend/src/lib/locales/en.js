@@ -25,6 +25,11 @@ export default {
     reasons: { permission: 'Approval requested', blocked: 'Task blocked', input: 'Waiting for input', result: 'Result available', review: 'Ready for review' },
   },
   sidebar: {
+    recentSessions: 'Recent sessions',
+    recentSessionsEmpty: 'No Claude sessions on this machine.',
+    recentOpen: 'Open in a new terminal (claude --resume)',
+    recentDelete: 'Delete this session file',
+    recentDeleteConfirm: 'Delete',
     terminal: 'Terminal',
     sshHosts: 'SSH Hosts',
     files: 'Files',

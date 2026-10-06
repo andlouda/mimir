@@ -25,6 +25,11 @@ export default {
     reasons: { permission: 'Freigabe angefragt', blocked: 'Aufgabe blockiert', input: 'Wartet auf Eingabe', result: 'Ergebnis verfügbar', review: 'Zur Prüfung' },
   },
   sidebar: {
+    recentSessions: 'Letzte Sessions',
+    recentSessionsEmpty: 'Keine Claude-Sessions auf diesem Rechner.',
+    recentOpen: 'In neuem Terminal öffnen (claude --resume)',
+    recentDelete: 'Diese Session-Datei löschen',
+    recentDeleteConfirm: 'Löschen',
     terminal: 'Terminal',
     sshHosts: 'SSH-Hosts',
     files: 'Dateien',

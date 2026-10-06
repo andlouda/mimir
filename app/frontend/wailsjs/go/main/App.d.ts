@@ -143,6 +143,10 @@ export function UpdateSessionLayout(arg1:string):Promise<void>;
 
 export function RerenderClaudeInPane(arg1:number,arg2:string):Promise<string>;
 
+export function ListOfflineClaudeSessionsJSON(arg1:number):Promise<string>;
+
+export function DeleteClaudeSession(arg1:string):Promise<void>;
+
 export function GetTmuxHistoryJSON(arg1:number,arg2:string,arg3:number):Promise<string>;
 
 export function RefreshTmuxClient(arg1:number,arg2:string):Promise<void>;

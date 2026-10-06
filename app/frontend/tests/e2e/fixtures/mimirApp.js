@@ -285,6 +285,8 @@ export async function installMimirMocks(page, { workspaceAgent = false } = {}) {
           GetLoadedSessionData: async () => ({ terminals: [] }),
           UpdateSessionLayout: asyncNoop,
           RerenderClaudeInPane: async () => 'claude --resume x',
+          ListOfflineClaudeSessionsJSON: async () => JSON.stringify([{ id: 'aaaa-1', file: '/h/.claude/projects/-repo/aaaa-1.jsonl', title: 'Fix the login bug', cwd: '/repo', modified: new Date(Date.now() - 3600e3).toISOString(), size: 1200 }]),
+          DeleteClaudeSession: asyncNoop,
           GetTmuxHistoryJSON: async () => JSON.stringify({ alternate: false, lines: [] }),
           RefreshTmuxClient: asyncNoop,
           GetAgentPaneScreenJSON: async () => JSON.stringify({ text: 'prompt $ claude', width: 80, height: 24, lines: 1, alternate: false }),

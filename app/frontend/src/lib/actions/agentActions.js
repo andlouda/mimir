@@ -447,6 +447,37 @@ export async function loadAgentProcesses(id) {
  * "12s" / "3m 05s" since an ISO timestamp; empty when unknown. Used next to
  * the live activity so a hanging command is visible as such.
  */
+/** Claude sessions on this machine, newest first. */
+export async function loadOfflineSessions(limit = 60) {
+  const raw = await app()['ListOfflineClaudeSessionsJSON'](limit);
+  const list = JSON.parse(raw || '[]');
+  return Array.isArray(list) ? list : [];
+}
+
+export async function deleteOfflineSession(file) {
+  await app()['DeleteClaudeSession'](file);
+}
+
+/** The command that resumes a session; typed into a fresh terminal. */
+export function resumeCommand(session) {
+  return `claude --resume ${session.id}`;
+}
+
+/** "3 min", "2 h", "5 d" or a date, for "last used". */
+export function lastUsedText(iso, now = Date.now()) {
+  const t = Date.parse(iso || '');
+  if (!Number.isFinite(t)) return '';
+  const s = Math.max(0, Math.round((now - t) / 1000));
+  if (s < 60) return 'now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} h`;
+  const d = Math.floor(h / 24);
+  if (d < 14) return `${d} d`;
+  return new Date(t).toLocaleDateString();
+}
+
 export function elapsedSince(iso, now = Date.now()) {
   const t = Date.parse(iso || '');
   if (!Number.isFinite(t)) return '';

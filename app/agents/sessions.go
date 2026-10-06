@@ -52,6 +52,9 @@ func ListSessions(fs FS, kind Kind, home, cwd string) ([]SessionSummary, error) 
 	return out, nil
 }
 
+// SessionTitleAndCwd is sessionTitle for callers outside the package.
+func SessionTitleAndCwd(kind Kind, head []byte) (title, cwd string) { return sessionTitle(kind, head) }
+
 // sessionTitle extracts the first user prompt and the cwd from the head of
 // a session file.
 func sessionTitle(kind Kind, head []byte) (title, cwd string) {

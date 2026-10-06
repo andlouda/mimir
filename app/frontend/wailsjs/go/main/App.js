@@ -442,6 +442,14 @@ export function RerenderClaudeInPane(arg1, arg2) {
   return window['go']['main']['App']['RerenderClaudeInPane'](arg1, arg2);
 }
 
+export function ListOfflineClaudeSessionsJSON(arg1) {
+  return window['go']['main']['App']['ListOfflineClaudeSessionsJSON'](arg1);
+}
+
+export function DeleteClaudeSession(arg1) {
+  return window['go']['main']['App']['DeleteClaudeSession'](arg1);
+}
+
 export function UpdateSessionLayout(arg1) {
   return window['go']['main']['App']['UpdateSessionLayout'](arg1);
 }

@@ -1,5 +1,5 @@
 <script>
-  import { answerAgentPermission, elapsedSince, projectFolderName, projectKey, sessionKey } from './actions/agentActions.js';
+  import { answerAgentPermission, deleteOfflineSession, elapsedSince, lastUsedText, loadOfflineSessions, projectFolderName, projectKey, sessionKey } from './actions/agentActions.js';
   import { agentAnnotations } from './stores/agentStore.js';
   let showArchived = false;
   // Collapsed project groups, remembered per machine.
@@ -53,6 +53,38 @@
   export let assignTerminalToFolder = () => {};
   export let toggleTerminalFolder = () => {};
   export let selectTerminal = () => {};
+  export let openOfflineSession = () => {};
+  // Claude sessions on this machine that no pane shows right now: loaded
+  // when the user folds the list open, refreshed on each open.
+  let recentOpen = false;
+  let recentSessions = null;
+  let recentLoading = false;
+  let recentError = '';
+  let confirmDeleteFile = null;
+  async function refreshRecent() {
+    recentLoading = true;
+    try { recentSessions = await loadOfflineSessions(60); recentError = ''; } catch (e) { recentError = String(e?.message || e); recentSessions = []; } finally { recentLoading = false; }
+  }
+  function toggleRecent() {
+    recentOpen = !recentOpen;
+    if (recentOpen) refreshRecent();
+  }
+  $: liveSessionFiles = new Set(Object.values($agentStates).map((a) => a.sessionFile).filter(Boolean));
+  $: offlineSessions = (recentSessions || []).filter((s) => !liveSessionFiles.has(s.file));
+  function folderName(cwd) {
+    const parts = String(cwd || '').split(/[\\/]/).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
+  }
+  async function removeRecent(session) {
+    try {
+      await deleteOfflineSession(session.file);
+      recentSessions = (recentSessions || []).filter((s) => s.file !== session.file);
+    } catch (e) {
+      recentError = String(e?.message || e);
+    } finally {
+      confirmDeleteFile = null;
+    }
+  }
   export let connectSSHProfile = () => {};
   export let onResize = () => {};
   export let openTranscripts = () => {};
@@ -373,6 +405,38 @@
             <li class="sidebar-agent-archived">
               <button type="button" class="sidebar-agent-archived-btn" on:click={() => { showArchived = !showArchived; }}>{showArchived ? $t('sidebar.agentsHideArchived') : $t('sidebar.agentsShowArchived', { n: archivedCount })}</button>
             </li>
+          {/if}
+          <li class="sidebar-recent">
+            <button type="button" class="sidebar-agent-group-btn" aria-expanded={recentOpen} on:click={toggleRecent}>
+              <span class="sidebar-agent-group-disclosure">{recentOpen ? '▾' : '▸'}</span>
+              <span class="sidebar-agent-group-name">{$t('sidebar.recentSessions')}</span>
+              {#if recentOpen && recentSessions}<span class="sidebar-agent-group-count">{offlineSessions.length}</span>{/if}
+            </button>
+          </li>
+          {#if recentOpen}
+            {#if recentLoading && !recentSessions}
+              <li class="sidebar-recent-hint">…</li>
+            {:else if recentError}
+              <li class="sidebar-recent-hint sidebar-recent-error">{recentError}</li>
+            {:else if offlineSessions.length === 0}
+              <li class="sidebar-recent-hint">{$t('sidebar.recentSessionsEmpty')}</li>
+            {/if}
+            {#each offlineSessions as s (s.file)}
+              <li class="sidebar-recent-row" title={[s.title, s.cwd, s.id].filter(Boolean).join('\n')}>
+                <button type="button" class="sidebar-recent-main" on:click={() => openOfflineSession(s)} title={$t('sidebar.recentOpen')}>
+                  <span class="sidebar-recent-title">{s.title || s.id}</span>
+                  <span class="sidebar-recent-meta">{folderName(s.cwd)}{folderName(s.cwd) ? ' · ' : ''}{lastUsedText(s.modified, now)}</span>
+                </button>
+                {#if confirmDeleteFile === s.file}
+                  <span class="sidebar-recent-confirm">
+                    <button type="button" class="sidebar-answer-btn sidebar-answer-deny" on:click={() => removeRecent(s)}>{$t('sidebar.recentDeleteConfirm')}</button>
+                    <button type="button" class="sidebar-answer-btn" on:click={() => { confirmDeleteFile = null; }}>✕</button>
+                  </span>
+                {:else}
+                  <button type="button" class="sidebar-recent-delete" title={$t('sidebar.recentDelete')} aria-label={$t('sidebar.recentDelete')} on:click={() => { confirmDeleteFile = s.file; }}>✕</button>
+                {/if}
+              </li>
+            {/each}
           {/if}
         </ul>
         {/if}
