@@ -116,6 +116,10 @@ export default {
         title: 'tmux history after resize',
         desc: 'After a tmux pane was widened, its history is loaded again so older lines wrap at the new width. tmux itself keeps them cut at the old width. Off: the history stays as it was drawn.',
       },
+      claudeRerender: {
+        title: 'Claude: redraw after widening',
+        desc: 'Claude Code wraps its output at the pane width of the moment with hard line breaks that no terminal can undo. When a Claude pane has grown by 20 columns or more and Claude is idle, Mimir leaves Claude with /exit and starts the same command again with --resume, so the conversation is printed at the new width. Nothing happens while Claude answers or waits for an approval. The agent panel has the same action as a link.',
+      },
       tmuxMode: {
         title: 'tmux integration',
         invisible: 'Invisible (recommended)',
@@ -859,6 +863,9 @@ export default {
     noMatches: 'No matches',
   },
   agentPanel: {
+    rerender: 'Redraw',
+    rerenderTitle: 'Restart Claude Code with --resume so the conversation is printed at the current pane width',
+    rerendered: 'Claude restarted with --resume',
     boundShort: 'bound to this pane',
     unverifiedNoTmux: 'Newest session file chosen by time (no tmux here to confirm it against the pane)',
     chooseSession: 'choose session',

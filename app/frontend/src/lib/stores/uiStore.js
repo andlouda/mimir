@@ -78,6 +78,16 @@ export const tmuxScrollbackRefill = writable(initialScrollbackRefill());
 tmuxScrollbackRefill.subscribe((on) => {
   try { localStorage.setItem(SCROLLBACK_REFILL_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
 });
+// Restart Claude Code with --resume after its pane was widened, so the
+// output is printed again at the new width (see agents/claudeRerender.js).
+const CLAUDE_RERENDER_KEY = 'mimir-claude-rerender';
+function initialClaudeRerender() {
+  try { return localStorage.getItem(CLAUDE_RERENDER_KEY) !== 'off'; } catch { return true; }
+}
+export const claudeRerenderOnWiden = writable(initialClaudeRerender());
+claudeRerenderOnWiden.subscribe((on) => {
+  try { localStorage.setItem(CLAUDE_RERENDER_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
+});
 // tmux integration for new terminals: 'invisible' | 'classic' | 'off'
 // (loaded from the backend at start-up; see terminal/tmux_options.go).
 export const tmuxIntegrationMode = writable('invisible');

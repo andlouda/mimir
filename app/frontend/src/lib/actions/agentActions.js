@@ -1,4 +1,6 @@
 import { get } from 'svelte/store';
+import { claudeRerenderOnWiden, errorMessage } from '../stores/uiStore.js';
+import { createClaudeRerender } from '../agents/claudeRerender.js';
 import { agentAnnotations, agentDetectionEnabled, agentNotificationsEnabled, agentPanelPinned, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { t } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
@@ -194,6 +196,30 @@ function unsubscribeState(id) {
   }
 }
 
+// Restart-with-resume after a widen (see agents/claudeRerender.js).
+const claudeRerender = createClaudeRerender({
+  run: (id) => app()['RerenderClaudeInPane'](id, terminalType(id)),
+  isEnabled: () => get(claudeRerenderOnWiden),
+  getAgent: (id) => get(agentStates)[id] || null,
+  onResult: (id, res) => {
+    if (!res.ok) errorMessage.set(`Claude rerender: ${res.error}`);
+  },
+});
+
+/** After a resize of pane `id`; true when a rerender was scheduled. */
+export function claudeRerenderOnResized(id, prevCols, cols) {
+  return claudeRerender.onResized(id, prevCols, cols);
+}
+
+/** The panel's own link: restart now, whatever the width did. */
+export async function rerenderClaudeNow(id) {
+  const agent = get(agentStates)[id];
+  if (!agent || agent.kind !== 'claude') throw new Error('no Claude Code in this pane');
+  if (agent.status === 'working') throw new Error('Claude is still answering');
+  if (agent.prompt) throw new Error('Claude is waiting for an approval');
+  return app()['RerenderClaudeInPane'](id, terminalType(id));
+}
+
 export function handleAgentStateEvent(id, raw) {
   let payload = raw;
   if (typeof raw === 'string') {
@@ -218,6 +244,7 @@ export function handleAgentStateEvent(id, raw) {
   const title = String(payload.title || current.title || '');
   if (current.fileState && current.status === status && current.lastText === lastText && current.attention === attention && current.prompt === prompt && current.activity === activity && current.title === title) return;
   setState(id, { status, subject: subject.length > 120 ? subject.slice(0, 120) + '…' : subject, lastText, lastAt: payload.lastAt || '', sessionFile: payload.sessionFile || current.sessionFile || '', attention, prompt, activity, activityAt, title, answering: false, fileState: true, lastChange: Date.now() });
+  claudeRerender.onAgentState(id, status, prompt);
 }
 
 function setLiveness(id, on) {
@@ -284,6 +311,7 @@ export function startAgentWatch(id, type) {
 }
 
 export function stopAgentWatch(id) {
+  claudeRerender.forget(id);
   const watch = watches.get(id);
   if (!watch) return;
   if (watch.timer) clearInterval(watch.timer);

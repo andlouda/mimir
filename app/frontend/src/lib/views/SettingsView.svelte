@@ -4,7 +4,7 @@
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
-  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
+  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, claudeRerenderOnWiden, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onMount } from 'svelte';
@@ -246,6 +246,16 @@
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('tmuxRefill')} on:click|preventDefault|stopPropagation={() => toggleCard('tmuxRefill')}><strong>{$t('settings.cards.tmuxRefill.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('tmuxRefill') ? '▾' : '▸'}</span></button>
       {#if openCards.has('tmuxRefill')}
       <p>{$t('settings.cards.tmuxRefill.desc')}</p>
+      {/if}
+    </label>
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x21BB;</span>
+        <input type="checkbox" bind:checked={$claudeRerenderOnWiden} />
+      </div>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('claudeRerender')} on:click|preventDefault|stopPropagation={() => toggleCard('claudeRerender')}><strong>{$t('settings.cards.claudeRerender.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('claudeRerender') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('claudeRerender')}
+      <p>{$t('settings.cards.claudeRerender.desc')}</p>
       {/if}
     </label>
     <label class="ai-hub-card settings-toggle-card">

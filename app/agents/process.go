@@ -152,6 +152,9 @@ func FindAgent(procs []Process, rootPID int) (Detection, bool) {
 	return Detection{}, false
 }
 
+// SplitCommandLine is splitCommandLine for callers outside the package.
+func SplitCommandLine(args string) []string { return splitCommandLine(args) }
+
 // splitCommandLine splits a command line into tokens, honouring double
 // quotes the way Windows command lines use them (`"C:\\Program Files\\x"`),
 // which strings.Fields would cut at the space.

@@ -19,7 +19,7 @@
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
   import AgentScreenMirror from './AgentScreenMirror.svelte';
-  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneScreen, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation } from './actions/agentActions.js';
+  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneScreen, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, rerenderClaudeNow, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation } from './actions/agentActions.js';
 
   export let terminalId;
 
@@ -89,6 +89,11 @@
     pendingNote = null;
     if (!p) return;
     try { await setSessionAnnotation(p.terminalId, { name: p.name, note: p.text, archived: p.archived }); } catch (e) { showFeedback(String(e?.message || e)); }
+  }
+  let rerendering = false;
+  async function rerender() {
+    rerendering = true;
+    try { await rerenderClaudeNow(terminalId); flash($t('agentPanel.rerendered')); } catch (e) { showFeedback(String(e?.message || e)); } finally { rerendering = false; }
   }
   async function toggleArchived() {
     try { await setSessionAnnotation(terminalId, { name: note?.name || '', note: note?.note || '', archived: !note?.archived }); } catch (e) { showFeedback(String(e?.message || e)); }
@@ -457,6 +462,9 @@
         {#if agent?.project?.branch}<span class="agent-row-dim" title={agent.project.worktree ? $t('agentPanel.worktree') : ''}>{agent.project.worktree ? '⎇ ' : ''}{agent.project.branch}</span>{/if}
         <button type="button" class="agent-link" disabled={!sessionKey(agent)} on:click={() => { noteOpen = !noteOpen; }}>{$t('agentPanel.note')}{note?.note ? ' ●' : ''}</button>
         <button type="button" class="agent-link" disabled={!sessionKey(agent)} on:click={toggleArchived}>{note?.archived ? $t('agentPanel.unarchive') : $t('agentPanel.archive')}</button>
+        {#if agent?.kind === 'claude'}
+          <button type="button" class="agent-link" disabled={rerendering || agent.status === 'working' || !!agent.prompt} title={$t('agentPanel.rerenderTitle')} on:click={rerender}>{rerendering ? '…' : $t('agentPanel.rerender')}</button>
+        {/if}
       </span>
     </div>
     <div class="agent-panel-actions">
