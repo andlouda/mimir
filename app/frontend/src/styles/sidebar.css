@@ -255,7 +255,10 @@
   .sidebar-recent { margin-top: 0.25rem; }
   .sidebar-recent-hint { padding: 0.2rem 0.75rem 0.3rem 1.6rem; color: var(--text-muted); font-size: 0.7rem; font-style: italic; }
   .sidebar-recent-error { color: #f87171; font-style: normal; }
-  .sidebar-recent-row { display: flex; align-items: center; gap: 0.25rem; padding: 0 0.35rem 0 0.9rem; }
+  .sidebar-recent-row { display: flex; align-items: center; gap: 0.25rem; padding: 0 0.35rem 0 0.9rem; overflow: hidden; }
+  /* The generic list rule gives every button the full width; these two share a row. */
+  .sidebar-list li.sidebar-recent-row button.sidebar-recent-main { width: auto; flex: 1; min-width: 0; }
+  .sidebar-list li.sidebar-recent-row button.sidebar-recent-delete, .sidebar-list li.sidebar-recent-row .sidebar-recent-confirm button { width: auto; flex: 0 0 auto; }
   .sidebar-recent-row:hover { background: rgba(99, 179, 237, 0.06); }
   .sidebar-recent-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; background: none; border: 0; color: inherit; font: inherit; text-align: left; padding: 0.25rem 0.3rem; cursor: pointer; }
   .sidebar-recent-title { font-size: 0.74rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
