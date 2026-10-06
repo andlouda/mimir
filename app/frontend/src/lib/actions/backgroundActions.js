@@ -3,6 +3,9 @@ import { terminals } from '../stores/terminalStore.js';
 import { normalizeBackground, serializeBackground } from '../terminals/background.js';
 import { scheduleSessionSave } from './sessionActions.js';
 import { XTERM_THEME } from './terminalActions.js';
+import { terminalRenderer } from '../stores/uiStore.js';
+import { WebglAddon } from '@xterm/addon-webgl';
+import { disableWebgl, enableWebgl } from '../terminals/xtermLifecycle.js';
 
 // Transparent xterm background so the image layer behind it shows through;
 // everything else keeps the shared theme.
@@ -26,7 +29,19 @@ export function applyTerminalBackground(terminalId, background) {
   if (!found) return null;
   const xterm = found.terminal;
   if (xterm?.options) {
-    try { xterm.options.theme = bg ? TRANSPARENT_THEME : XTERM_THEME; } catch { /* disposed */ }
+    try {
+      const wantTransparent = !!bg;
+      const changed = !!xterm.options.allowTransparency !== wantTransparent;
+      // Transparency only while a picture is behind the pane: it costs the
+      // WebGL renderer a slower glyph path and a different compositing
+      // route, so it is not left on for plain panes.
+      xterm.options.allowTransparency = wantTransparent;
+      xterm.options.theme = wantTransparent ? TRANSPARENT_THEME : XTERM_THEME;
+      if (changed && found.webgl) {
+        disableWebgl(found);
+        if (get(terminalRenderer) === 'auto') enableWebgl(found, WebglAddon);
+      }
+    } catch { /* disposed */ }
   }
   callBackend('UpdateTerminalBackground', terminalId, serializeBackground(bg)).catch((error) => console.error('Failed to store background:', error));
   scheduleSessionSave();

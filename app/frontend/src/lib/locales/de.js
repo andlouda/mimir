@@ -430,7 +430,7 @@ export default {
   },
   background: {
     title: 'Pane-Hintergrund',
-    hint: 'Ein Bild hinter dieser Pane. Änderungen wirken sofort; halte die Sichtbarkeit niedrig, damit die Ausgabe lesbar bleibt.',
+    hint: 'Ein Bild hinter dieser Pane. Änderungen wirken sofort; halte die Sichtbarkeit niedrig, damit die Ausgabe lesbar bleibt. Mit dem WebGL-Renderer zeichnet eine Pane mit Bild etwas langsamer.',
     images: 'Importierte Bilder',
     none: 'Kein Bild',
     import: 'Bild importieren…',

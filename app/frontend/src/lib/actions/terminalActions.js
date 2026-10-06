@@ -136,9 +136,12 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     // Also sets the width of xterm 6's scrollbar slider (default 14px).
     overviewRuler: { width: 8 },
     theme: XTERM_THEME,
-    // Per-pane background images sit behind xterm (backgroundActions.js);
-    // transparency must be enabled at creation.
-    allowTransparency: true,
+    // Opaque by default. allowTransparency makes the WebGL addon build its
+    // glyph atlas through a per-glyph getImageData path and WebKitGTK
+    // composite the canvas differently: typing lagged and the last
+    // character stayed hidden. backgroundActions.js turns it on only for
+    // a pane that actually shows a picture.
+    allowTransparency: false,
     // The Unicode 11 addon registers a width provider through xterm's
     // proposed API; without this flag it throws and widths stay at
     // Unicode 6 (overlapping emoji and spinner glyphs in agent TUIs).
