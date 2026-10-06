@@ -426,6 +426,14 @@ export function DiscardUnrestoredTerminal(arg1) {
   return window['go']['main']['App']['DiscardUnrestoredTerminal'](arg1);
 }
 
+export function GetTmuxHistoryJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetTmuxHistoryJSON'](arg1, arg2, arg3);
+}
+
+export function RefreshTmuxClient(arg1, arg2) {
+  return window['go']['main']['App']['RefreshTmuxClient'](arg1, arg2);
+}
+
 export function UpdateSessionLayout(arg1) {
   return window['go']['main']['App']['UpdateSessionLayout'](arg1);
 }

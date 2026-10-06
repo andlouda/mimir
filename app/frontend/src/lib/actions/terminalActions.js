@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
-import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer } from '../stores/uiStore.js';
+import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill } from '../stores/uiStore.js';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { sshProfiles } from '../stores/sshStore.js';
@@ -17,10 +17,30 @@ import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
 import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
+import { createScrollbackRefill } from '../terminals/tmuxScrollback.js';
+
+// After a tmux pane was widened, its old history is re-fetched so it wraps
+// at the new width (tmux keeps it cut at the old one otherwise).
+const scrollbackRefill = createScrollbackRefill({
+  fetchHistory: async (id, maxLines) => {
+    const term = get(terminals).find((t) => t.id === id);
+    const raw = await window['go']['main']['App']['GetTmuxHistoryJSON'](id, term?.type || '', maxLines);
+    return JSON.parse(raw || '{}');
+  },
+  refreshClient: async (id) => {
+    const term = get(terminals).find((t) => t.id === id);
+    await window['go']['main']['App']['RefreshTmuxClient'](id, term?.type || '');
+  },
+  isEnabled: () => get(tmuxScrollbackRefill),
+});
+setResizedListener((id, prevCols, cols) => {
+  const term = get(terminals).find((t) => t.id === id);
+  if (term) scrollbackRefill.onResized(term, prevCols, cols);
+});
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { quotePathFor } from '../terminals/droppedPaths.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch } from './agentActions.js';
-import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl } from '../terminals/xtermLifecycle.js';
+import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl, setResizedListener } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
 import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';

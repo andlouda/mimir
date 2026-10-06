@@ -19,6 +19,14 @@ export function safelyWriteTerminal(term, data) {
 export const RESIZE_SETTLE_MS = 300;
 const pendingResizes = new Map(); // term.id → { timer, rows, cols }
 const sentSizes = new Map(); // term.id → 'rows x cols'
+// Called with (id, prevCols, cols) after a resize went to the PTY.
+let resizedListener = null;
+export function setResizedListener(fn) { resizedListener = typeof fn === 'function' ? fn : null; }
+function notifyResized(id, prevKey, cols) {
+  if (!resizedListener) return;
+  const prevCols = prevKey ? Number(prevKey.split('x')[1]) : 0;
+  try { resizedListener(id, prevCols, cols); } catch (error) { console.warn('resize listener failed:', error); }
+}
 
 export function safelyFitAndResizeTerminal(term, resizeTerminal) {
   if (!term || term.minimized || !term.terminal?.element) {
@@ -51,8 +59,10 @@ function scheduleResize(id, rows, cols, resizeTerminal) {
   if (sentSizes.get(id) === key) return; // back to the size the PTY already has
   const timer = setTimeout(() => {
     pendingResizes.delete(id);
+    const prevKey = sentSizes.get(id);
     sentSizes.set(id, key);
     resizeTerminal(id, String(rows), String(cols));
+    notifyResized(id, prevKey, cols);
   }, RESIZE_SETTLE_MS);
   pendingResizes.set(id, { timer, rows, cols });
 }

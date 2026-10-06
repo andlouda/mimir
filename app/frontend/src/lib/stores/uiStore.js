@@ -68,6 +68,16 @@ export const terminalRenderer = writable(initialRenderer());
 terminalRenderer.subscribe((mode) => {
   try { localStorage.setItem(RENDERER_KEY, mode); } catch { /* ignore */ }
 });
+// Re-fill a tmux pane's scrollback after it was widened (see
+// terminals/tmuxScrollback.js); on by default.
+const SCROLLBACK_REFILL_KEY = 'mimir-tmux-scrollback-refill';
+function initialScrollbackRefill() {
+  try { return localStorage.getItem(SCROLLBACK_REFILL_KEY) !== 'off'; } catch { return true; }
+}
+export const tmuxScrollbackRefill = writable(initialScrollbackRefill());
+tmuxScrollbackRefill.subscribe((on) => {
+  try { localStorage.setItem(SCROLLBACK_REFILL_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
+});
 // tmux integration for new terminals: 'invisible' | 'classic' | 'off'
 // (loaded from the backend at start-up; see terminal/tmux_options.go).
 export const tmuxIntegrationMode = writable('invisible');

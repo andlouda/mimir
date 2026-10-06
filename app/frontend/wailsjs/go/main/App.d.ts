@@ -141,6 +141,10 @@ export function IsWaylandSession():Promise<boolean>;
 
 export function UpdateSessionLayout(arg1:string):Promise<void>;
 
+export function GetTmuxHistoryJSON(arg1:number,arg2:string,arg3:number):Promise<string>;
+
+export function RefreshTmuxClient(arg1:number,arg2:string):Promise<void>;
+
 export function ImportTerminalBackground():Promise<string>;
 
 export function ListTerminalBackgroundsJSON():Promise<string>;
