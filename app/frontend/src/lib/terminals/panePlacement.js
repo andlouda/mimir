@@ -9,7 +9,7 @@ import { terminals } from '../stores/terminalStore.js';
 import { agentStates } from '../stores/agentStore.js';
 import { panePlacement } from '../stores/uiStore.js';
 
-export const PANE_PLACEMENTS = ['auto', 'row', 'column'];
+export const PANE_PLACEMENTS = ['row', 'column', 'auto'];
 
 /** Split direction for a new pane per the placement setting and the open panes. */
 export function newPaneDirection() {
@@ -23,8 +23,8 @@ export function newPaneDirection() {
  */
 export function placementDirection(placement, { visibleAgent = false } = {}) {
   if (placement === 'column') return 'vertical';
-  if (placement === 'row') return 'horizontal';
-  return visibleAgent ? 'vertical' : 'horizontal';
+  if (placement === 'auto') return visibleAgent ? 'vertical' : 'horizontal';
+  return 'horizontal';
 }
 
 /** True when any non-minimized terminal has a detected agent. */

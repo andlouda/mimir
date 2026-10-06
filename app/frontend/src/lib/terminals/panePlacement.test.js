@@ -9,7 +9,7 @@ describe('pane placement', () => {
   test('auto stacks only while an agent is visible', () => {
     expect(placementDirection('auto', { visibleAgent: false })).toBe('horizontal');
     expect(placementDirection('auto', { visibleAgent: true })).toBe('vertical');
-    expect(placementDirection(undefined, { visibleAgent: true })).toBe('vertical');
+    expect(placementDirection(undefined, { visibleAgent: true })).toBe('horizontal'); // default: side by side
   });
   test('minimized agent panes do not count', () => {
     const states = { 1: { kind: 'claude' } };

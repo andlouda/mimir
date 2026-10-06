@@ -252,9 +252,9 @@
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x25EB;</span>
         <select bind:value={$panePlacement}>
-          <option value="auto">{$t('settings.cards.panePlacement.auto')}</option>
           <option value="row">{$t('settings.cards.panePlacement.row')}</option>
           <option value="column">{$t('settings.cards.panePlacement.column')}</option>
+          <option value="auto">{$t('settings.cards.panePlacement.auto')}</option>
         </select>
       </div>
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('panePlacement')} on:click|preventDefault|stopPropagation={() => toggleCard('panePlacement')}><strong>{$t('settings.cards.panePlacement.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('panePlacement') ? '▾' : '▸'}</span></button>

@@ -118,10 +118,10 @@ export default {
       },
       panePlacement: {
         title: 'New panes',
-        auto: 'Below while an agent runs (recommended)',
-        row: 'Side by side',
+        auto: 'Below while an agent runs',
+        row: 'Side by side (default)',
         column: 'Below each other',
-        desc: 'Side by side narrows every pane. Claude Code and other TUIs wrap their output at the width they had at the time, with hard line breaks that no terminal can undo later; after the pane is wide again, that output stays narrow. Stacking new panes below costs rows, not width.',
+        desc: 'Side by side narrows every pane. Claude Code and other TUIs wrap their output at the width they had at the time, with hard line breaks that no terminal can undo later; after the pane is wide again, that output stays narrow. Stacking new panes below costs rows, not width, but agents can no longer be watched next to each other.',
       },
       tmuxMode: {
         title: 'tmux integration',
