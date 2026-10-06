@@ -251,6 +251,12 @@
   .sidebar-agent-main { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
   .sidebar-agent-head { display: flex; gap: 0.4rem; align-items: baseline; min-width: 0; }
   .sidebar-agent-label { font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+  .sidebar-agent-code { font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.04em; color: var(--accent); background: var(--accent-glow); border: 1px solid var(--border-dim); border-radius: 3px; padding: 0 0.3rem; flex-shrink: 0; }
+  .sidebar-agent-title { color: var(--text-secondary); font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Agent chip on a terminal entry: same code and dot as the agent row. */
+  .sidebar-term-agent { display: inline-flex; align-items: center; gap: 0.3rem; margin-left: auto; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600; color: var(--text-secondary); flex-shrink: 0; }
+  .sidebar-term-agent .sidebar-agent-dot { margin-top: 0; }
+  .sidebar-subnav li button.sidebar-linked, .sidebar-agents .sidebar-list li button.sidebar-linked { background: rgba(99, 179, 237, 0.08); outline: 1px solid rgba(99, 179, 237, 0.25); outline-offset: -1px; }
   .sidebar-agent-term { color: var(--text-muted); font-size: 0.68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sidebar-agent-state { display: flex; gap: 0.4rem; min-width: 0; font-size: 0.7rem; }
   .sidebar-agent-status { color: var(--text-secondary); white-space: nowrap; }
