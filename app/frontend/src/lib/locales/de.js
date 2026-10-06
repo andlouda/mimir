@@ -116,13 +116,6 @@ export default {
         title: 'tmux-Verlauf nach Größenänderung',
         desc: 'Wird eine tmux-Pane breiter, wird ihr Verlauf neu geladen, damit ältere Zeilen in der neuen Breite umbrechen. tmux selbst lässt sie in der alten Breite abgeschnitten. Aus: der Verlauf bleibt, wie er gezeichnet wurde.',
       },
-      panePlacement: {
-        title: 'Neue Panes',
-        auto: 'Untereinander, solange ein Agent läuft',
-        row: 'Nebeneinander (Standard)',
-        column: 'Untereinander',
-        desc: 'Nebeneinander macht jede Pane schmaler. Claude Code und andere TUIs brechen ihre Ausgabe in der Breite um, die sie gerade haben, mit harten Zeilenumbrüchen, die kein Terminal später zurücknehmen kann; wird die Pane wieder breit, bleibt diese Ausgabe schmal. Neue Panes darunter kosten Zeilen, nicht Breite, dafür stehen Agents nicht mehr nebeneinander im Blick.',
-      },
       tmuxMode: {
         title: 'tmux-Integration',
         invisible: 'Unsichtbar (empfohlen)',

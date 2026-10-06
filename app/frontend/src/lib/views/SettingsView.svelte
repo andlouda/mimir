@@ -4,7 +4,7 @@
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
-  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, panePlacement, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
+  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onMount } from 'svelte';
@@ -246,20 +246,6 @@
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('tmuxRefill')} on:click|preventDefault|stopPropagation={() => toggleCard('tmuxRefill')}><strong>{$t('settings.cards.tmuxRefill.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('tmuxRefill') ? '▾' : '▸'}</span></button>
       {#if openCards.has('tmuxRefill')}
       <p>{$t('settings.cards.tmuxRefill.desc')}</p>
-      {/if}
-    </label>
-    <label class="ai-hub-card settings-toggle-card">
-      <div class="ai-hub-card-top">
-        <span class="ai-hub-icon">&#x25EB;</span>
-        <select bind:value={$panePlacement}>
-          <option value="row">{$t('settings.cards.panePlacement.row')}</option>
-          <option value="column">{$t('settings.cards.panePlacement.column')}</option>
-          <option value="auto">{$t('settings.cards.panePlacement.auto')}</option>
-        </select>
-      </div>
-      <button type="button" class="settings-card-title" aria-expanded={openCards.has('panePlacement')} on:click|preventDefault|stopPropagation={() => toggleCard('panePlacement')}><strong>{$t('settings.cards.panePlacement.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('panePlacement') ? '▾' : '▸'}</span></button>
-      {#if openCards.has('panePlacement')}
-      <p>{$t('settings.cards.panePlacement.desc')}</p>
       {/if}
     </label>
     <label class="ai-hub-card settings-toggle-card">

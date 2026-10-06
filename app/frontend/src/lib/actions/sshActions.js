@@ -8,7 +8,6 @@ import {
 } from '../../../wailsjs/go/main/App';
 import { activeTerminalId, layoutTree } from '../stores/terminalStore.js';
 import { appendLeaf } from '../terminals/layoutTree.js';
-import { newPaneDirection } from '../terminals/panePlacement.js';
 import {
   hostKeyVerifyState,
   showSSHProfileModal,
@@ -32,10 +31,10 @@ export function openSSHProfilePicker() {
   showSSHProfileModal.set(true);
 }
 
-// Same balanced insert as "+ New" (equal share instead of halving every
-// pane), in the direction the placement setting asks for.
+// Same balanced insert as "+ New": the new pane takes an equal share
+// instead of halving every existing pane.
 function appendTerminalLeaf(id) {
-  layoutTree.set(appendLeaf(get(layoutTree), { type: 'leaf', terminalId: id }, newPaneDirection()));
+  layoutTree.set(appendLeaf(get(layoutTree), { type: 'leaf', terminalId: id }));
 }
 
 export function parseHostKeyVerifyError(errorMessageText, profile) {

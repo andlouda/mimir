@@ -18,7 +18,6 @@ import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, Con
 import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { createScrollbackRefill } from '../terminals/tmuxScrollback.js';
-import { newPaneDirection } from '../terminals/panePlacement.js';
 
 // After a tmux pane was widened, its old history is re-fetched so it wraps
 // at the new width (tmux keeps it cut at the old one otherwise).
@@ -518,7 +517,7 @@ export async function addTerminal(terminalTypeParam, nameParam, minimized = fals
     const newLeaf = { type: 'leaf', terminalId: id };
     if (!minimized) {
       // Equal shares for every top-level pane (see appendLeaf).
-      layoutTree.set(appendLeaf(get(layoutTree), newLeaf, newPaneDirection()));
+      layoutTree.set(appendLeaf(get(layoutTree), newLeaf));
     }
 
     const newTerminal = await createTerminalInstance(id, type, name, minimized, '', false, tmuxSessionName, '', 'fresh');
@@ -696,7 +695,7 @@ export async function terminalToForeground(id) {
   }));
 
   const newLeaf = { type: 'leaf', terminalId: id };
-  layoutTree.set(appendLeaf(get(layoutTree), newLeaf, newPaneDirection()));
+  layoutTree.set(appendLeaf(get(layoutTree), newLeaf));
 
   await reinitializeTerminals();
 }

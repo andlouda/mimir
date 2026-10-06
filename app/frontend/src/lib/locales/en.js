@@ -116,13 +116,6 @@ export default {
         title: 'tmux history after resize',
         desc: 'After a tmux pane was widened, its history is loaded again so older lines wrap at the new width. tmux itself keeps them cut at the old width. Off: the history stays as it was drawn.',
       },
-      panePlacement: {
-        title: 'New panes',
-        auto: 'Below while an agent runs',
-        row: 'Side by side (default)',
-        column: 'Below each other',
-        desc: 'Side by side narrows every pane. Claude Code and other TUIs wrap their output at the width they had at the time, with hard line breaks that no terminal can undo later; after the pane is wide again, that output stays narrow. Stacking new panes below costs rows, not width, but agents can no longer be watched next to each other.',
-      },
       tmuxMode: {
         title: 'tmux integration',
         invisible: 'Invisible (recommended)',
