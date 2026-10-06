@@ -108,18 +108,27 @@
     return [...groups.values()];
   })();
   // Agent code first, then the session's name: "C · Login fix".
+  // The pane name leads: it is the one thing the TERMINAL list above and the
+  // agent row share, so the two can be matched at a glance. The session
+  // title follows, muted.
   function rowLabel(row) {
-    const code = row.agent.short || row.agent.label;
-    const name = row.note?.name || row.agent.title || '';
-    return name ? `${code} · ${name}` : code;
+    return row.term.name;
+  }
+  function rowTitle(row) {
+    return row.note?.name || row.agent.title || '';
   }
   function rowMeta(row) {
-    const parts = [row.term.name];
+    const parts = [];
     if (row.agent.project?.branch) parts.push((row.agent.project.worktree ? '⎇ ' : '') + row.agent.project.branch);
     else if (agentCwd(row.agent)) parts.push(agentCwd(row.agent));
     if (row.term.minimized) parts.push($t('sidebar.minimized'));
     return parts.join(' · ');
   }
+  function dotClass(agent) {
+    return `agent-dot-${agent.status === 'permission' ? 'permission' : agent.attention ? 'attention' : (agent.status || 'unknown')}`;
+  }
+  // Hovering a terminal entry lights up its agent row and vice versa.
+  let linkedId = null;
   $: agentsNeedingMe = agentRows.filter((r) => r.agent.attention || r.agent.status === 'idle' || r.agent.status === 'permission').length;
 
   function agentStateText(agent) {
@@ -224,14 +233,21 @@
                 <li>
                   <button
                     class:active-subnav={activeTerminalId === term.id}
-                    title={`${term.name} (${term.type})${term.minimized ? ' - minimized' : ''}`}
+                    class:sidebar-linked={linkedId === term.id && activeTerminalId !== term.id}
+                    title={`${term.name} (${term.type})${term.minimized ? ' - minimized' : ''}${$agentStates[term.id] ? ' · ' + ($agentStates[term.id].label || '') : ''}`}
                     draggable={customFolders.length > 0}
+                    on:mouseenter={() => { linkedId = term.id; }}
+                    on:mouseleave={() => { if (linkedId === term.id) linkedId = null; }}
                     on:click={() => selectTerminal(term)}
                     on:dragstart={(e) => { dragTerminalId = term.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(term.id)); }}
                     on:dragend={() => { dragTerminalId = null; dragOverFolder = null; }}
                   >
                     {#if shortcutIndex.get(term.id) != null}<kbd class="sidebar-shortcut" title={`Ctrl+Shift+${shortcutIndex.get(term.id)}`}>{shortcutIndex.get(term.id)}</kbd>{/if}
                     <span class="sidebar-terminal-name">{term.name}</span>
+                    {#if $agentStates[term.id]}
+                      {@const a = $agentStates[term.id]}
+                      <span class="sidebar-term-agent" title={a.label || ''}><span class="sidebar-agent-dot {dotClass(a)}"></span>{a.short || a.label}</span>
+                    {/if}
                     {#if term.minimized}<small>{$t('sidebar.minimized')}</small>{/if}
                   </button>
                 </li>
@@ -324,15 +340,20 @@
                 class:active-subnav={activeTerminalId === row.id}
                 class:sidebar-agent-attention={row.agent.attention}
                 class:sidebar-agent-permission={row.agent.status === 'permission'}
-                title={[rowLabel(row), row.note?.note, row.agent.cwd, row.agent.lastText].filter(Boolean).join('\n')}
+                class:sidebar-linked={linkedId === row.id && activeTerminalId !== row.id}
+                title={[`${row.term.name} · ${row.agent.label || ''}`, rowTitle(row), row.note?.note, row.agent.cwd, row.agent.lastText].filter(Boolean).join('\n')}
+                on:mouseenter={() => { linkedId = row.id; }}
+                on:mouseleave={() => { if (linkedId === row.id) linkedId = null; }}
                 on:click={() => selectTerminal(row.term)}
               >
-                <span class="sidebar-agent-dot agent-dot-{row.agent.status === 'permission' ? 'permission' : row.agent.attention ? 'attention' : (row.agent.status || 'unknown')}"></span>
+                <span class="sidebar-agent-dot {dotClass(row.agent)}"></span>
                 <span class="sidebar-agent-main">
                   <span class="sidebar-agent-head">
                     <span class="sidebar-agent-label">{rowLabel(row)}</span>
-                    <span class="sidebar-agent-term">{rowMeta(row)}</span>
+                    <span class="sidebar-agent-code">{row.agent.short || row.agent.label}</span>
+                    {#if rowMeta(row)}<span class="sidebar-agent-term">{rowMeta(row)}</span>{/if}
                   </span>
+                  {#if rowTitle(row)}<span class="sidebar-agent-title">{rowTitle(row)}</span>{/if}
                   <span class="sidebar-agent-state">
                     <span class="sidebar-agent-status">{agentStateText(row.agent)}</span>
                     {#if agentActivityText(row.agent, now)}<span class="sidebar-agent-text sidebar-agent-activity">{agentActivityText(row.agent, now)}</span>{:else if row.agent.subject}<span class="sidebar-agent-text">{row.agent.subject}</span>{/if}
