@@ -448,6 +448,7 @@
       <!-- svelte-ignore a11y_no_static_element_interactions: capture pointerdown before xterm consumes it so restored transcript previews can be dismissed by clicking the terminal. -->
       <div
         class="terminal-container"
+        class:has-background={!!term.background}
         on:pointerdown|capture={(e) => handleTerminalPointerDown(e, term)}
         on:wheel|capture|nonpassive={(e) => handleTerminalWheel(e, term)}
         on:pointerup|capture={(e) => handleTerminalPointerUp(e, term)}

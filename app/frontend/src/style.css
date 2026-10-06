@@ -57,6 +57,12 @@ html, body, #app {
   scrollbar-width: none;
 }
 
+/* A pane with a picture: the viewport must let it through (the container
+   keeps --bg-void under the picture, so no black strip appears). */
+.terminal-container.has-background .xterm-viewport {
+  background-color: transparent !important;
+}
+
 .terminal .xterm-viewport::-webkit-scrollbar {
   width: 0;
   height: 0;
