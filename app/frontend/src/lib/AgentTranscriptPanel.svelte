@@ -18,7 +18,8 @@
   import { agentAnnotations, agentPanelPinned, agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
-  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneText, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation } from './actions/agentActions.js';
+  import AgentScreenMirror from './AgentScreenMirror.svelte';
+  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneScreen, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation } from './actions/agentActions.js';
 
   export let terminalId;
 
@@ -41,7 +42,9 @@
   let refreshTimer = null;
   let refreshSoonTimer = null;
   let loadedFor = null;
-  let showOlderSnippets = false;
+  // Snippets of the last four answers are shown by default: with only the
+  // newest turn, most of what the agent proposed looked "not recognised".
+  let showOlderSnippets = true;
   let summaryExpanded = false;
   let sessions = null;       // { sessions: [...], selected: '' } once loaded
   let sessionsOpen = false;
@@ -200,7 +203,7 @@
     flushNote();
     noteOpen = false; noteDraft = '';
     transcript = null; pane = null; paneFull = false; git = null; view = 'snippets';
-    error = ''; showOlderSnippets = false; summaryExpanded = false; sessions = null; sessionsOpen = false;
+    error = ''; showOlderSnippets = true; summaryExpanded = false; sessions = null; sessionsOpen = false;
   }
 
   async function toggleSessions() {
@@ -282,12 +285,11 @@
     }
   }
 
-  async function refreshPane(full = paneFull) {
+  async function refreshPane() {
     if (paneLoading || terminalId == null) return;
     paneLoading = true;
-    paneFull = full;
     try {
-      pane = await loadAgentPaneText(terminalId, { full });
+      pane = await loadAgentPaneScreen(terminalId);
       error = '';
     } catch (e) {
       error = String(e?.message || e);
@@ -381,6 +383,10 @@
       error = `Open failed: ${e?.message || e}`;
     }
   }
+
+  // eslint-disable-next-line no-control-regex
+  const ANSI = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
+  function stripAnsi(s) { return String(s || '').replace(ANSI, ''); }
 
   function renderProse(text) {
     return sanitizeHtml(marked(text || ''));
@@ -495,20 +501,13 @@
 
   <div class="agent-panel-body">
     {#if view === 'screen'}
-      <p class="agent-panel-hint">{pane?.alternate ? $t('agentPanel.screenHintFullscreen') : $t('agentPanel.screenHint')}</p>
+      <p class="agent-panel-hint">{pane?.alternate ? $t('agentPanel.screenHintFullscreen') : $t('agentPanel.screenMirrorHint')}</p>
       {#if pane}
-        <div class="agent-code">
-          <div class="agent-code-bar">
-            <span class="agent-code-lang">tmux · {pane.lines} {$t('agentPanel.lines')} · {pane.width} {$t('agentPanel.cols')}</span>
-            {#if pane.hiddenLines > 0}
-              <button type="button" class="agent-link" on:click={() => refreshPane(true)} title={$t('agentPanel.showAllTitle', { n: pane.hiddenLines })}>{$t('agentPanel.showAll', { n: pane.hiddenLines })}</button>
-            {:else if paneFull}
-              <button type="button" class="agent-link" on:click={() => refreshPane(false)}>{$t('agentPanel.showSession')}</button>
-            {/if}
-            <button type="button" class="agent-link" on:click={() => copyText(pane.text)}>{$t('agentPanel.copy')}</button>
-          </div>
-          <pre><code>{pane.text}</code></pre>
+        <div class="agent-code-bar agent-screen-bar">
+          <span class="agent-code-lang">tmux · {pane.lines} {$t('agentPanel.lines')} · {pane.width}×{pane.height}</span>
+          <button type="button" class="agent-link" on:click={() => copyText(stripAnsi(pane.text))}>{$t('agentPanel.copy')}</button>
         </div>
+        <AgentScreenMirror text={pane.text} width={pane.width} height={pane.height} />
       {:else if paneLoading}
         <p class="agent-panel-hint">{$t('agentPanel.loading')}</p>
       {/if}
@@ -598,6 +597,7 @@
         {/if}
 
       {:else if view === 'summary'}
+        <p class="agent-panel-hint">{$t('agentPanel.stateHint')}</p>
         {#if meta.title}
           <div class="agent-section-head"><span class="agent-summary-title">{meta.title}</span></div>
         {/if}
@@ -825,6 +825,7 @@
   .agent-code { border: 1px solid var(--border-subtle); border-radius: 6px; overflow: hidden; }
   .agent-code-bar { display: flex; gap: 8px; align-items: center; padding: 3px 8px; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid var(--border-subtle); }
   .agent-code-lang { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); margin-right: auto; }
+  .agent-screen-bar { border: 1px solid var(--border-subtle); border-bottom: 0; border-radius: 6px 6px 0 0; }
   .agent-code pre, .agent-cmd pre, .agent-pre { margin: 0; padding: 8px; overflow-x: auto; font-family: var(--font-mono); font-size: 11px; line-height: 1.4; }
   .agent-pre { border: 1px solid var(--border-subtle); border-radius: 6px; white-space: pre; }
   .agent-pre-dim { color: var(--text-secondary); }

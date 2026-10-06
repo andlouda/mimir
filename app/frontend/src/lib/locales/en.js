@@ -913,6 +913,8 @@ export default {
     viewFileTitle: 'Messages from the agent\'s own session file (exact text, no terminal wrapping)',
     viewScreen: 'Screen',
     viewScreenTitle: 'What tmux shows in this pane (always available, keeps the agent\'s line breaks)',
+    screenMirrorHint: 'The pane as tmux shows it, with colours and the agent\'s own layout; scroll like in a terminal. Updates with the refresh button.',
+    stateHint: 'What the agent itself recorded about this session: title, prompts, cost, and after a context compaction its own summary. Mimir only reads it.',
     screenHint: 'tmux pane contents from the agent\'s last start. Soft wraps are joined; line breaks the agent drew itself stay.',
     screenHintFullscreen: 'The agent runs full-screen: only what is visible in the pane right now can be captured, there is no scrollback behind it. Earlier answers are in Snippets and History.',
     verified: 'Session file confirmed against the pane',

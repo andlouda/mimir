@@ -387,6 +387,12 @@ agentDetectionEnabled.subscribe((enabled) => {
 });
 
 /** Loads the raw tmux pane text (screen + scrollback) for a terminal. */
+/** The pane as tmux shows it (colours, row breaks) for the Screen mirror. */
+export async function loadAgentPaneScreen(id) {
+  const raw = await app()['GetAgentPaneScreenJSON'](id, terminalType(id));
+  return JSON.parse(raw || '{}');
+}
+
 export async function loadAgentPaneText(id, { full = false } = {}) {
   const raw = await app()['GetAgentPaneTextJSON'](id, terminalType(id), full);
   return JSON.parse(raw);
