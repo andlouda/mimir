@@ -76,11 +76,28 @@ export function extractSnippets(markdown) {
     for (const m of seg.text.matchAll(INLINE_CODE)) {
       const code = m[1].trim();
       if (code.length < 3 || seen.has(code) || blockText.includes(code)) continue;
+      if (!looksLikeCommand(code)) continue;
       seen.add(code);
       inline.push({ type: 'inline', code });
+      if (inline.length >= MAX_INLINE_SNIPPETS) break;
     }
   }
   return [...blocks, ...inline];
+}
+
+const MAX_INLINE_SNIPPETS = 8;
+
+// Inline code in prose is mostly names: files, flags, identifiers
+// ("TeamSpeak.exe", "--type=utility", "network.mojom.NetworkService").
+// Only something shaped like a shell command line is worth a Copy /
+// Insert row: a lowercase program word followed by arguments.
+export function looksLikeCommand(code) {
+  if (!/\s/.test(code)) return false;
+  if (/[\n\r]/.test(code)) return false;
+  const first = code.split(/\s+/)[0];
+  if (!/^(\.\/|\/|~\/)?[a-z][a-z0-9_.+\/-]*$/.test(first)) return false;
+  if (/^[a-z]+\.(exe|dll|js|ts|go|py|json|md)$/i.test(first)) return false;
+  return true;
 }
 
 /**

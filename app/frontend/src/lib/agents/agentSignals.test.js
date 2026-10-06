@@ -57,12 +57,13 @@ describe('splitMarkdown', () => {
 });
 
 describe('extractSnippets / firstProse', () => {
-  test('collects blocks first, then unique inline code', () => {
-    const md = 'Run `go test ./...` then edit `app/main.go`:\n\n```bash\ngo test ./...\n```\n\nAlso `ls` and `app/main.go` again.';
+  test('collects blocks first, then unique command-like inline code', () => {
+    const md = 'Run `go test ./...` then edit `app/main.go`:\n\n```bash\ngo test ./...\n```\n\nAlso `ls -la` and `app/main.go` again.';
     const snippets = extractSnippets(md);
+    // File names are not snippets; a command line is, once.
     expect(snippets).toEqual([
       { type: 'code', lang: 'bash', code: 'go test ./...' },
-      { type: 'inline', code: 'app/main.go' },
+      { type: 'inline', code: 'ls -la' },
     ]);
   });
 

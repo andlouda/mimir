@@ -520,6 +520,9 @@
     {:else}
       {#if transcript.source === 'tmux'}
         <p class="agent-panel-hint agent-panel-warn">{$t('agentPanel.fallbackHint')}</p>
+      {:else if transcript.bound}
+        <!-- Named by the agent's hook or pinned by the user: not a guess,
+             so no warning; the footer carries the file. -->
       {:else if !transcript.verified || transcript.candidates > 1}
         <p class="agent-panel-hint {transcript.verified ? '' : 'agent-panel-warn'}" title={transcript.sessionFile}>
           {#if transcript.verified}
@@ -754,7 +757,7 @@
     {/if}
   </div>
   <div class="agent-panel-footer" title={transcript?.sessionFile || ''}>
-    {#if transcript?.sessionFile}{transcript.verified ? '✓ ' : ''}{$t('agentPanel.source')}: {shortPath(transcript.sessionFile)}{/if}
+    {#if transcript?.sessionFile}{transcript.verified || transcript.bound ? '✓ ' : ''}{$t('agentPanel.source')}: {shortPath(transcript.sessionFile)}{#if transcript.bound} · {$t('agentPanel.boundShort')}{/if}{#if transcript.candidates > 1} · <button type="button" class="agent-link" on:click={toggleSessions}>{$t('agentPanel.candidates', { n: transcript.candidates })}</button>{/if}{/if}
   </div>
 </div>
 

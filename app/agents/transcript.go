@@ -44,6 +44,10 @@ type Transcript struct {
 	MatchScore float64 `json:"matchScore"`
 	// Candidates is how many session files matched the working directory.
 	Candidates int `json:"candidates"`
+	// Bound is true when the session file was named by the agent itself
+	// (hook event) or pinned by the user, so the choice is not a guess
+	// even when the pane text could not confirm it.
+	Bound bool `json:"bound"`
 	// Files the agent read or changed and Commands it executed, extracted
 	// from the tool-call records of the session.
 	Files    []FileActivity `json:"files"`
