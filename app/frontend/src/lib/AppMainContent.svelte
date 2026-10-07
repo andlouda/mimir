@@ -1,4 +1,5 @@
 <script>
+  import { getTerminalOutput } from './terminals/outputTail.js';
   import { SaveTemplate, UpdateTemplate, DeleteTemplate, ToggleFavorite, GetTemplates, WriteToTerminal, GetRecording, DeleteRecording, ExportRecordingScrubbed, ExportRecordingGIF, ExportRecordingTrimmed, ExportRecordingTrimmedGIF, ListRecordings, GetAggDownloadInfo, SetHistoryTracking } from '../../wailsjs/go/main/App';
   import TemplateManager from './TemplateManager.svelte';
   import FileBrowser from './FileBrowser.svelte';
@@ -187,7 +188,7 @@
       activeTerminalId={activeTerminalId}
       activeTerminalType={terminals.find((terminal) => terminal.id === activeTerminalId)?.type || selectedTerminalType}
       activeTerminalName={terminals.find((terminal) => terminal.id === activeTerminalId)?.name || ''}
-      activeTerminalOutput={terminals.find((terminal) => terminal.id === activeTerminalId)?.outputBuffer || ''}
+      activeTerminalOutput={getTerminalOutput(activeTerminalId)}
       on:backToTerminals={() => { openPage("terminals"); }}
     />
   {:else if currentPage === "aiHub"}

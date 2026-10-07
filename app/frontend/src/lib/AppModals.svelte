@@ -1,4 +1,5 @@
 <script>
+  import { getTerminalOutput } from './terminals/outputTail.js';
   import TemplatePicker from './modals/TemplatePicker.svelte';
   import WorkflowPicker from './modals/WorkflowPicker.svelte';
   import TemplatePromptModal from './modals/TemplatePromptModal.svelte';
@@ -93,7 +94,7 @@
 {#if aiPanelState}
   <AIPanelModal
     bind:state={aiPanelState}
-    terminalOutput={terminals.find(t => t.id === aiPanelState.terminalId)?.outputBuffer || ''}
+    terminalOutput={getTerminalOutput(aiPanelState.terminalId)}
     onClose={closeAIPanel}
     onError={onError}
   />

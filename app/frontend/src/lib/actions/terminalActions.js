@@ -20,6 +20,8 @@ import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { createScrollbackRefill } from '../terminals/tmuxScrollback.js';
 import { createOutputThrottle } from '../terminals/outputThrottle.js';
 
+import { forgetOutput, rememberOutput } from '../terminals/outputTail.js';
+
 // Inactive, visible panes are drawn in batches; the active one at once.
 const outputThrottle = createOutputThrottle({
   write: (term, data) => safelyWriteTerminal(term, data),
@@ -240,7 +242,6 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     name,
     editingName: false,
     type,
-    outputBuffer: '',
     sshProfileId,
     disconnected: false,
     reconnecting: false,
@@ -293,6 +294,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   newTerminal.cleanupHandlers.push(() => clearHoveredLink(id));
   newTerminal.cleanupHandlers.push(() => forgetTerminalResize(id));
   newTerminal.cleanupHandlers.push(() => outputThrottle.forget(id));
+  newTerminal.cleanupHandlers.push(() => forgetOutput(id));
   newTerminal.cleanupHandlers.push(linkProviderDisposable);
   newTerminal.cleanupHandlers.push(() => searchResultsDisposable?.dispose?.());
 
@@ -318,11 +320,10 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   const offOutput = EventsOn(`terminal-output-${id}`, data => {
     outputThrottle.push(newTerminal, data);
     noteTerminalOutput(id, data);
-    terminals.update(list => list.map(t => {
-      if (t.id !== id) return t;
-      const nextOutput = (t.outputBuffer + data).slice(-12000);
-      return { ...t, outputBuffer: nextOutput };
-    }));
+    // The AI-context tail lives outside the store: updating the store on
+    // every chunk re-rendered the sidebar, pane headers and panel for each
+    // one, which was most of the webview's work under load.
+    rememberOutput(id, data);
     appendTerminalTranscript(newTerminal.resumeId, data);
   });
   newTerminal.cleanupHandlers.push(offOutput);
