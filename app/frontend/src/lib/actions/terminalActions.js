@@ -10,7 +10,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { createWriteOnlyClipboardProvider } from '../terminals/osc52Clipboard.js';
-import { clearHoveredLink, createLinkProvider } from '../terminals/terminalLinks.js';
+import { clearHoveredLink, createHyperlinkHandler, createLinkProvider } from '../terminals/terminalLinks.js';
 import { isGlobalShortcut, closeTopOverlay, focusTerminal } from './keyboardShortcuts.js';
 import { updateTerminalSearchResult } from './terminalSearchActions.js';
 import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
@@ -169,7 +169,8 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     // The Unicode 11 addon registers a width provider through xterm's
     // proposed API; without this flag it throws and widths stay at
     // Unicode 6 (overlapping emoji and spinner glyphs in agent TUIs).
-    allowProposedApi: true
+    allowProposedApi: true,
+    linkHandler: createHyperlinkHandler(id)
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
