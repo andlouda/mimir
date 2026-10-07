@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
+import { rememberOutput } from '../terminals/outputTail.js';
 import {
   applyTemplate,
   buildWorkflowPromptFields,
@@ -212,7 +213,8 @@ describe('template actions', () => {
 
   test('runs workflow immediately when no prompt fields are required', async () => {
     activeTerminalId.set(9);
-    terminals.set([{ id: 9, type: 'bash', name: 'Ops', outputBuffer: 'recent output' }]);
+    terminals.set([{ id: 9, type: 'bash', name: 'Ops' }]);
+    rememberOutput(9, 'recent output');
 
     await runWorkflowFromPicker({ id: 'pb-2', name: 'Status', steps: [{ id: 's1', type: 'wait' }] });
 

@@ -120,6 +120,10 @@ export default {
         title: 'Claude: redraw after widening',
         desc: 'Claude Code wraps its output at the pane width of the moment with hard line breaks that no terminal can undo. When a Claude pane has grown by 20 columns or more and Claude is idle, Mimir leaves Claude with /exit and starts the same command again with --resume, so the conversation is printed at the new width. Nothing happens while Claude answers or waits for an approval. The agent panel has the same action as a link.',
       },
+      inactiveThrottle: {
+        title: 'Draw inactive panes in batches',
+        desc: 'Panes that are visible but not active are drawn ten times a second instead of on every output chunk. Several agents redrawing their screens at once kept the webview busy with rendering; the active pane is always drawn immediately, and switching to a pane shows its backlog first.',
+      },
       tmuxMode: {
         title: 'tmux integration',
         invisible: 'Invisible (recommended)',

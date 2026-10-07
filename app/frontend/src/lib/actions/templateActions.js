@@ -1,4 +1,5 @@
 import { get } from 'svelte/store';
+import { getTerminalOutput } from '../terminals/outputTail.js';
 import { ApplyTemplate } from '../../../wailsjs/go/main/App';
 import { t as tr } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
@@ -153,7 +154,7 @@ export function openWorkflowPrompt(playbook, activeTerminal) {
     terminalType: activeTerminal.type,
     terminalId: activeTerminal.id,
     terminalName: activeTerminal.name || '',
-    terminalOutput: activeTerminal.outputBuffer || '',
+    terminalOutput: getTerminalOutput(activeTerminal.id),
     fields,
   };
   templatePromptState.set(nextState);
@@ -337,7 +338,7 @@ export async function runWorkflowFromPicker(playbook) {
       Number(activeTerminal.id),
       activeTerminal.type || '',
       activeTerminal.name || '',
-      activeTerminal.outputBuffer || ''
+      getTerminalOutput(activeTerminal.id)
     );
     errorMessage.set('');
   } catch (error) {
