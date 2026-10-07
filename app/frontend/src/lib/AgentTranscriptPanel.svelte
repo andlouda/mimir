@@ -505,7 +505,7 @@
         <button type="button" class="agent-link" disabled={!sessionKey(agent)} on:click={() => { noteOpen = !noteOpen; }}>{$t('agentPanel.note')}{note?.note ? ' ●' : ''}</button>
         <button type="button" class="agent-link" disabled={!sessionKey(agent)} on:click={toggleArchived}>{note?.archived ? $t('agentPanel.unarchive') : $t('agentPanel.archive')}</button>
         {#if agent?.kind === 'claude'}
-          <button type="button" class="agent-link" disabled={rerendering || agent.status === 'working' || !!agent.prompt} title={$t('agentPanel.rerenderTitle')} on:click={rerender}>{rerendering ? '…' : $t('agentPanel.rerender')}</button>
+          <button type="button" class="agent-link" disabled={rerendering || agent.status === 'working' || agent.prompt === 'permission_prompt'} title={$t('agentPanel.rerenderTitle')} on:click={rerender}>{rerendering ? '…' : $t('agentPanel.rerender')}</button>
         {/if}
       </span>
     </div>

@@ -8,6 +8,12 @@
 
 export const WIDEN_COLS = 20;
 
+// Idle means Claude waits for the user. The hook reports that as
+// "idle_prompt", which is fine; only a pending permission_prompt blocks.
+export function isIdle(status, prompt) {
+  return status === 'idle' && prompt !== 'permission_prompt';
+}
+
 export function createClaudeRerender({ run, isEnabled = () => true, getAgent, onResult = () => {} }) {
   const pending = new Set(); // terminal ids waiting for idle
   const running = new Set();
@@ -23,7 +29,7 @@ export function createClaudeRerender({ run, isEnabled = () => true, getAgent, on
   function onResized(id, prevCols, cols) {
     if (!wants(id, prevCols, cols)) return false;
     const agent = getAgent(id);
-    if (agent.status === 'idle' && !agent.prompt) {
+    if (isIdle(agent.status, agent.prompt)) {
       pending.delete(id);
       trigger(id);
     } else {
@@ -35,7 +41,7 @@ export function createClaudeRerender({ run, isEnabled = () => true, getAgent, on
   /** Called on every agent state change. */
   function onAgentState(id, status, prompt) {
     if (!pending.has(id)) return;
-    if (status === 'idle' && !prompt) {
+    if (isIdle(status, prompt)) {
       pending.delete(id);
       trigger(id);
     }

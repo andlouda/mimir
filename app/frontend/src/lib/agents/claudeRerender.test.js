@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { createClaudeRerender, WIDEN_COLS } from './claudeRerender.js';
+import { createClaudeRerender, isIdle, WIDEN_COLS } from './claudeRerender.js';
 
 function setup(agent, opts = {}) {
   const run = vi.fn(async () => 'claude --resume x');
@@ -35,6 +35,17 @@ describe('Claude rerender after a widen', () => {
     await Promise.resolve();
     expect(run).toHaveBeenCalledTimes(1);
     r.onAgentState(1, 'idle', ''); // once per widen
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  test('an idle_prompt from the hook still counts as idle', async () => {
+    expect(isIdle('idle', 'idle_prompt')).toBe(true);
+    expect(isIdle('idle', '')).toBe(true);
+    expect(isIdle('idle', 'permission_prompt')).toBe(false);
+    expect(isIdle('working', '')).toBe(false);
+    const { r, run } = setup({ kind: 'claude', status: 'idle', prompt: 'idle_prompt' });
+    expect(r.onResized(1, 100, 160)).toBe(true);
+    await Promise.resolve();
     expect(run).toHaveBeenCalledTimes(1);
   });
 
