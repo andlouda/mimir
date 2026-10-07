@@ -55,3 +55,28 @@ func TestTrimText(t *testing.T) {
 		t.Fatalf("trim failed: %d chars", len(got))
 	}
 }
+
+func TestDeriveClaudeStateHonoursStopReason(t *testing.T) {
+	rec := func(role, stop, block string) string {
+		return `{"type":"` + role + `","timestamp":"2026-10-07T10:51:36Z","message":{"role":"` + role + `","stop_reason":"` + stop + `","content":[` + block + `]}}` + "\n"
+	}
+	user := `{"type":"user","timestamp":"2026-10-07T10:51:21Z","message":{"role":"user","content":"go"}}` + "\n"
+	text := `{"type":"text","text":"Ich lese die Stellen."}`
+	thinking := `{"type":"thinking","thinking":"..."}`
+	// Text before a tool call: the turn goes on.
+	if st := DeriveState(KindClaude, []byte(user+rec("assistant", "tool_use", text))); st.State != StateWorking {
+		t.Fatalf("text with stop_reason tool_use must be working, got %s", st.State)
+	}
+	if st := DeriveState(KindClaude, []byte(user+rec("assistant", "tool_use", thinking))); st.State != StateWorking {
+		t.Fatalf("thinking record must be working, got %s", st.State)
+	}
+	// The closing text: idle, with the text as the last answer.
+	st := DeriveState(KindClaude, []byte(user+rec("assistant", "end_turn", text)))
+	if st.State != StateIdle || st.LastText != "Ich lese die Stellen." {
+		t.Fatalf("end_turn text must be idle with the text, got %+v", st)
+	}
+	// Older files without stop_reason keep the previous reading.
+	if st := DeriveState(KindClaude, []byte(user+rec("assistant", "", text))); st.State != StateIdle {
+		t.Fatalf("no stop_reason: text still idle, got %s", st.State)
+	}
+}

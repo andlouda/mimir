@@ -863,6 +863,8 @@ export default {
     noMatches: 'No matches',
   },
   agentPanel: {
+    hookOutdatedHint: 'The Mimir hook on this host is an older version: it cannot tell which pane a session belongs to and may show the wrong session. Update it.',
+    hookUpdate: 'Update hook',
     tabSessions: 'Sessions',
     sessionsTitle: 'Claude sessions on this machine',
     sessionsHint: 'Earlier sessions, newest first; the ones a pane shows are left out. Open starts a new terminal in the session\'s directory with claude --resume.',

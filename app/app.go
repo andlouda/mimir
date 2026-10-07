@@ -186,6 +186,9 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 
+	// An outdated Claude Code hook misattributes sessions; refresh it.
+	go a.upgradeOutdatedClaudeHooks()
+
 	// Remove orphaned atomic-write temp files left by a previous crash/force-quit.
 	if configDir, cfgErr := os.UserConfigDir(); cfgErr == nil {
 		if removed, sweepErr := safeio.SweepStaleTempFiles(filepath.Join(configDir, "mimir"), time.Hour); sweepErr != nil {

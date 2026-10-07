@@ -98,6 +98,10 @@ type claudeRecord struct {
 		ID      string          `json:"id"`
 		Role    string          `json:"role"`
 		Content json.RawMessage `json:"content"`
+		// StopReason: "tool_use" means more records of this turn follow
+		// (a text or thinking record before the tool call); "end_turn"
+		// (or stop_sequence / max_tokens) closes the turn.
+		StopReason string `json:"stop_reason"`
 	} `json:"message"`
 	// Session-level records Claude Code writes beside the messages.
 	IsCompactSummary bool            `json:"isCompactSummary"`
