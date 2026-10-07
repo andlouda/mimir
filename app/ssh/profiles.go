@@ -29,8 +29,13 @@ type Profile struct {
 	JumpAuthMethod  string `json:"jumpAuthMethod,omitempty"` // "password" or "key"
 	JumpKeyPath     string `json:"jumpKeyPath,omitempty"`
 	UseTmux         *bool  `json:"useTmux,omitempty"`
-	RCMode          string `json:"rcMode,omitempty"` // "off", "remote-default", "mimir", "local-snippet"
-	RCSnippet       string `json:"rcSnippet,omitempty"`
+	// AgentHost marks a host where coding agents run: only then does Mimir
+	// look for agents in its panes (process probe, session files over
+	// SFTP, approvals). Off by default so a plain server stays a plain
+	// terminal.
+	AgentHost bool   `json:"agentHost,omitempty"`
+	RCMode    string `json:"rcMode,omitempty"` // "off", "remote-default", "mimir", "local-snippet"
+	RCSnippet string `json:"rcSnippet,omitempty"`
 }
 
 // ProfileStore manages SSH profile persistence.
@@ -149,11 +154,11 @@ func (s *ProfileStore) Update(p Profile) ([]Profile, error) {
 }
 
 const (
-	maxProfileNameLen     = 200
-	maxHostLen            = 253
-	maxUsernameLen        = 128
-	maxKeyPathLen         = 1024
-	maxRCSnippetPathLen   = 1024
+	maxProfileNameLen   = 200
+	maxHostLen          = 253
+	maxUsernameLen      = 128
+	maxKeyPathLen       = 1024
+	maxRCSnippetPathLen = 1024
 )
 
 func validateProfile(p *Profile) error {
