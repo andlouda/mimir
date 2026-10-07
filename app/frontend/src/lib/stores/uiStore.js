@@ -88,6 +88,15 @@ export const claudeRerenderOnWiden = writable(initialClaudeRerender());
 claudeRerenderOnWiden.subscribe((on) => {
   try { localStorage.setItem(CLAUDE_RERENDER_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
 });
+// Draw inactive panes in batches (see terminals/outputThrottle.js); on by default.
+const INACTIVE_THROTTLE_KEY = 'mimir-inactive-pane-throttle';
+function initialInactiveThrottle() {
+  try { return localStorage.getItem(INACTIVE_THROTTLE_KEY) !== 'off'; } catch { return true; }
+}
+export const inactivePaneThrottle = writable(initialInactiveThrottle());
+inactivePaneThrottle.subscribe((on) => {
+  try { localStorage.setItem(INACTIVE_THROTTLE_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
+});
 // tmux integration for new terminals: 'invisible' | 'classic' | 'off'
 // (loaded from the backend at start-up; see terminal/tmux_options.go).
 export const tmuxIntegrationMode = writable('invisible');

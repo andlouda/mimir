@@ -120,6 +120,10 @@ export default {
         title: 'Claude: nach Verbreitern neu zeichnen',
         desc: 'Claude Code bricht seine Ausgabe in der Breite des Moments um, mit harten Zeilenumbrüchen, die kein Terminal zurücknehmen kann. Ist eine Claude-Pane um 20 Spalten oder mehr gewachsen und Claude untätig, beendet Mimir Claude mit /exit und startet denselben Befehl mit --resume neu; die Konversation wird dann in der neuen Breite ausgegeben. Während Claude antwortet oder auf eine Freigabe wartet, passiert nichts. Im Agent-Panel gibt es dieselbe Aktion als Link.',
       },
+      inactiveThrottle: {
+        title: 'Inaktive Panes gebündelt zeichnen',
+        desc: 'Sichtbare, aber nicht aktive Panes werden zehnmal pro Sekunde gezeichnet statt bei jedem Ausgabe-Happen. Mehrere Agents, die gleichzeitig ihr Bild neu zeichnen, hielten den Webview mit Rendern beschäftigt; die aktive Pane wird immer sofort gezeichnet, beim Wechsel erscheint zuerst der Rückstand.',
+      },
       tmuxMode: {
         title: 'tmux-Integration',
         invisible: 'Unsichtbar (empfohlen)',

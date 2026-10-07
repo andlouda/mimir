@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
-import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill} from '../stores/uiStore.js';
+import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill, inactivePaneThrottle } from '../stores/uiStore.js';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { sshProfiles } from '../stores/sshStore.js';
@@ -18,6 +18,14 @@ import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, Con
 import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { createScrollbackRefill } from '../terminals/tmuxScrollback.js';
+import { createOutputThrottle } from '../terminals/outputThrottle.js';
+
+// Inactive, visible panes are drawn in batches; the active one at once.
+const outputThrottle = createOutputThrottle({
+  write: (term, data) => safelyWriteTerminal(term, data),
+  isImmediate: (term) => !get(inactivePaneThrottle) || term.minimized || get(activeTerminalId) === term.id,
+});
+activeTerminalId.subscribe((id) => { if (id != null) outputThrottle.flush(id); });
 
 // After a tmux pane was widened, its old history is re-fetched so it wraps
 // at the new width (tmux keeps it cut at the old one otherwise).
@@ -284,6 +292,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   newTerminal.cleanupHandlers.push(() => wiredDom.delete(id));
   newTerminal.cleanupHandlers.push(() => clearHoveredLink(id));
   newTerminal.cleanupHandlers.push(() => forgetTerminalResize(id));
+  newTerminal.cleanupHandlers.push(() => outputThrottle.forget(id));
   newTerminal.cleanupHandlers.push(linkProviderDisposable);
   newTerminal.cleanupHandlers.push(() => searchResultsDisposable?.dispose?.());
 
@@ -307,7 +316,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   // persisted pane that never printed anything.
 
   const offOutput = EventsOn(`terminal-output-${id}`, data => {
-    safelyWriteTerminal(newTerminal, data);
+    outputThrottle.push(newTerminal, data);
     noteTerminalOutput(id, data);
     terminals.update(list => list.map(t => {
       if (t.id !== id) return t;
