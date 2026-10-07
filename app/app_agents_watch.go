@@ -150,6 +150,10 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 		// out. Only Claude Code has the hook.
 		pending   *agents.HookEvent
 		pendingAt time.Time
+		// pendingFile / pendingMod: the transcript the prompt belongs to when
+		// it is not the pane's own (a subagent); its change clears the prompt.
+		pendingFile string
+		pendingMod  time.Time
 		// bound is set once a hook event named this pane's session file; the
 		// periodic re-lookup then no longer swaps it for the newest file.
 		bound bool
@@ -249,11 +253,13 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 					_ = remover.Remove(ev.Path)
 				}
 				// The event names the session file of this very process:
-				// follow it from now on (unless the user pinned another).
-				if ev.Event.TranscriptPath != "" && ev.Event.PPID > 0 {
+				// follow it from now on (unless the user pinned another). A
+				// subagent's transcript is not the pane's session.
+				subagent := agents.IsSubagentTranscript(ev.Event.TranscriptPath)
+				if ev.Event.TranscriptPath != "" && ev.Event.PPID > 0 && !subagent {
 					a.bindAgentSession(terminalID, state.pid, ev.Event.TranscriptPath)
 				}
-				if state.sessionFile == "" && ev.Event.TranscriptPath != "" && ev.Event.TranscriptPath != file {
+				if !subagent && state.sessionFile == "" && ev.Event.TranscriptPath != "" && ev.Event.TranscriptPath != file {
 					file, lastSize, lastMod, bound = ev.Event.TranscriptPath, -1, time.Time{}, true
 				} else if ev.Event.TranscriptPath == file {
 					bound = true
@@ -263,6 +269,20 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 				}
 				e := ev.Event
 				pending, pendingAt = &e, time.Now()
+				pendingFile, pendingMod = "", time.Time{}
+				if e.TranscriptPath != "" && e.TranscriptPath != file {
+					pendingFile = e.TranscriptPath
+					if info, err := fs.Stat(pendingFile); err == nil {
+						pendingMod = info.ModTime
+					}
+				}
+			}
+		}
+		// A prompt of a subagent: the parent file stays quiet while the
+		// subagent works, so watch the subagent's own file instead.
+		if pending != nil && pendingFile != "" && time.Since(pendingAt) > agentHookSettle {
+			if info, err := fs.Stat(pendingFile); err == nil && info.ModTime.After(pendingMod) && info.ModTime.After(pendingAt) {
+				pending = nil
 			}
 		}
 		if pending != nil && time.Since(pendingAt) > agentHookMaxAge {

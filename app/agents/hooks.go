@@ -85,6 +85,16 @@ var hookEvents = []struct{ Event, Matcher string }{
 // StateForNotification maps a notification type to an agent state.
 // Permission prompts and elicitations block the agent on the user; idle
 // prompts and agent_needs_input mean it is waiting for input.
+// IsSubagentTranscript reports whether a transcript path belongs to a
+// subagent (Claude Code keeps them under <session>/subagents/). Hook
+// events for a subagent's prompt carry that path; the pane must keep
+// following the parent session, and the prompt is cleared when the
+// subagent's own file moves on.
+func IsSubagentTranscript(path string) bool {
+	p := strings.ReplaceAll(path, "\\", "/")
+	return strings.Contains(p, "/subagents/")
+}
+
 func StateForNotification(notificationType string) State {
 	switch notificationType {
 	case "permission_prompt", "elicitation_dialog":

@@ -150,3 +150,15 @@ func TestScanHookEventsToleratesRemoteClockSkew(t *testing.T) {
 		t.Fatalf("the newest event must survive clock skew, the 20 min older one not: %+v", events)
 	}
 }
+
+func TestIsSubagentTranscript(t *testing.T) {
+	if !IsSubagentTranscript("/h/.claude/projects/-p/abc/subagents/agent-1.jsonl") {
+		t.Fatal("subagent path not recognised")
+	}
+	if !IsSubagentTranscript(`C:\Users\x\.claude\projects\-p\abc\subagents\agent-1.jsonl`) {
+		t.Fatal("windows subagent path not recognised")
+	}
+	if IsSubagentTranscript("/h/.claude/projects/-p/abc.jsonl") {
+		t.Fatal("session file must not count as subagent")
+	}
+}
