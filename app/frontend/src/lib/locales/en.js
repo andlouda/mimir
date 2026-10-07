@@ -205,6 +205,15 @@ export default {
         missingDesc: 'Download agg to export recordings as GIF.',
         incompatibleDesc: 'Bundled agg is incompatible with your system. Install agg via your package manager (e.g. cargo install agg).',
       },
+      diagnostics: {
+        title: 'Diagnostics',
+        desc: 'Live figures while this card is open. "Main thread busy" is the share of time the UI thread spends on scripting, layout and painting; output is what the terminals receive; writes are batches drawn into xterm. "Running animations" should be 0 when nothing moves.',
+        busy: 'Main thread busy',
+        events: 'Terminal output',
+        writes: 'Draws into panes',
+        panes: 'Attached panes',
+        animations: 'Running animations',
+      },
       updates: {
         title: 'Updates',
         defaultDesc: 'Check GitHub Releases and show the matching download.',

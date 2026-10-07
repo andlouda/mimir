@@ -19,12 +19,13 @@ import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { createScrollbackRefill } from '../terminals/tmuxScrollback.js';
 import { createOutputThrottle } from '../terminals/outputThrottle.js';
+import { countOutput, countWrite } from '../perf/diagnostics.js';
 
 import { forgetOutput, rememberOutput } from '../terminals/outputTail.js';
 
 // Inactive, visible panes are drawn in batches; the active one at once.
 const outputThrottle = createOutputThrottle({
-  write: (term, data) => safelyWriteTerminal(term, data),
+  write: (term, data) => { countWrite(); safelyWriteTerminal(term, data); },
   isImmediate: (term) => !get(inactivePaneThrottle) || term.minimized || get(activeTerminalId) === term.id,
 });
 activeTerminalId.subscribe((id) => { if (id != null) outputThrottle.flush(id); });
@@ -318,6 +319,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
   // persisted pane that never printed anything.
 
   const offOutput = EventsOn(`terminal-output-${id}`, data => {
+    countOutput(data.length);
     outputThrottle.push(newTerminal, data);
     noteTerminalOutput(id, data);
     // The AI-context tail lives outside the store: updating the store on

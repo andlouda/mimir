@@ -7,7 +7,8 @@
   import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, claudeRerenderOnWiden, inactivePaneThrottle, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
+  import { perfStats, startDiagnostics, stopDiagnostics } from '../perf/diagnostics.js';
 
   // One row per host the hook can live on: this machine and, on Windows,
   // the WSL distro (Claude Code there reads its own settings.json).
@@ -57,6 +58,10 @@
 
   // Card descriptions are folded away; a click on the title opens them.
   let openCards = new Set();
+  // The diagnostics sampler runs only while its card is open.
+  $: if (openCards.has('diagnostics')) startDiagnostics(); else stopDiagnostics();
+  onDestroy(stopDiagnostics);
+
   function toggleCard(key) {
     if (openCards.has(key)) openCards.delete(key); else openCards.add(key);
     openCards = openCards;
@@ -383,6 +388,27 @@
 
     <div class="ai-hub-card">
       <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x2699;</span>
+      </div>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('diagnostics')} on:click|preventDefault|stopPropagation={() => toggleCard('diagnostics')}><strong>{$t('settings.cards.diagnostics.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('diagnostics') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('diagnostics')}
+      <p>{$t('settings.cards.diagnostics.desc')}</p>
+      {#if $perfStats}
+      <table class="diagnostics-table">
+        <tbody>
+          <tr><td>{$t('settings.cards.diagnostics.busy')}</td><td>{$perfStats.mainThreadBusy} %</td></tr>
+          <tr><td>{$t('settings.cards.diagnostics.events')}</td><td>{$perfStats.eventsPerSec}/s · {$perfStats.kbPerSec} KB/s</td></tr>
+          <tr><td>{$t('settings.cards.diagnostics.writes')}</td><td>{$perfStats.writesPerSec}/s</td></tr>
+          <tr><td>{$t('settings.cards.diagnostics.panes')}</td><td>{$perfStats.panes}</td></tr>
+          <tr><td>{$t('settings.cards.diagnostics.animations')}</td><td>{$perfStats.animations}</td></tr>
+        </tbody>
+      </table>
+      {/if}
+      {/if}
+    </div>
+
+    <div class="ai-hub-card">
+      <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x21E7;</span>
         <button type="button" class="ai-hub-link" on:click={onCheckUpdates} disabled={updateChecking}>{updateChecking ? $t('settings.actions.checking') : (updateInfo?.updateAvailable ? $t('settings.actions.available') : $t('settings.actions.check'))}</button>
       </div>
@@ -619,4 +645,7 @@
     line-height: 1.4;
     box-shadow: 0 1px 0 var(--border-dim);
   }
+  .diagnostics-table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 4px; }
+  .diagnostics-table td { padding: 2px 0; color: var(--text-muted, #9aa4b2); }
+  .diagnostics-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--text, #e6edf3); }
 </style>
