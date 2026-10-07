@@ -79,6 +79,24 @@ func claudeSessionID(state agentTerminalState) string {
 	return strings.TrimSuffix(base, ".jsonl")
 }
 
+// resolveClaudeSessionFile picks the session file for a pane the hook has
+// not bound: the sole candidate for its directory, or the candidate the
+// pane text verifies.
+func (a *App) resolveClaudeSessionFile(terminalID int, terminalType string, state agentTerminalState) (string, error) {
+	paneText, _ := a.capturePane(terminalID, terminalType)
+	transcript, err := a.readAgentTranscriptFile(terminalID, state, agents.ReadOptions{Limit: 4, PaneText: paneText})
+	if err != nil {
+		return "", fmt.Errorf("the session of this pane is not known yet (%v); it is bound once Claude Code's hook reports the next prompt", err)
+	}
+	if transcript.SessionFile == "" {
+		return "", errors.New("the session of this pane is not known yet; it is bound once Claude Code's hook reports the next prompt")
+	}
+	if transcript.Verified || transcript.Candidates <= 1 {
+		return transcript.SessionFile, nil
+	}
+	return "", fmt.Errorf("%d Claude sessions exist for this directory and none could be matched to the pane; install the approval hook or pin the session in the panel", transcript.Candidates)
+}
+
 // agentCommandLine returns the agent process's own command line.
 func (a *App) agentCommandLine(terminalID int, terminalType string, state agentTerminalState) (string, error) {
 	var (
@@ -123,7 +141,14 @@ func (a *App) RerenderClaudeInPane(terminalID int, terminalType string) (string,
 	}
 	sessionID := claudeSessionID(state)
 	if sessionID == "" {
-		return "", errors.New("the session file of this pane is not known yet (the hook binds it on the next prompt)")
+		// Not bound by the hook yet: the directory's only session, or the
+		// one whose last answer is on the pane's screen, is still a safe
+		// pick; several unverifiable candidates are not.
+		file, err := a.resolveClaudeSessionFile(terminalID, terminalType, state)
+		if err != nil {
+			return "", err
+		}
+		sessionID = claudeSessionID(agentTerminalState{sessionFile: file})
 	}
 	args, err := a.agentCommandLine(terminalID, terminalType, state)
 	if err != nil {

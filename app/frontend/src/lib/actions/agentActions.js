@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { claudeRerenderOnWiden, errorMessage } from '../stores/uiStore.js';
+import { claudeRerenderOnWiden } from '../stores/uiStore.js';
 import { createClaudeRerender } from '../agents/claudeRerender.js';
 import { agentAnnotations, agentDetectionEnabled, agentNotificationsEnabled, agentPanelPinned, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { t } from '../i18n.js';
@@ -202,7 +202,9 @@ const claudeRerender = createClaudeRerender({
   isEnabled: () => get(claudeRerenderOnWiden),
   getAgent: (id) => get(agentStates)[id] || null,
   onResult: (id, res) => {
-    if (!res.ok) errorMessage.set(`Claude rerender: ${res.error}`);
+    // Automatic runs stay quiet when nothing could be restarted (session
+    // not bound yet, Claude exited meanwhile): the manual link reports.
+    if (!res.ok) console.warn(`Claude rerender skipped for terminal ${id}: ${res.error}`);
   },
 });
 
