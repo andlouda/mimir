@@ -537,6 +537,9 @@ func (m *Manager) InitializeTerminal(id int) error {
 
 		buf := make([]byte, 4096)
 		eventName := fmt.Sprintf("terminal-output-%d", id)
+		// One event per ~12 ms instead of one per read (see coalesce.go).
+		coalescer := newOutputCoalescer(func(b []byte) { wailsruntime.EventsEmit(m.ctx, eventName, string(b)) })
+		defer coalescer.Close()
 		for {
 			n, err := session.Read(buf)
 			if err != nil {
@@ -608,7 +611,7 @@ func (m *Manager) InitializeTerminal(id int) error {
 			}
 
 			if len(cleaned) > 0 {
-				wailsruntime.EventsEmit(m.ctx, eventName, string(cleaned))
+				coalescer.Write(cleaned)
 
 				m.ptyMutex.Lock()
 				if rec, ok := m.recorders[id]; ok {
