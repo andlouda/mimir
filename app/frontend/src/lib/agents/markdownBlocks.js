@@ -86,6 +86,37 @@ export function extractSnippets(markdown) {
 }
 
 const MAX_INLINE_SNIPPETS = 8;
+const MAX_LINKS = 12;
+
+const MD_LINK = /\[([^\]\n]{1,120})\]\((https?:\/\/[^\s)]+)\)/g;
+const BARE_URL = /https?:\/\/[^\s<>"'`)\]]+/g;
+
+/**
+ * Links in an agent answer, in order of appearance and without duplicates:
+ * Markdown links keep their text as label, bare URLs stand alone. Trailing
+ * punctuation that prose attaches to a URL is not part of it.
+ * @returns {Array<{type:'link', url:string, label:string}>}
+ */
+export function extractLinks(markdown) {
+  const text = String(markdown ?? '');
+  const seen = new Set();
+  const links = [];
+  const add = (url, label) => {
+    const clean = url.replace(/[.,;:!?]+$/, '');
+    if (!clean || seen.has(clean)) return;
+    seen.add(clean);
+    links.push({ type: 'link', url: clean, label: label && label !== clean ? label : '' });
+  };
+  const found = [];
+  for (const m of text.matchAll(MD_LINK)) found.push({ at: m.index, url: m[2], label: m[1].trim() });
+  for (const m of text.matchAll(BARE_URL)) found.push({ at: m.index, url: m[0], label: '' });
+  found.sort((a, b) => a.at - b.at);
+  for (const f of found) {
+    add(f.url, f.label);
+    if (links.length >= MAX_LINKS) break;
+  }
+  return links;
+}
 
 // Inline code in prose is mostly names: files, flags, identifiers
 // ("TeamSpeak.exe", "--type=utility", "network.mojom.NetworkService").
