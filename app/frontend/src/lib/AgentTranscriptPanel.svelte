@@ -14,7 +14,8 @@
   import { ClipboardSetText } from '../../wailsjs/runtime';
   import { t } from './i18n.js';
   import { sanitizeHtml } from './util.js';
-  import { extractSnippets, firstProse, groupTurns, splitMarkdown } from './agents/markdownBlocks.js';
+  import { extractLinks, extractSnippets, firstProse, groupTurns, splitMarkdown } from './agents/markdownBlocks.js';
+  import { openUrl } from './terminals/terminalLinks.js';
   import { agentAnnotations, agentPanelPinned, agentStates } from './stores/agentStore.js';
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
@@ -293,6 +294,16 @@
         const last = turn.answers[turn.answers.length - 1];
         const seen = new Set();
         const snippets = [];
+        // Links first: a merge request or ticket URL is what the user most
+        // often needs out of an answer.
+        for (const answer of turn.answers) {
+          for (const link of extractLinks(answer.text)) {
+            const key = `link:${link.url}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            snippets.push(link);
+          }
+        }
         for (const answer of turn.answers) {
           for (const snippet of extractSnippets(answer.text)) {
             const key = `${snippet.type}:${snippet.code}`;
@@ -654,7 +665,14 @@
             <div class="agent-group-label" title={group.prompt}>{shortTime(group.timestamp)}{group.prompt ? ' · ❯ ' + (group.prompt.length > 60 ? group.prompt.slice(0, 60) + '…' : group.prompt) : ''}</div>
           {/if}
           {#each group.snippets as snippet, i (i)}
-            {#if snippet.type === 'code'}
+            {#if snippet.type === 'link'}
+              <div class="agent-inline agent-inline-link">
+                <button type="button" class="agent-url" title={snippet.url} on:click={() => openUrl(snippet.url)}>{snippet.label || snippet.url}</button>
+                {#if snippet.label}<span class="agent-url-host">{snippet.url.replace(/^https?:\/\//, '').split('/')[0]}</span>{/if}
+                <button type="button" class="agent-link" on:click={() => copyText(snippet.url)}>{$t('agentPanel.copy')}</button>
+                <button type="button" class="agent-link" on:click={() => openUrl(snippet.url)}>{$t('agentPanel.openLink')}</button>
+              </div>
+            {:else if snippet.type === 'code'}
               <div class="agent-code">
                 <div class="agent-code-bar">
                   <span class="agent-code-lang">{snippet.lang || 'code'}</span>
@@ -938,4 +956,8 @@
   .agent-exit-ok { color: #7ee787; }
   .agent-exit-fail { color: #f85149; }
   .agent-panel-footer { padding: 4px 10px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 14px; }
+  .agent-inline-link { align-items: center; }
+  .agent-url { background: none; border: 0; padding: 0; color: #63b3ed; font: inherit; text-align: left; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+  .agent-url:hover { text-decoration: underline; }
+  .agent-url-host { color: var(--text-muted); font-size: 0.7rem; white-space: nowrap; }
 </style>
