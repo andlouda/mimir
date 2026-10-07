@@ -563,7 +563,12 @@ func (a *App) GetAgentTranscriptJSON(terminalID int, terminalType string, limit 
 	}
 	// state.cwd may be empty for terminals without tmux before the first
 	// prompt beacon; the lookup then falls back to the newest session.
-	paneText, _ := a.capturePane(terminalID, terminalType)
+	// The pane capture only serves to pick among candidates: a bound or
+	// pinned session needs none (it spawned tmux on every refresh).
+	paneText := ""
+	if state.effectiveSessionFile() == "" {
+		paneText, _ = a.capturePane(terminalID, terminalType)
+	}
 
 	transcript, err := a.readAgentTranscriptFile(terminalID, state, agents.ReadOptions{Limit: limit, PaneText: paneText})
 	if err != nil {

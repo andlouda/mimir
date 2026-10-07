@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -160,24 +161,29 @@ func ReadTranscript(fs FS, kind Kind, home, cwd string, opts ReadOptions) (Trans
 	return best, nil
 }
 
+// Parsed sessions are cached per file by size and mtime: the agent panel
+// refreshes every few seconds and candidate ranking parses up to three
+// files, each a multi-megabyte JSON tail. Without the cache that was the
+// backend's main CPU cost with several agents open.
+const parsedCacheMax = 16
+
+var (
+	parsedMu    sync.Mutex
+	parsedCache = map[string]parsedEntry{}
+)
+
+type parsedEntry struct {
+	size    int64
+	modTime time.Time
+	session Session
+	trunc   bool
+	used    time.Time
+}
+
 func readOne(fs FS, kind Kind, label, file, cwd string, limit int) (Transcript, error) {
-	data, err := fs.ReadTail(file, transcriptTailBytes)
+	session, truncated, err := parseCached(fs, kind, file)
 	if err != nil {
 		return Transcript{}, err
-	}
-	truncated := int64(len(data)) >= transcriptTailBytes
-	if truncated {
-		// Drop the partial first line.
-		if i := strings.IndexByte(string(data), '\n'); i >= 0 {
-			data = data[i+1:]
-		}
-	}
-	var session Session
-	switch kind {
-	case KindClaude:
-		session = ParseClaudeSession(data)
-	case KindCodex:
-		session = ParseCodexSession(data)
 	}
 	messages := session.Messages
 	if len(messages) > limit {
@@ -206,6 +212,74 @@ func readOne(fs FS, kind Kind, label, file, cwd string, limit int) (Transcript, 
 		Tasks:       session.Tasks,
 		Meta:        session.Meta,
 	}, nil
+}
+
+// parseCached returns the parsed tail of file, re-reading only when the
+// file's size or mtime changed.
+func parseCached(fs FS, kind Kind, file string) (Session, bool, error) {
+	info, statErr := fs.Stat(file)
+	key := string(kind) + "|" + file
+	if statErr == nil {
+		parsedMu.Lock()
+		if e, ok := parsedCache[key]; ok && e.size == info.Size && e.modTime.Equal(info.ModTime) {
+			e.used = time.Now()
+			parsedCache[key] = e
+			parsedMu.Unlock()
+			return cloneSession(e.session), e.trunc, nil
+		}
+		parsedMu.Unlock()
+	}
+	session, truncated, err := readAndParse(fs, kind, file)
+	if err != nil {
+		return Session{}, false, err
+	}
+	if statErr == nil {
+		parsedMu.Lock()
+		if len(parsedCache) >= parsedCacheMax {
+			oldest, oldestAt := "", time.Time{}
+			for k, e := range parsedCache {
+				if oldest == "" || e.used.Before(oldestAt) {
+					oldest, oldestAt = k, e.used
+				}
+			}
+			delete(parsedCache, oldest)
+		}
+		parsedCache[key] = parsedEntry{size: info.Size, modTime: info.ModTime, session: session, trunc: truncated, used: time.Now()}
+		parsedMu.Unlock()
+	}
+	return cloneSession(session), truncated, nil
+}
+
+// cloneSession copies the slices callers trim or extend.
+func cloneSession(s Session) Session {
+	c := s
+	c.Messages = append([]Message(nil), s.Messages...)
+	c.Files = append([]FileActivity(nil), s.Files...)
+	c.Commands = append([]CommandRun(nil), s.Commands...)
+	c.Tasks = append([]Task(nil), s.Tasks...)
+	return c
+}
+
+func readAndParse(fs FS, kind Kind, file string) (Session, bool, error) {
+	data, err := fs.ReadTail(file, transcriptTailBytes)
+	if err != nil {
+		return Session{}, false, err
+	}
+	truncated := int64(len(data)) >= transcriptTailBytes
+	if truncated {
+		// Drop the partial first line.
+		if i := strings.IndexByte(string(data), '\n'); i >= 0 {
+			data = data[i+1:]
+		}
+	}
+	var session Session
+	switch kind {
+	case KindClaude:
+		session = ParseClaudeSession(data)
+	case KindCodex:
+		session = ParseCodexSession(data)
+	}
+	return session, truncated, nil
 }
 
 func lastAssistant(messages []Message) string {

@@ -286,3 +286,39 @@ func TestListSessionsAndPin(t *testing.T) {
 		t.Fatalf("pinned read: %+v (%v)", tr, err)
 	}
 }
+
+func TestParsedTailCacheFollowsSizeAndMtime(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "s.jsonl")
+	rec := func(text string) string {
+		return `{"type":"assistant","timestamp":"2026-10-07T10:00:00Z","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"` + text + `"}]}}` + "\n"
+	}
+	if err := os.WriteFile(file, []byte(rec("one")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fs := LocalFS{}
+	tr, err := readOne(fs, KindClaude, "Claude", file, "/p", 10)
+	if err != nil || len(tr.Messages) != 1 || tr.Messages[0].Text != "one" {
+		t.Fatalf("first read: %+v %v", tr, err)
+	}
+	// Same size and mtime: the cache answers, even though the bytes changed.
+	info, _ := os.Stat(file)
+	_ = os.WriteFile(file, []byte(rec("two")), 0o600)
+	_ = os.Chtimes(file, info.ModTime(), info.ModTime())
+	tr, _ = readOne(fs, KindClaude, "Claude", file, "/p", 10)
+	if tr.Messages[0].Text != "one" {
+		t.Fatalf("unchanged size+mtime must hit the cache, got %q", tr.Messages[0].Text)
+	}
+	// A longer file is re-read.
+	_ = os.WriteFile(file, []byte(rec("one")+rec("three")), 0o600)
+	tr, _ = readOne(fs, KindClaude, "Claude", file, "/p", 10)
+	if len(tr.Messages) != 2 || tr.Messages[1].Text != "three" {
+		t.Fatalf("changed file must be re-read, got %+v", tr.Messages)
+	}
+	// Callers trimming the slices must not alter the cached copy.
+	tr.Messages[0].Text = "mutated"
+	tr2, _ := readOne(fs, KindClaude, "Claude", file, "/p", 10)
+	if tr2.Messages[0].Text != "one" {
+		t.Fatal("cache entry must not be shared with callers")
+	}
+}
