@@ -38,6 +38,24 @@ export function clearHoveredLink(terminalId) {
 }
 
 /**
+ * xterm linkHandler for OSC 8 hyperlinks (text with a hidden URL, as
+ * Claude Code prints "!311" for a merge request). Without a handler xterm
+ * shows such text as plain text. Same rules as visible URLs: underline on
+ * hover, Ctrl/Cmd+click opens, http(s) only; the context menu sees it too.
+ * tmux passes OSC 8 through from version 3.4 on.
+ */
+export function createHyperlinkHandler(terminalId, { open = openUrl } = {}) {
+  return {
+    allowNonHttpProtocols: false,
+    activate: (event, uri) => {
+      if (event?.ctrlKey || event?.metaKey) open(uri);
+    },
+    hover: (_event, uri) => hovered.set(terminalId, uri),
+    leave: () => hovered.delete(terminalId),
+  };
+}
+
+/**
  * Creates an xterm link provider for one terminal; register it with
  * terminal.registerLinkProvider() and dispose the result on cleanup.
  */
