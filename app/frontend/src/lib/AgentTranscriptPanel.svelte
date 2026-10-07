@@ -208,7 +208,9 @@
   $: insertTitle = insertTarget ? $t('agentPanel.insertInto', { name: insertTarget.name }) : '';
   $: if (terminalId !== loadedFor) { loadedFor = terminalId; resetFor(); refresh(); }
   $: if (agent?.kind === 'claude' && hookHintFor !== terminalId) { hookHintFor = terminalId; hook = null; loadHook(); }
-  $: hookHintVisible = agent?.kind === 'claude' && hook && !hook.installed && !hook.error && !hookDismissed.has(terminalId);
+  // Missing or outdated: both get the hint; the old hook form cannot bind
+  // sessions to panes and shows the wrong session in shared directories.
+  $: hookHintVisible = agent?.kind === 'claude' && hook && (!hook.installed || hook.outdated) && !hook.error && !hookDismissed.has(terminalId);
 
   async function loadHook() {
     try { hook = await loadClaudeHookStatus(terminalId); } catch { hook = null; }
@@ -530,8 +532,8 @@
   {/if}
   {#if hookHintVisible}
     <p class="agent-panel-hint agent-panel-hook">
-      <span>{$t('agentPanel.hookHint')}</span>
-      <button type="button" class="agent-btn" on:click={installHook} disabled={hookBusy}>{hookBusy ? '…' : $t('agentPanel.hookInstall')}</button>
+      <span>{hook?.outdated ? $t('agentPanel.hookOutdatedHint') : $t('agentPanel.hookHint')}</span>
+      <button type="button" class="agent-btn" on:click={installHook} disabled={hookBusy}>{hookBusy ? '…' : (hook?.outdated ? $t('agentPanel.hookUpdate') : $t('agentPanel.hookInstall'))}</button>
       <button type="button" class="agent-btn" on:click={() => { hookDismissed.add(terminalId); hookHintVisible = false; }} title={$t('agentPanel.hookDismiss')}>&#x2715;</button>
     </p>
   {/if}

@@ -99,9 +99,17 @@ func deriveClaudeState(tail []byte) StateInfo {
 			if text := claudeTextContent(rec.Message.Content, false); text != "" {
 				lastText, lastTextAt = text, rec.Timestamp
 			}
-			if hasTool {
+			// Claude Code writes a turn as several assistant records: text
+			// or thinking first, then the tool call, each carrying the
+			// turn's stop reason. A text record with stop_reason tool_use is
+			// not the end of the turn; treating it as such flipped the
+			// state to idle for a second and sent a false "done".
+			switch {
+			case hasTool || rec.Message.StopReason == "tool_use":
 				last = "tool"
-			} else if len(blocks) > 0 || len(rec.Message.Content) > 0 {
+			case rec.Message.StopReason != "":
+				last = "answer"
+			case len(blocks) > 0 || len(rec.Message.Content) > 0:
 				last = "answer"
 			}
 			info.LastAt = rec.Timestamp

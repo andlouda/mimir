@@ -863,6 +863,8 @@ export default {
     noMatches: 'Keine Treffer',
   },
   agentPanel: {
+    hookOutdatedHint: 'Der Mimir-Hook auf diesem Host ist eine ältere Version: er kann Sessions keiner Pane zuordnen und zeigt bei mehreren Sessions im selben Verzeichnis die falsche. Bitte aktualisieren.',
+    hookUpdate: 'Hook aktualisieren',
     tabSessions: 'Sessions',
     sessionsTitle: 'Claude-Sessions auf diesem Rechner',
     sessionsHint: 'Frühere Sessions, neueste zuerst; die, die eine Pane zeigt, fehlen hier. Öffnen startet ein neues Terminal im Verzeichnis der Session mit claude --resume.',

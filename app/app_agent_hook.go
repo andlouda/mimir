@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -300,6 +301,39 @@ func (a *App) hookStatusFrom(source string, fs hookFS, home string, cleanup func
 func marshalHookStatus(s claudeHookStatus) string {
 	b, _ := json.Marshal(s)
 	return string(b)
+}
+
+// upgradeOutdatedClaudeHooks rewrites an installed but outdated hook set
+// on the hosts Mimir can reach without a terminal (local, WSL). An old
+// form (Notification only, event files without the agent pid) cannot
+// bind sessions to panes and attributes prompts by newest file, which
+// shows the wrong session when several run in one directory. The user
+// opted into the hook once; keeping it current is part of that.
+func (a *App) upgradeOutdatedClaudeHooks() {
+	hosts := []string{"local"}
+	if runtime.GOOS == "windows" {
+		if _, _, err := wslHomeUNC(); err == nil {
+			hosts = append(hosts, "wsl")
+		}
+	}
+	for _, host := range hosts {
+		source, fs, home, cleanup, err := a.hookTargetSource(0, host)
+		if err != nil {
+			continue
+		}
+		data, rerr := readSettings(fs, claudeSettingsPath(fs, home))
+		outdated := rerr == nil && agents.HasClaudeHook(data) && !agents.HookUpToDate(data)
+		cleanup()
+		if !outdated {
+			continue
+		}
+		if err := a.installClaudeHook(a.hookTargetSource(0, source)); err != nil {
+			log.Printf("claude hook on %s is outdated and could not be refreshed: %v", source, err)
+			continue
+		}
+		log.Printf("claude hook on %s refreshed to the current form", source)
+		logAgentEvent("claude_hook_upgraded", source)
+	}
 }
 
 // InstallClaudeHook adds Mimir's Notification hook to Claude Code's
