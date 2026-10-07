@@ -19,13 +19,14 @@
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
   import AgentScreenMirror from './AgentScreenMirror.svelte';
-  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneScreen, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, rerenderClaudeNow, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation } from './actions/agentActions.js';
+  import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneScreen, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, rerenderClaudeNow, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation, loadOfflineSessions, deleteOfflineSession, resumeCommand, lastUsedText } from './actions/agentActions.js';
+  import { addTerminal } from './actions/terminalActions.js';
 
   export let terminalId;
 
   const REFRESH_WORKING_MS = 6000;
   const MESSAGE_LIMIT = 24;
-  const ALL_TABS = ['snippets', 'summary', 'tasks', 'files', 'commands', 'processes', 'history', 'screen'];
+  const ALL_TABS = ['snippets', 'summary', 'tasks', 'files', 'commands', 'processes', 'history', 'sessions', 'screen'];
   const PROCESS_REFRESH_MS = 5000;
 
   let transcript = null;
@@ -103,10 +104,50 @@
   let procsTimer = null;
   let now = Date.now();
   let clock = null;
-  $: if (agent?.status === 'working' && agent?.activity && !clock) clock = setInterval(() => { now = Date.now(); }, 1000);
-  $: if (!(agent?.status === 'working' && agent?.activity) && clock) { clearInterval(clock); clock = null; }
+  $: needClock = (agent?.status === 'working' && agent?.activity) || view === 'sessions';
+  $: if (needClock && !clock) clock = setInterval(() => { now = Date.now(); }, view === 'sessions' ? 30000 : 1000);
+  $: if (!needClock && clock) { clearInterval(clock); clock = null; }
   $: activityLine = agent?.status === 'working' && agent?.activity ? `${agent.activity}${elapsedSince(agent.activityAt, now) ? ' · ' + elapsedSince(agent.activityAt, now) : ''}` : '';
   $: if (view === 'processes') scheduleProcs(); else stopProcs();
+
+  // Sessions tab: Claude sessions on this machine that no pane shows,
+  // to open one again (claude --resume in a new terminal) or delete it.
+  let offline = null;
+  let offlineLoading = false;
+  let offlineError = '';
+  let confirmDeleteFile = null;
+  $: if (view === 'sessions' && offline === null && !offlineLoading) refreshOffline();
+  $: liveFiles = new Set(Object.values($agentStates).map((a) => a.sessionFile).filter(Boolean));
+  $: offlineRows = (offline || []).filter((s) => !liveFiles.has(s.file) && s.file !== transcript?.sessionFile);
+  async function refreshOffline() {
+    offlineLoading = true;
+    try { offline = await loadOfflineSessions(80); offlineError = ''; } catch (e) { offlineError = String(e?.message || e); offline = []; } finally { offlineLoading = false; }
+  }
+  function folderName(cwd) {
+    const parts = String(cwd || '').split(/[\\/]/).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
+  }
+  async function openOffline(s) {
+    const localTypes = ['bash', 'zsh', 'wsl', 'powershell', 'cmd'];
+    const type = localTypes.includes(term?.type) ? term.type : 'bash';
+    try {
+      await addTerminal(type, (s.title || 'Claude').slice(0, 40), false, s.cwd || '', { runCommand: resumeCommand(s) });
+      flash($t('agentPanel.sessionOpened'));
+    } catch (e) {
+      error = String(e?.message || e);
+    }
+  }
+  async function removeOffline(s) {
+    try {
+      await deleteOfflineSession(s.file);
+      offline = (offline || []).filter((x) => x.file !== s.file);
+      flash($t('agentPanel.sessionDeleted'));
+    } catch (e) {
+      error = String(e?.message || e);
+    } finally {
+      confirmDeleteFile = null;
+    }
+  }
 
   async function refreshProcs() {
     if (procsLoading) return;
@@ -319,7 +360,7 @@
   function showView(next) {
     view = next;
     if (next === 'screen' && !pane) refreshPane();
-    else if (next !== 'screen' && !transcript) refresh();
+    else if (next !== 'screen' && next !== 'sessions' && !transcript) refresh();
     if (next === 'files' && !git) refreshGit();
   }
 
@@ -424,6 +465,7 @@
       case 'processes': return $t('agentPanel.tabProcesses') + (procs?.processes?.length > 1 ? ` (${procs.processes.length})` : '');
       case 'summary': return $t('agentPanel.tabSummary');
       case 'history': return $t('agentPanel.tabHistory');
+      case 'sessions': return $t('agentPanel.tabSessions') + (offline && offlineRows.length ? ` (${offlineRows.length})` : '');
       default: return $t('agentPanel.viewScreen');
     }
   }
@@ -520,6 +562,35 @@
         <p class="agent-panel-hint">{$t('agentPanel.loading')}</p>
       {/if}
 
+    {:else if view === 'sessions'}
+      <div class="agent-section-head">
+        <span>{$t('agentPanel.sessionsTitle')}</span>
+        <button type="button" class="agent-link" on:click={refreshOffline} disabled={offlineLoading}>{offlineLoading ? '…' : $t('agentPanel.gitReload')}</button>
+      </div>
+      <p class="agent-panel-hint">{$t('agentPanel.sessionsHint')}</p>
+      {#if agent?.source && agent.source !== 'local'}
+        <p class="agent-panel-hint agent-panel-warn">{$t('agentPanel.sessionsLocalOnly')}</p>
+      {/if}
+      {#if offlineError}
+        <p class="agent-panel-error">{offlineError}</p>
+      {:else if offline && offlineRows.length === 0}
+        <p class="agent-panel-hint">{$t('agentPanel.sessionsEmpty')}</p>
+      {/if}
+      {#each offlineRows as s (s.file)}
+        <div class="agent-row agent-session-row" title={[s.title, s.cwd, s.id].filter(Boolean).join('\n')}>
+          <span class="agent-session-main">
+            <span class="agent-session-title">{s.title || s.id}</span>
+            <span class="agent-row-dim">{folderName(s.cwd)}{folderName(s.cwd) ? ' · ' : ''}{lastUsedText(s.modified, now)}</span>
+          </span>
+          <button type="button" class="agent-link" on:click={() => openOffline(s)} title={$t('agentPanel.sessionOpenTitle')}>{$t('agentPanel.sessionOpen')}</button>
+          {#if confirmDeleteFile === s.file}
+            <button type="button" class="agent-link agent-link-danger" on:click={() => removeOffline(s)}>{$t('agentPanel.sessionDeleteConfirm')}</button>
+            <button type="button" class="agent-link" on:click={() => { confirmDeleteFile = null; }}>✕</button>
+          {:else}
+            <button type="button" class="agent-link agent-link-danger" on:click={() => { confirmDeleteFile = s.file; }} title={$t('agentPanel.sessionDelete')}>{$t('agentPanel.sessionDeleteShort')}</button>
+          {/if}
+        </div>
+      {/each}
     {:else if !transcript && loading}
       <p class="agent-panel-hint">{$t('agentPanel.loading')}</p>
     {:else if !transcript}
@@ -841,6 +912,9 @@
   .agent-inline code { font-family: var(--font-mono); font-size: 11px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agent-section-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-top: 4px; }
   .agent-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px solid var(--border-subtle); }
+  .agent-session-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .agent-session-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agent-link-danger { color: #f87171; }
   .agent-row-main { font-family: var(--font-mono); font-size: 11px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .agent-row-dim { color: var(--text-secondary); font-size: 10px; white-space: nowrap; }
   .agent-ops { display: inline-flex; gap: 2px; flex-shrink: 0; }

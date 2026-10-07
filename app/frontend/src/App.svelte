@@ -42,7 +42,7 @@
   import { addTerminal, splitTerminal, removeTerminal, toggleRecording, reconnectSSH, toggleMinimize, startEditingName, saveTerminalName, handleResize, reinitializeTerminals, createTerminalInstance, cleanupTerminalResources } from './lib/actions/terminalActions.js';
   import { persistTerminalState, scheduleSessionSave, loadTranscriptExcerpt, clearSessionSaveTimer, layoutKeyFor, enableLayoutPersistence } from './lib/actions/sessionActions.js';
   import { applyTerminalBackground } from './lib/actions/backgroundActions.js';
-  import { resumeCommand } from './lib/actions/agentActions.js';
+  import {} from './lib/actions/agentActions.js';
   import { parseBackground } from './lib/terminals/background.js';
 
   const isWindowsPlatform = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
@@ -144,14 +144,7 @@
     });
   }
 
-  // Sidebar: an offline Claude session is opened in a new local terminal in
-  // its directory, running `claude --resume <id>`.
-  async function openOfflineSession(session) {
-    const type = ['bash', 'zsh', 'wsl', 'powershell', 'cmd'].includes(selectedTerminalType) ? selectedTerminalType : 'bash';
-    const name = (session.title || 'Claude').slice(0, 40);
-    await doAddTerminal(type, name, false, session.cwd || '', resumeCommand(session));
-    if ($currentPage !== 'terminals') await openPage('terminals');
-  }
+
 
   function openTranscriptViewer(id) {
     const term = $terminals.find((t) => t.id === id);
@@ -631,7 +624,6 @@
     assignTerminalToFolder={assignTerminalToFolder}
     toggleTerminalFolder={toggleTerminalFolder}
     selectTerminal={selectSidebarTerminal}
-    openOfflineSession={openOfflineSession}
     connectSSHProfile={connectSSHProfile}
     onResize={handleResize}
     openTranscripts={openTranscriptBrowser}
@@ -639,7 +631,6 @@
 
   <AppMainContent
     selectTerminal={selectSidebarTerminal}
-    openOfflineSession={openOfflineSession}
     bind:currentPage={$currentPage}
     {availableTerminalTypes}
     bind:selectedTerminalType
