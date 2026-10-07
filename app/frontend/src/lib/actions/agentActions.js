@@ -218,7 +218,7 @@ export async function rerenderClaudeNow(id) {
   const agent = get(agentStates)[id];
   if (!agent || agent.kind !== 'claude') throw new Error('no Claude Code in this pane');
   if (agent.status === 'working') throw new Error('Claude is still answering');
-  if (agent.prompt) throw new Error('Claude is waiting for an approval');
+  if (agent.prompt === 'permission_prompt') throw new Error('Claude is waiting for an approval');
   return app()['RerenderClaudeInPane'](id, terminalType(id));
 }
 
