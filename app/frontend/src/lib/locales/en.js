@@ -395,6 +395,8 @@ export default {
     },
   },
   sshProfile: {
+    agentHost: 'Agent host: look for Claude Code & co. in these terminals',
+    agentHostTitle: 'Only with this on does Mimir probe the host for coding agents and read their session files over SFTP (nothing is installed there). Off: a plain terminal.',
     titleList: 'SSH Profiles',
     titleNew: 'New SSH Profile',
     titleEdit: 'Edit SSH Profile',

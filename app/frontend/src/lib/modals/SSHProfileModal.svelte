@@ -31,6 +31,7 @@
     jumpKeyPath: '',
     jumpPassword: '',
     useTmux: true,
+    agentHost: false,
     rcMode: 'off',
     rcSnippet: '~/.bashrc',
   });
@@ -58,6 +59,7 @@
         jumpKeyPath: profile.jumpKeyPath || '',
         jumpPassword: '',
         useTmux: profile.useTmux !== false,
+        agentHost: Boolean(profile.agentHost),
         rcMode: profile.rcMode || 'off',
         rcSnippet: profile.rcSnippet || '~/.bashrc',
       };
@@ -102,6 +104,7 @@
         jumpAuthMethod: form.jumpHostEnabled ? form.jumpAuthMethod : 'password',
         jumpKeyPath: form.jumpHostEnabled && form.jumpAuthMethod === 'key' ? form.jumpKeyPath : '',
         useTmux: Boolean(form.useTmux),
+        agentHost: Boolean(form.agentHost),
         rcMode: form.rcMode || 'off',
         rcSnippet: form.rcMode === 'local-snippet' ? form.rcSnippet : '',
       };
@@ -290,6 +293,10 @@
           <label class="ssh-toggle-row">
             <input type="checkbox" bind:checked={form.useTmux} />
             <span>{$t('sshProfile.useTmux')}</span>
+          </label>
+          <label class="ssh-toggle-row" title={$t('sshProfile.agentHostTitle')}>
+            <input type="checkbox" bind:checked={form.agentHost} />
+            <span>{$t('sshProfile.agentHost')}</span>
           </label>
           <label>
             <span>{$t('sshProfile.rcMode')}</span>

@@ -395,6 +395,8 @@ export default {
     },
   },
   sshProfile: {
+    agentHost: 'Agent-Host: in diesen Terminals nach Claude Code & Co. suchen',
+    agentHostTitle: 'Nur damit sucht Mimir auf dem Host nach Coding-Agents und liest ihre Session-Dateien per SFTP (installiert wird dort nichts). Aus: ein normales Terminal.',
     titleList: 'SSH-Profile',
     titleNew: 'Neues SSH-Profil',
     titleEdit: 'SSH-Profil bearbeiten',

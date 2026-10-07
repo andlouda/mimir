@@ -451,12 +451,26 @@ func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (s
 	return string(payload), nil
 }
 
+// sshAgentHost reports whether the SSH pane's profile opted into agent
+// detection. Not every SSH session is an agent session.
+func (a *App) sshAgentHost(terminalID int) bool {
+	meta := a.TerminalManager.GetSSHMeta(terminalID)
+	if meta == nil || a.sshProfileStore == nil {
+		return false
+	}
+	profile, ok := a.sshProfileStore.Get(meta.ProfileID)
+	return ok && profile.AgentHost
+}
+
 func (a *App) detectAgent(terminalID int, terminalType string) agentDetectionResult {
 	source := "local"
 	if a.TerminalManager.GetSSHClient(terminalID) != nil {
 		source = "ssh"
 	} else if strings.EqualFold(strings.TrimSpace(terminalType), "wsl") {
 		source = "wsl"
+	}
+	if source == "ssh" && !a.sshAgentHost(terminalID) {
+		return agentDetectionResult{Source: source, Reason: "agent detection is off for this SSH profile (enable \"Agent host\" in the profile)"}
 	}
 	if source != "ssh" && !a.TerminalManager.GetTerminalRuntimeMeta(terminalID).TmuxActive {
 		return a.detectWithoutTmux(terminalID, source)
