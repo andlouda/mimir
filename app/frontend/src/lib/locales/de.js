@@ -124,6 +124,10 @@ export default {
         title: 'Inaktive Panes gebündelt zeichnen',
         desc: 'Sichtbare, aber nicht aktive Panes werden zehnmal pro Sekunde gezeichnet statt bei jedem Ausgabe-Happen. Mehrere Agents, die gleichzeitig ihr Bild neu zeichnen, hielten den Webview mit Rendern beschäftigt; die aktive Pane wird immer sofort gezeichnet, beim Wechsel erscheint zuerst der Rückstand.',
       },
+      paneResources: {
+        title: 'CPU und Speicher pro Pane',
+        desc: 'Zeigt oben rechts in jeder lokalen Pane, was ihr Prozessbaum verbraucht: CPU-Anteil (100 = ein Kern) und belegter Speicher, alle 3 Sekunden gemessen. SSH-Panes sind nicht erfasst, ihre Prozesse laufen woanders.',
+      },
       tmuxMode: {
         title: 'tmux-Integration',
         invisible: 'Unsichtbar (empfohlen)',
@@ -472,6 +476,7 @@ export default {
     close: 'Schließen',
   },
   splitPane: {
+    resourcesTitle: 'CPU und Speicher der Prozesse dieser Pane ({procs} Prozesse)',
     tmuxInvisible: 'unsichtbar (Maus bei Mimir)',
     tmuxClassic: 'klassisch (Maus bei tmux)',
     ctxSendToAgent: 'An Agent senden',

@@ -108,6 +108,16 @@ export const uiBlink = (() => {
   };
 })();
 
+// CPU and memory overlay in each pane's top-right corner; on by default.
+const PANE_RESOURCES_KEY = 'mimir-pane-resources';
+function initialPaneResourceOverlay() {
+  try { return localStorage.getItem(PANE_RESOURCES_KEY) !== 'off'; } catch { return true; }
+}
+export const paneResourceOverlay = writable(initialPaneResourceOverlay());
+paneResourceOverlay.subscribe((on) => {
+  try { localStorage.setItem(PANE_RESOURCES_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
+});
+
 // Draw inactive panes in batches (see terminals/outputThrottle.js); on by default.
 const INACTIVE_THROTTLE_KEY = 'mimir-inactive-pane-throttle';
 function initialInactiveThrottle() {

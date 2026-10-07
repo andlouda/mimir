@@ -141,6 +141,8 @@ export function IsWaylandSession():Promise<boolean>;
 
 export function UpdateSessionLayout(arg1:string):Promise<void>;
 
+export function GetPaneResourcesJSON(arg1:string):Promise<string>;
+
 export function RerenderClaudeInPane(arg1:number,arg2:string):Promise<string>;
 
 export function ListOfflineClaudeSessionsJSON(arg1:number):Promise<string>;
