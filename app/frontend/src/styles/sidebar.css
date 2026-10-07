@@ -265,7 +265,6 @@
   .sidebar-agent-count { position: absolute; right: 6px; top: 4px; min-width: 14px; padding: 0 4px; border-radius: 999px; font-size: 0.6rem; line-height: 14px; text-align: center; background: rgba(99, 179, 237, 0.25); color: #63b3ed; }
   .sidebar-agent-count-attention { background: rgba(126, 231, 135, 0.3); color: #7ee787; }
   .collapsed-icon { position: relative; }
-  @keyframes sidebar-agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
   .sidebar-list li {
     margin: 0;

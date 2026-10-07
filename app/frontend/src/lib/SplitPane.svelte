@@ -1,6 +1,6 @@
 <script>
   import { registerOverlay, isGlobalShortcut } from './actions/keyboardShortcuts.js';
-  import { zoomTerminalFont } from './stores/uiStore.js';
+  import { zoomTerminalFont, uiBlink } from './stores/uiStore.js';
   import { agentStates } from './stores/agentStore.js';
   import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
   import TerminalBackgroundDialog from './TerminalBackgroundDialog.svelte';
@@ -385,7 +385,7 @@
               title={agentBadgeTitle(agent)}
               on:click|stopPropagation={() => dispatch('openagent', term.id)}
             >
-              <span class="agent-badge-dot"></span><span class="agent-badge-text">{agent.short || agent.label}{#if agent.status === 'permission'} · {$t('splitPane.agentPermission')}{:else if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}</span>
+              <span class="agent-badge-dot" class:dim={$uiBlink}></span><span class="agent-badge-text">{agent.short || agent.label}{#if agent.status === 'permission'} · {$t('splitPane.agentPermission')}{:else if agent.status === 'working'} · {$t('splitPane.agentWorking')}{:else if agent.attention} · {$t('splitPane.agentDone')}{/if}</span>
             </button>
           {/if}
           {#if term.type === 'ssh'}
@@ -431,7 +431,7 @@
               <line x1="4" y1="8" x2="6.5" y2="8" stroke="currentColor" stroke-width="1"/>
             </svg>
           </button>
-          <button class="header-btn record-btn" class:recording={term.recording}
+          <button class="header-btn record-btn" class:recording={term.recording} class:dim={term.recording && $uiBlink}
             on:click|stopPropagation={() => dispatch('togglerecording', node.terminalId)}
             title={term.recording ? $t('splitPane.stopRecording') : $t('splitPane.startRecording')}>&#x23FA;</button>
           <button class="header-btn split-btn" on:click|stopPropagation={() => dispatch('split', { id: node.terminalId, direction: 'horizontal' })} title={$t('splitPane.splitRight')}>
@@ -853,12 +853,10 @@
   .tmux-badge, .rc-badge, .restore-badge { flex-shrink: 0; }
   .agent-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .agent-badge-working { color: #e3b341; background: rgba(227, 179, 65, 0.12); border-color: rgba(227, 179, 65, 0.32); }
-  .agent-badge-working .agent-badge-dot { animation: agent-pulse 1.2s ease-in-out infinite; }
   .agent-badge-permission { color: #ff7b72; background: rgba(255, 123, 114, 0.14); border-color: rgba(255, 123, 114, 0.6); box-shadow: 0 0 0 2px rgba(255, 123, 114, 0.22); }
-  .agent-badge-permission .agent-badge-dot { animation: agent-pulse 0.9s ease-in-out infinite; }
   .agent-badge-attention { color: #7ee787; background: rgba(126, 231, 135, 0.14); border-color: rgba(126, 231, 135, 0.6); box-shadow: 0 0 0 2px rgba(126, 231, 135, 0.25); }
-  .agent-badge-attention .agent-badge-dot { animation: agent-pulse 1.4s ease-in-out infinite; }
-  @keyframes agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  /* No CSS animation here on purpose (see uiBlink in stores/uiStore.js). */
+  .agent-badge-dot.dim { opacity: 0.25; }
 
   .tmux-badge-warning {
     background: rgba(227, 179, 65, 0.14);
@@ -1164,11 +1162,9 @@
 
   .record-btn.recording {
     color: #e53e3e;
-    animation: pulse-record 1.5s infinite;
+  }
+  .record-btn.recording.dim {
+    opacity: 0.4;
   }
 
-  @keyframes pulse-record {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
 </style>

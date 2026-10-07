@@ -205,6 +205,15 @@ export default {
         missingDesc: 'agg herunterladen um Recordings als GIF zu exportieren.',
         incompatibleDesc: 'Gebündeltes agg ist inkompatibel mit deinem System. Installiere agg über deinen Paketmanager (z.B. cargo install agg).',
       },
+      diagnostics: {
+        title: 'Diagnose',
+        desc: 'Live-Werte, solange diese Karte offen ist. „Hauptthread beschäftigt“ ist der Zeitanteil, den der UI-Thread mit Skript, Layout und Zeichnen verbringt; Ausgabe ist, was die Terminals empfangen; Zeichenvorgänge sind die in xterm geschriebenen Bündel. „Laufende Animationen“ sollte 0 sein, wenn sich nichts bewegt.',
+        busy: 'Hauptthread beschäftigt',
+        events: 'Terminal-Ausgabe',
+        writes: 'Zeichenvorgänge in Panes',
+        panes: 'Angebundene Panes',
+        animations: 'Laufende Animationen',
+      },
       updates: {
         title: 'Updates',
         defaultDesc: 'GitHub Releases prüfen und passenden Download anzeigen.',

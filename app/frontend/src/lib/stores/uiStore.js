@@ -88,6 +88,26 @@ export const claudeRerenderOnWiden = writable(initialClaudeRerender());
 claudeRerenderOnWiden.subscribe((on) => {
   try { localStorage.setItem(CLAUDE_RERENDER_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
 });
+// Slow shared blink for status dots. An infinite CSS animation, even on a
+// 6 px dot, keeps WebKitGTK's compositor redrawing the whole window at
+// display rate for as long as any agent works; a class toggled 1.4 times
+// a second costs a small repaint instead. Ticks only while subscribed.
+export const uiBlink = (() => {
+  let timer = null;
+  let subscribers = 0;
+  const { subscribe, update, set } = writable(false);
+  return {
+    subscribe(run, invalidate) {
+      if (subscribers++ === 0) timer = setInterval(() => update((v) => !v), 700);
+      const unsub = subscribe(run, invalidate);
+      return () => {
+        unsub();
+        if (--subscribers === 0) { clearInterval(timer); timer = null; set(false); }
+      };
+    },
+  };
+})();
+
 // Draw inactive panes in batches (see terminals/outputThrottle.js); on by default.
 const INACTIVE_THROTTLE_KEY = 'mimir-inactive-pane-throttle';
 function initialInactiveThrottle() {
