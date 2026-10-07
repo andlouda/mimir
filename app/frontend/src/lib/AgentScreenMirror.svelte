@@ -6,6 +6,7 @@
   import { Terminal } from '@xterm/xterm';
   import { XTERM_THEME } from './actions/terminalActions.js';
   import { terminalFontSize } from './stores/uiStore.js';
+  import { createLinkProvider, openUrl } from './terminals/terminalLinks.js';
 
   export let text = '';
   export let width = 80;
@@ -30,8 +31,20 @@
       lineHeight: 1.2,
       theme: XTERM_THEME,
       allowProposedApi: true,
+      // OSC 8 hyperlinks: xterm's default asks "navigate to …?" and then
+      // calls window.open, which does nothing in the webview. Open them
+      // through the backend like the panes do (http(s) only).
+      linkHandler: { activate: (_event, uri) => { openUrl(uri); } },
     });
     term.open(host);
+    // Plain URLs in the text: same detection as the panes, but the mirror
+    // is read-only, so a plain click opens (no Ctrl needed).
+    const base = createLinkProvider(`screen:${Math.random()}`, term, { open: openUrl });
+    term.registerLinkProvider({
+      provideLinks(y, callback) {
+        base.provideLinks(y, (links) => callback(links ? links.map((l) => ({ ...l, activate: (_e, text) => openUrl(text) })) : undefined));
+      },
+    });
   }
 
   function render() {
