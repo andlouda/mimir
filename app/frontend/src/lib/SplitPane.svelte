@@ -1,11 +1,11 @@
 <script>
   import { registerOverlay, isGlobalShortcut } from './actions/keyboardShortcuts.js';
-  import { zoomTerminalFont, uiBlink, paneResourceOverlay } from './stores/uiStore.js';
+  import { zoomTerminalFont, uiBlink, paneResourceOverlay, paneResourceScale } from './stores/uiStore.js';
   import { agentStates } from './stores/agentStore.js';
   import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
   import TerminalBackgroundDialog from './TerminalBackgroundDialog.svelte';
   import { backgroundLayerStyle } from './terminals/background.js';
-  import { paneResources, formatResources } from './actions/paneResources.js';
+  import { paneResources, paneResourceCores, formatResources } from './actions/paneResources.js';
   let backgroundDialogId = null; // terminal id whose background is being edited
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
@@ -460,7 +460,7 @@
         {/if}
         <div id="terminal-{term.id}" class="terminal"></div>
         {#if $paneResourceOverlay && $paneResources[term.id]}
-          <div class="pane-resources" title={$t('splitPane.resourcesTitle', { procs: $paneResources[term.id].procs })}>{formatResources($paneResources[term.id])}</div>
+          <div class="pane-resources" title={$t('splitPane.resourcesTitle', { procs: $paneResources[term.id].procs })}>{formatResources($paneResources[term.id], $paneResourceScale, $paneResourceCores)}</div>
         {/if}
         {#if $draggingTerminalId !== null && $draggingTerminalId !== term.id}
           <div

@@ -32,7 +32,12 @@ describe('pane resources', () => {
   });
 
   test('formats cpu and memory compactly', () => {
-    expect(formatResources({ cpu: 12.4, rss: 1.5 * 1024 ** 3 })).toBe('12 % · 1.5 GB');
+    expect(formatResources({ cpu: 340, rss: 1.5 * 1024 ** 3 })).toBe('3.4 CPU · 1.5 GB');
+    expect(formatResources({ cpu: 54, rss: 1.5 * 1024 ** 3 }, 'cores', 24)).toBe('0.5 CPU · 1.5 GB');
+    expect(formatResources({ cpu: 54, rss: 1.5 * 1024 ** 3 }, 'machine', 24)).toBe('2.3 % · 1.5 GB');
+    expect(formatResources({ cpu: 54, rss: 1.5 * 1024 ** 3 }, 'core', 24)).toBe('54 % · 1.5 GB');
+    expect(formatResources({ cpu: 54, rss: 0 }, 'machine', 0)).toBe('54 % · 0 MB');
+    expect(formatResources({ cpu: 1250, rss: 0 }, 'machine', 24)).toBe('52 % · 0 MB');
     expect(formatBytes(345 * 1024 ** 2)).toBe('345 MB');
     expect(formatBytes(12.3 * 1024 ** 3)).toBe('12 GB');
   });
