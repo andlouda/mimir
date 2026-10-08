@@ -126,7 +126,10 @@ export default {
       },
       paneResources: {
         title: 'CPU und Speicher pro Pane',
-        desc: 'Zeigt oben rechts in jeder lokalen Pane, was ihr Prozessbaum verbraucht: CPU-Anteil (100 = ein Kern) und belegter Speicher, alle 3 Sekunden gemessen. SSH-Panes sind nicht erfasst, ihre Prozesse laufen woanders.',
+        desc: 'Zeigt oben rechts in jeder lokalen Pane, was ihr Prozessbaum verbraucht: CPU und belegter Speicher, alle 3 Sekunden gemessen. "In CPUs" zeigt, wie viele Kerne gerade rechnen (3.4 CPU), "von der Maschine" rechnet in Prozent wie der Systemmonitor (100 = alle Kerne), "pro Kern" wie htop (100 = ein Kern, bei 24 Kernen bis 2400). SSH-Panes sind nicht erfasst, ihre Prozesse laufen woanders.',
+        scaleMachine: 'Prozent der Maschine',
+        scaleCore: 'Prozent pro Kern (wie htop)',
+        scaleCores: 'In CPUs (empfohlen)',
       },
       tmuxMode: {
         title: 'tmux-Integration',

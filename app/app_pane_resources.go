@@ -30,7 +30,9 @@ var (
 const tmuxPanePIDTTL = 60 * time.Second
 
 type paneResourcesResult struct {
-	At    string                     `json:"at"`
+	At string `json:"at"`
+	// Cores lets the frontend scale the per-core CPU share to the machine.
+	Cores int                        `json:"cores"`
 	Panes map[string]resources.Usage `json:"panes"`
 }
 
@@ -65,7 +67,7 @@ func (a *App) GetPaneResourcesJSON(idsJSON string) (string, error) {
 			}
 		}
 	}
-	res := paneResourcesResult{At: time.Now().Format(time.RFC3339), Panes: map[string]resources.Usage{}}
+	res := paneResourcesResult{At: time.Now().Format(time.RFC3339), Cores: runtime.NumCPU(), Panes: map[string]resources.Usage{}}
 	if len(roots) > 0 {
 		usage, err := paneResourceMonitor.Usage(roots)
 		if err != nil {

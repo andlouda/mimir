@@ -118,6 +118,22 @@ paneResourceOverlay.subscribe((on) => {
   try { localStorage.setItem(PANE_RESOURCES_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
 });
 
+// How the overlay shows CPU: 'cores' = CPUs in use ("3.4 CPU"), 'machine' =
+// percent of all cores (like the system monitor), 'core' = percent of one
+// core (like htop).
+const PANE_RESOURCE_SCALE_KEY = 'mimir-pane-resource-scale';
+export const PANE_RESOURCE_SCALES = ['machine', 'core', 'cores'];
+function initialPaneResourceScale() {
+  try {
+    const v = localStorage.getItem(PANE_RESOURCE_SCALE_KEY);
+    return PANE_RESOURCE_SCALES.includes(v) ? v : 'cores';
+  } catch { return 'cores'; }
+}
+export const paneResourceScale = writable(initialPaneResourceScale());
+paneResourceScale.subscribe((v) => {
+  try { localStorage.setItem(PANE_RESOURCE_SCALE_KEY, v); } catch { /* ignore */ }
+});
+
 // Draw inactive panes in batches (see terminals/outputThrottle.js); on by default.
 const INACTIVE_THROTTLE_KEY = 'mimir-inactive-pane-throttle';
 function initialInactiveThrottle() {

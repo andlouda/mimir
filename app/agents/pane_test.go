@@ -63,6 +63,18 @@ func TestTrimToAgentStart(t *testing.T) {
 	}
 }
 
+func TestCleanPaneTextDropsFrameLines(t *testing.T) {
+	in := "answer text\n──────────────────\n> \n──────────────────\n____________________\n  ? for shortcuts"
+	got := CleanPaneText(in)
+	want := "answer text\n\n>\n\n\n  ? for shortcuts"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+	if isRuleLine("--help") || isRuleLine("a-b") || !isRuleLine("---") || !isRuleLine("╭──────╮") {
+		t.Fatal("isRuleLine classification")
+	}
+}
+
 func TestCleanPaneText(t *testing.T) {
 	got := CleanPaneText("a  \r\nb\t\n\n\n")
 	if got != "a\nb" {

@@ -126,7 +126,10 @@ export default {
       },
       paneResources: {
         title: 'CPU and memory per pane',
-        desc: 'Shows in the top-right corner of each local pane what its process tree consumes: CPU share (100 = one core) and resident memory, sampled every 3 seconds. SSH panes are not covered; their processes run elsewhere.',
+        desc: 'Shows in the top-right corner of each local pane what its process tree consumes: CPU and resident memory, sampled every 3 seconds. "In CPUs" shows how many cores are busy (3.4 CPU), "of the machine" counts percent like the system monitor (100 = all cores), "per core" like htop (100 = one core, up to 2400 on 24 cores). SSH panes are not covered; their processes run elsewhere.',
+        scaleMachine: 'Percent of the machine',
+        scaleCore: 'Percent per core (like htop)',
+        scaleCores: 'In CPUs (recommended)',
       },
       tmuxMode: {
         title: 'tmux integration',
