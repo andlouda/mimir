@@ -147,6 +147,11 @@ func CleanPaneText(text string) string {
 	blank := 0
 	for _, l := range lines {
 		l = strings.TrimRight(l, " \t")
+		if isRuleLine(l) {
+			// Box borders of an agent's TUI (input box, separators) carry
+			// no text; keep at most one blank in their place.
+			l = ""
+		}
 		if l == "" {
 			blank++
 			// A full-screen layout pads with empty rows; two are enough to
@@ -181,6 +186,24 @@ func PaneTranscript(kind Kind, label, cwd, text string) Transcript {
 		Source:   SourceTmux,
 		Messages: []Message{{Role: "assistant", Text: text}},
 	}
+}
+
+// isRuleLine reports whether a line is only a horizontal rule: box-drawing
+// characters, dashes, underscores or equals signs, as TUIs draw frames with.
+func isRuleLine(l string) bool {
+	l = strings.TrimSpace(l)
+	if len(l) < 3 {
+		return false
+	}
+	for _, r := range l {
+		switch {
+		case r == '-' || r == '_' || r == '=' || r == '~' || r == '|' || r == '+' || r == ' ':
+		case r >= 0x2500 && r <= 0x257F: // box drawing
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 var tokenPattern = regexp.MustCompile(`[\p{L}\p{N}_./-]{4,}`)
