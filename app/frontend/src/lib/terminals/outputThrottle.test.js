@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createOutputThrottle } from './outputThrottle.js';
+import { createOutputThrottle, INACTIVE_FLUSH_MS } from './outputThrottle.js';
 
 describe('inactive pane output throttle', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -15,7 +15,7 @@ describe('inactive pane output throttle', () => {
     t.push({ id: 3, minimized: true }, 'm');
     expect(writes).toEqual([[1, 'a'], [3, 'm']]);
     expect(t.pending(2)).toBe(2);
-    vi.advanceTimersByTime(100);
+    vi.advanceTimersByTime(INACTIVE_FLUSH_MS);
     expect(writes).toEqual([[1, 'a'], [3, 'm'], [2, 'bc']]);
   });
 
@@ -40,5 +40,18 @@ describe('inactive pane output throttle', () => {
     expect(writes).toEqual([]);
     t.push({ id: 2 }, 'y'.repeat(300 * 1024));
     expect(writes).toEqual([600 * 1024]);
+  });
+
+  test('interval may be a function read at scheduling time', () => {
+    const timers = [];
+    let interval = 100;
+    const t = createOutputThrottle({
+      write: () => {}, isImmediate: () => false, intervalMs: () => interval,
+      setTimer: (fn, ms) => { timers.push(ms); return 1; }, clearTimer: () => {},
+    });
+    t.push({ id: 1 }, 'a');
+    interval = 30000;
+    t.push({ id: 2 }, 'b');
+    expect(timers).toEqual([100, 30000]);
   });
 });

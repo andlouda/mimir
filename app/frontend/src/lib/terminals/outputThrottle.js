@@ -4,9 +4,10 @@
 // collected and written a few times per second instead: xterm then does
 // one parse + render per batch. The active pane and minimized panes
 // (not attached, nothing to draw) are written immediately. Activating a
-// pane flushes its backlog first.
+// pane flushes its backlog first. intervalMs may be a function so the
+// user's setting applies to the next batch without recreating the throttle.
 
-export const INACTIVE_FLUSH_MS = 100;
+export const INACTIVE_FLUSH_MS = 1000;
 const BACKLOG_MAX = 512 * 1024;
 
 export function createOutputThrottle({ write, isImmediate, intervalMs = INACTIVE_FLUSH_MS, setTimer = setTimeout, clearTimer = clearTimeout }) {
@@ -31,7 +32,8 @@ export function createOutputThrottle({ write, isImmediate, intervalMs = INACTIVE
     if (!b) {
       b = { term, chunks: [], size: 0, timer: null };
       backlog.set(term.id, b);
-      b.timer = setTimer(() => { b.timer = null; flush(term.id); }, intervalMs);
+      const wait = typeof intervalMs === 'function' ? intervalMs() : intervalMs;
+      b.timer = setTimer(() => { b.timer = null; flush(term.id); }, wait);
     }
     b.term = term;
     b.chunks.push(data);

@@ -122,7 +122,12 @@ export default {
       },
       inactiveThrottle: {
         title: 'Draw inactive panes in batches',
-        desc: 'Panes that are visible but not active are drawn ten times a second instead of on every output chunk. Several agents redrawing their screens at once kept the webview busy with rendering; the active pane is always drawn immediately, and switching to a pane shows its backlog first.',
+        desc: 'Panes that are visible but not active are drawn at the chosen interval instead of on every output chunk. Several agents redrawing their screens at once kept the webview busy with rendering. The active pane is always drawn immediately, and switching to a pane shows its backlog first. 1 s balances quiet and a live picture; 30 s is for many panes on a weak machine.',
+        every_100: '10× per second',
+        every_500: '2× per second',
+        every_1000: 'Every second (recommended)',
+        every_5000: 'Every 5 seconds',
+        every_30000: 'Every 30 seconds',
       },
       paneResources: {
         title: 'CPU and memory per pane',
