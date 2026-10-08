@@ -4,7 +4,7 @@
   // shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
-  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, claudeRerenderOnWiden, inactivePaneThrottle, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
+  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, claudeRerenderOnWiden, inactivePaneThrottle, paneResourceOverlay, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onDestroy, onMount } from 'svelte';
@@ -261,6 +261,16 @@
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('inactiveThrottle')} on:click|preventDefault|stopPropagation={() => toggleCard('inactiveThrottle')}><strong>{$t('settings.cards.inactiveThrottle.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('inactiveThrottle') ? '▾' : '▸'}</span></button>
       {#if openCards.has('inactiveThrottle')}
       <p>{$t('settings.cards.inactiveThrottle.desc')}</p>
+      {/if}
+    </label>
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x25D4;</span>
+        <input type="checkbox" bind:checked={$paneResourceOverlay} />
+      </div>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('paneResources')} on:click|preventDefault|stopPropagation={() => toggleCard('paneResources')}><strong>{$t('settings.cards.paneResources.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('paneResources') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('paneResources')}
+      <p>{$t('settings.cards.paneResources.desc')}</p>
       {/if}
     </label>
     <label class="ai-hub-card settings-toggle-card">

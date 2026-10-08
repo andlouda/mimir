@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import { startPaneResourceSampling, stopPaneResourceSampling } from './lib/actions/paneResources.js';
   import { t as tr } from './lib/i18n.js';
   import { GetLoadedSessionData, GetSSHTerminalLabel, ListRecordings, IsAggInstalled, IsHistoryTrackingEnabled, SetHistoryTracking, WriteToTerminal } from '../wailsjs/go/main/App';
   import { EventsOn } from '../wailsjs/runtime';
@@ -464,6 +465,7 @@
   }
 
   onMount(async () => {
+    startPaneResourceSampling();
     window.addEventListener('resize', handleResize);
     window.addEventListener('error', handleGlobalError);
     window.addEventListener('unhandledrejection', handleGlobalError);
@@ -589,6 +591,7 @@
   });
 
   onDestroy(() => {
+    stopPaneResourceSampling();
     window.removeEventListener('resize', handleResize);
     window.removeEventListener('error', handleGlobalError);
     window.removeEventListener('contextmenu', handleNativeContextMenu);

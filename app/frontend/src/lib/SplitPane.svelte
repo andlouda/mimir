@@ -1,10 +1,11 @@
 <script>
   import { registerOverlay, isGlobalShortcut } from './actions/keyboardShortcuts.js';
-  import { zoomTerminalFont, uiBlink } from './stores/uiStore.js';
+  import { zoomTerminalFont, uiBlink, paneResourceOverlay } from './stores/uiStore.js';
   import { agentStates } from './stores/agentStore.js';
   import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
   import TerminalBackgroundDialog from './TerminalBackgroundDialog.svelte';
   import { backgroundLayerStyle } from './terminals/background.js';
+  import { paneResources, formatResources } from './actions/paneResources.js';
   let backgroundDialogId = null; // terminal id whose background is being edited
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
@@ -458,6 +459,9 @@
           <div class="pane-background" style={backgroundLayerStyle(term.background)} aria-hidden="true"></div>
         {/if}
         <div id="terminal-{term.id}" class="terminal"></div>
+        {#if $paneResourceOverlay && $paneResources[term.id]}
+          <div class="pane-resources" title={$t('splitPane.resourcesTitle', { procs: $paneResources[term.id].procs })}>{formatResources($paneResources[term.id])}</div>
+        {/if}
         {#if $draggingTerminalId !== null && $draggingTerminalId !== term.id}
           <div
             class="drop-overlay"
@@ -690,6 +694,22 @@
 
 <style>
   /* Image layer behind the (transparent) xterm canvas. */
+  .pane-resources {
+    position: absolute;
+    top: 4px;
+    right: 14px;
+    z-index: 2;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(12, 14, 20, 0.55);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    line-height: 1.5;
+    opacity: 0.7;
+    pointer-events: none;
+    white-space: nowrap;
+  }
   .pane-background {
     position: absolute;
     inset: 0;

@@ -454,6 +454,10 @@ export function UpdateSessionLayout(arg1) {
   return window['go']['main']['App']['UpdateSessionLayout'](arg1);
 }
 
+export function GetPaneResourcesJSON(arg1) {
+  return window['go']['main']['App']['GetPaneResourcesJSON'](arg1);
+}
+
 export function SetTmuxIntegrationMode(arg1) {
   return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
 }

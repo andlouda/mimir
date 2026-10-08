@@ -124,6 +124,10 @@ export default {
         title: 'Draw inactive panes in batches',
         desc: 'Panes that are visible but not active are drawn ten times a second instead of on every output chunk. Several agents redrawing their screens at once kept the webview busy with rendering; the active pane is always drawn immediately, and switching to a pane shows its backlog first.',
       },
+      paneResources: {
+        title: 'CPU and memory per pane',
+        desc: 'Shows in the top-right corner of each local pane what its process tree consumes: CPU share (100 = one core) and resident memory, sampled every 3 seconds. SSH panes are not covered; their processes run elsewhere.',
+      },
       tmuxMode: {
         title: 'tmux integration',
         invisible: 'Invisible (recommended)',
@@ -472,6 +476,7 @@ export default {
     close: 'Close',
   },
   splitPane: {
+    resourcesTitle: 'CPU and memory of this pane\'s processes ({procs} processes)',
     tmuxInvisible: 'invisible (mouse handled by Mimir)',
     tmuxClassic: 'classic (mouse handled by tmux)',
     ctxSendToAgent: 'Send to agent',
