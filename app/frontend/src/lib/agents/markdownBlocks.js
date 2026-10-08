@@ -1,7 +1,8 @@
 // Splits agent Markdown into text and fenced-code segments so the UI can
 // render prose through the sanitizer and attach copy/insert actions to code.
 
-const FENCE_OPEN = /^(\s{0,3})(`{3,}|~{3,})\s*([^\s`]*)\s*$/;
+// Any indentation: agents fence code inside nested list items.
+const FENCE_OPEN = /^(\s*)(`{3,}|~{3,})\s*([^\s`]*)\s*$/;
 
 /**
  * @param {string} markdown
@@ -60,9 +61,10 @@ export function extractCodeBlocks(markdown) {
 const INLINE_CODE = /`([^`\n]+)`/g;
 
 /**
- * Extracts the copy-worthy pieces of an agent answer: fenced code blocks and
- * inline code spans (commands, paths, flags). Inline spans that are already
- * part of a block, are duplicates, or are too short to be useful are dropped.
+ * Extracts the copy-worthy pieces of an agent answer: fenced code blocks,
+ * inline code spans that look like commands, and command lines written as
+ * plain text ("$ make deploy", or an indented line under "Run:"). Pieces
+ * that are already part of a block, duplicates and bare names are dropped.
  * @returns {Array<{type:'code', lang:string, code:string} | {type:'inline', code:string}>}
  */
 export function extractSnippets(markdown) {
@@ -71,18 +73,93 @@ export function extractSnippets(markdown) {
   const blockText = blocks.map((b) => b.code).join('\n');
   const seen = new Set();
   const inline = [];
+  const add = (raw) => {
+    const code = normaliseCommand(raw);
+    if (code.length < 3 || seen.has(code) || blockText.includes(code)) return;
+    seen.add(code);
+    inline.push({ type: 'inline', code });
+  };
   for (const seg of segments) {
     if (seg.type !== 'text') continue;
     for (const m of seg.text.matchAll(INLINE_CODE)) {
-      const code = m[1].trim();
-      if (code.length < 3 || seen.has(code) || blockText.includes(code)) continue;
-      if (!looksLikeCommand(code)) continue;
-      seen.add(code);
-      inline.push({ type: 'inline', code });
-      if (inline.length >= MAX_INLINE_SNIPPETS) break;
+      if (looksLikeCommand(m[1])) add(m[1]);
     }
+    for (const line of plainCommandLines(seg.text)) add(line);
   }
-  return [...blocks, ...inline];
+  return [...blocks, ...inline.slice(0, MAX_INLINE_SNIPPETS)];
+}
+
+// Prompt prefixes agents and humans put in front of a command line.
+const PROMPT_PREFIX = /^\s*(?:\$|❯|PS>)\s+/;
+
+/** Strips a shell prompt and surrounding whitespace from a command. */
+export function normaliseCommand(code) {
+  return String(code ?? '').replace(PROMPT_PREFIX, '').trim();
+}
+
+// Programs an agent typically tells the user to run. Plain-text lines have
+// no formatting signal, so they only count when they start with one of
+// these (or with a path), unlike inline code where any program word does.
+const KNOWN_PROGRAMS = new Set([
+  'git', 'gh', 'glab', 'npm', 'npx', 'pnpm', 'yarn', 'bun', 'deno', 'node', 'go', 'cargo', 'rustup',
+  'python', 'python3', 'pip', 'pip3', 'pipx', 'poetry', 'uv', 'pytest', 'pants', 'bazel', 'make', 'cmake',
+  'docker', 'podman', 'kubectl', 'helm', 'terraform', 'ansible', 'ansible-playbook', 'vagrant',
+  'aws', 'gcloud', 'az', 'ssh', 'scp', 'rsync', 'curl', 'wget', 'sudo', 'cd', 'bash', 'sh', 'zsh',
+  'systemctl', 'journalctl', 'tmux', 'mimir', 'claude', 'codex', 'opencode', 'mvn', 'gradle', 'dotnet',
+  'java', 'ruby', 'bundle', 'rake', 'php', 'composer', 'mix', 'brew', 'apt', 'apt-get', 'dnf', 'pacman',
+  'wails', 'vite', 'tsc', 'eslint', 'prettier', 'black', 'ruff', 'mypy', 'nix', 'nix-shell', 'direnv',
+]);
+
+const LABEL_LINE = /^[^\n`]{1,60}:\s*$/;
+
+/**
+ * Command lines that an agent wrote as plain text instead of Markdown code:
+ * lines with a shell prompt in front, lines directly under a "Run:" style
+ * label, and "Label: command" on one line. Only lines starting with a
+ * well-known program or a path count, so prose is not mistaken for a command.
+ */
+export function plainCommandLines(text) {
+  const out = [];
+  const lines = String(text ?? '').split('\n');
+  let underLabel = false;
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '');
+    if (!line.trim()) { underLabel = false; continue; }
+    if (PROMPT_PREFIX.test(line)) {
+      const code = normaliseCommand(line);
+      if (looksLikeCommand(code)) out.push(code);
+      underLabel = false;
+      continue;
+    }
+    if (LABEL_LINE.test(line)) { underLabel = true; continue; }
+    const body = line.replace(/^\s*(?:[-*]|\d+[.)])\s+/, '').trim();
+    if (underLabel || /^\s{2,}/.test(line)) {
+      if (isKnownCommand(body)) out.push(body);
+      // Several indented lines under one label are all commands.
+      underLabel = underLabel && /^\s{2,}/.test(line);
+      continue;
+    }
+    underLabel = false;
+    const m = body.match(/^[^`:]{1,40}:\s+(\S.*)$/);
+    if (m && isKnownCommand(m[1])) out.push(m[1].trim());
+  }
+  return out;
+}
+
+// A sentence that happens to start with a program name ("tmux ist jetzt
+// die Basis, ...") reads as prose: it ends in sentence punctuation or has
+// a comma or period followed by a space, which command lines rarely do.
+const PROSE = /[.!?]$|[,.] /;
+
+function isKnownCommand(code) {
+  if (!looksLikeCommand(code) || PROSE.test(code)) return false;
+  const first = stripEnvPrefix(normaliseCommand(code)).split(/\s+/)[0];
+  return KNOWN_PROGRAMS.has(first) || /^(\.\/|\/|~\/|\.\\)/.test(first);
+}
+
+// Leading NAME=value assignments are part of a command line, not its program.
+function stripEnvPrefix(code) {
+  return code.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+/, '');
 }
 
 const MAX_INLINE_SNIPPETS = 8;
@@ -121,12 +198,20 @@ export function extractLinks(markdown) {
 // Inline code in prose is mostly names: files, flags, identifiers
 // ("TeamSpeak.exe", "--type=utility", "network.mojom.NetworkService").
 // Only something shaped like a shell command line is worth a Copy /
-// Insert row: a lowercase program word followed by arguments.
+// Insert row: a program word followed by arguments. Besides lowercase
+// Unix programs that covers env-prefixed lines ("FOO=1 make"), PowerShell
+// cmdlets ("Get-ChildItem -Recurse") and scripts (".\\build.ps1 -Clean").
+// "Label: value" pairs ("deploy stack: ai-agents") are prose, not commands.
 export function looksLikeCommand(code) {
-  if (!/\s/.test(code)) return false;
-  if (/[\n\r]/.test(code)) return false;
-  const first = code.split(/\s+/)[0];
-  if (!/^(\.\/|\/|~\/)?[a-z][a-z0-9_.+\/-]*$/.test(first)) return false;
+  const cmd = stripEnvPrefix(normaliseCommand(code));
+  if (!/\s/.test(cmd)) return false;
+  if (/[\n\r]/.test(cmd)) return false;
+  const words = cmd.split(/\s+/);
+  const first = words[0];
+  if (words.slice(0, 2).some((w) => /^[^:]+:$/.test(w))) return false;
+  const unix = /^(\.\/|\/|~\/)?[a-z][a-z0-9_.+\/-]*$/.test(first);
+  const powershell = /^([A-Z][a-z]+-[A-Z][A-Za-z]+|\.\\[\w.\\-]+|&)$/.test(first);
+  if (!unix && !powershell) return false;
   if (/^[a-z]+\.(exe|dll|js|ts|go|py|json|md)$/i.test(first)) return false;
   return true;
 }
