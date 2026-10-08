@@ -122,7 +122,12 @@ export default {
       },
       inactiveThrottle: {
         title: 'Inaktive Panes gebündelt zeichnen',
-        desc: 'Sichtbare, aber nicht aktive Panes werden zehnmal pro Sekunde gezeichnet statt bei jedem Ausgabe-Happen. Mehrere Agents, die gleichzeitig ihr Bild neu zeichnen, hielten den Webview mit Rendern beschäftigt; die aktive Pane wird immer sofort gezeichnet, beim Wechsel erscheint zuerst der Rückstand.',
+        desc: 'Sichtbare, aber nicht aktive Panes werden im gewählten Takt gezeichnet statt bei jedem Ausgabe-Happen. Mehrere Agents, die gleichzeitig ihr Bild neu zeichnen, hielten den Webview mit Rendern beschäftigt. Die aktive Pane wird immer sofort gezeichnet, beim Wechsel erscheint zuerst der Rückstand. 1 s ist der Kompromiss aus Ruhe und lebendigem Bild; 30 s für viele Panes auf einem schwachen Rechner.',
+        every_100: '10× pro Sekunde',
+        every_500: '2× pro Sekunde',
+        every_1000: 'Jede Sekunde (empfohlen)',
+        every_5000: 'Alle 5 Sekunden',
+        every_30000: 'Alle 30 Sekunden',
       },
       paneResources: {
         title: 'CPU und Speicher pro Pane',

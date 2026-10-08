@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
-import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill, inactivePaneThrottle } from '../stores/uiStore.js';
+import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill, inactivePaneThrottle, inactivePaneInterval } from '../stores/uiStore.js';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { sshProfiles } from '../stores/sshStore.js';
@@ -27,6 +27,7 @@ import { forgetOutput, rememberOutput } from '../terminals/outputTail.js';
 const outputThrottle = createOutputThrottle({
   write: (term, data) => { countWrite(); safelyWriteTerminal(term, data); },
   isImmediate: (term) => !get(inactivePaneThrottle) || term.minimized || get(activeTerminalId) === term.id,
+  intervalMs: () => get(inactivePaneInterval),
 });
 activeTerminalId.subscribe((id) => { if (id != null) outputThrottle.flush(id); });
 

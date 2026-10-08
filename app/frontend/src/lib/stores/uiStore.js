@@ -143,6 +143,22 @@ export const inactivePaneThrottle = writable(initialInactiveThrottle());
 inactivePaneThrottle.subscribe((on) => {
   try { localStorage.setItem(INACTIVE_THROTTLE_KEY, on ? 'on' : 'off'); } catch { /* ignore */ }
 });
+// How often an inactive pane's backlog is drawn, in milliseconds. One
+// second cuts the redraw work of idle agent panes to a tenth of 100 ms
+// while the pane still looks alive; 30 s is for many panes on a weak
+// machine. Switching to a pane always draws its backlog at once.
+const INACTIVE_INTERVAL_KEY = 'mimir-inactive-pane-interval';
+export const INACTIVE_PANE_INTERVALS = [100, 500, 1000, 5000, 30000];
+function initialInactiveInterval() {
+  try {
+    const v = Number(localStorage.getItem(INACTIVE_INTERVAL_KEY));
+    return INACTIVE_PANE_INTERVALS.includes(v) ? v : 1000;
+  } catch { return 1000; }
+}
+export const inactivePaneInterval = writable(initialInactiveInterval());
+inactivePaneInterval.subscribe((v) => {
+  try { localStorage.setItem(INACTIVE_INTERVAL_KEY, String(v)); } catch { /* ignore */ }
+});
 // tmux integration for new terminals: 'invisible' | 'classic' | 'off'
 // (loaded from the backend at start-up; see terminal/tmux_options.go).
 export const tmuxIntegrationMode = writable('invisible');
