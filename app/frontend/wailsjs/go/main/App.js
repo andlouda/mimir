@@ -518,6 +518,14 @@ export function RotateTelemetryToken() {
   return window['go']['main']['App']['RotateTelemetryToken']();
 }
 
+export function GetTelemetryStatusJSON() {
+  return window['go']['main']['App']['GetTelemetryStatusJSON']();
+}
+
+export function GetTelemetryEnvBlockJSON() {
+  return window['go']['main']['App']['GetTelemetryEnvBlockJSON']();
+}
+
 export function AnswerAgentPermission(arg1, arg2) {
   return window['go']['main']['App']['AnswerAgentPermission'](arg1, arg2);
 }

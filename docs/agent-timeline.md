@@ -58,7 +58,8 @@ One JSON object per line, fields in `snake_case`:
 | hook | `tool_post` | `tool_input`, `response` = `{bytes, is_error, interrupted}` |
 | hook | `stop`, `subagent_stop` | `stop_hook_active`, `agent_id`, `subagent: true` |
 | hook | `notification` | `notification_type`, `message` |
-| otel | `tool_result`, `tool_decision`, `api_request`, `api_error`, ... | the event's attributes without `prompt` and `user.*` (next step) |
+| otel | `tool_result`, `tool_decision`, `api_request`, `api_error`, `api_refusal`, `user_prompt`, `permission_mode_changed`, `mcp_connection`, `skill_activated`, `otel_other` | whitelisted attributes per type (`success`, `duration_ms`, `decision`, `model`, `cost_usd`, token counts, `request_id`, ...); never `prompt`, `user.*`, `organization.id`; `tool_parameters` only when the tool-details setting is on |
+| otel (traces beta) | `span_interaction`, `span_llm`, `span_tool`, `span_tool_exec`, `span_tool_blocked`, `span_hook` | `trace_id`, `span_id`, `parent_span_id`, `duration_ms`, `status`, tool/model attributes |
 | proc | `process_start`, `process_end` | `cmdline`, `exe`, `started_at`, `lifetime_ms` (later step) |
 | net | `conn_open`, `conn_close` | `proto`, `local`, `remote`, `state` (later step) |
 | mimir | `pane_bound`, `overflow` | `terminal_id`, `reason`, `dropped` |
@@ -73,6 +74,35 @@ file contents and edit strings are dropped, strings are capped at 512 bytes
 scanned for token shapes (Bearer, `sk-`, `AKIA`, `ghp_`, JWT, PEM blocks,
 `KEY=value`). Replaced values read `[REDACTED]`; `redacted: true` marks the
 event.
+
+## Telemetry receiver
+
+With "Telemetrie des Agenten empfangen" on, Mimir listens on
+`http://127.0.0.1:<port>` (default 14318) for OTLP/HTTP in JSON encoding
+(`/v1/logs`, `/v1/traces`, `/v1/metrics`; metrics are acknowledged and
+dropped). It binds loopback only, refuses other content types, caps bodies
+at 4 MiB and, by default, requires the shared token in the `x-mimir-token`
+header (`Authorization: Bearer <token>` works too). The token lives in
+`telemetry_settings.json` (0600) and is only handed out inside the copyable
+environment block.
+
+Claude Code needs these variables (Settings → "Für bash/zsh kopieren"):
+
+```sh
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export OTEL_LOGS_EXPORTER=otlp
+export OTEL_METRICS_EXPORTER=none
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:14318
+export OTEL_LOGS_EXPORT_INTERVAL=1000
+export OTEL_EXPORTER_OTLP_HEADERS=x-mimir-token=<token>
+```
+
+`OTEL_LOG_USER_PROMPTS` is never set. Records whose `event.name` is not
+`claude_code.*` are counted and dropped; records for a session no pane has
+claimed are stored under their session id but not shown live (cap: 50 new
+sessions per hour). Claude Code supports one endpoint per signal, so a user
+with a real collector has to choose.
 
 ## Correlation keys
 

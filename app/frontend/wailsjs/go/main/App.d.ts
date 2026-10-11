@@ -190,6 +190,8 @@ export function OpenAgentTimelineFolder():Promise<void>;
 export function GetTelemetrySettingsJSON():Promise<string>;
 export function UpdateTelemetrySettingsJSON(arg1:string):Promise<string>;
 export function RotateTelemetryToken():Promise<void>;
+export function GetTelemetryStatusJSON():Promise<string>;
+export function GetTelemetryEnvBlockJSON():Promise<string>;
 
 export function AnswerAgentPermission(arg1:number,arg2:boolean):Promise<void>;
 

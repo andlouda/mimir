@@ -252,6 +252,9 @@ func (a *App) applyTelemetrySettings(old, next TelemetrySettings) {
 	if oldHooks != newHooks {
 		go a.upgradeOutdatedClaudeHooks()
 	}
+	if listenerKey(old) != listenerKey(next) {
+		a.restartTelemetryListener()
+	}
 }
 
 func logTelemetryEvent(event, reason string) {

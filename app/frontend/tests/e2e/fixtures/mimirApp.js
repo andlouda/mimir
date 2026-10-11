@@ -291,6 +291,8 @@ export async function installMimirMocks(page, { workspaceAgent = false } = {}) {
           GetTelemetrySettingsJSON: async () => JSON.stringify({ enabled: false, hookToolEvents: true, retentionDays: 14, maxFileMb: 50 }),
           UpdateTelemetrySettingsJSON: async (raw) => raw,
           RotateTelemetryToken: asyncNoop,
+          GetTelemetryStatusJSON: async () => JSON.stringify({ listening: false, eventsReceived: 0 }),
+          GetTelemetryEnvBlockJSON: async () => JSON.stringify({ posix: '', powershell: '', endpoint: '' }),
           RerenderClaudeInPane: async () => 'claude --resume x',
           ListOfflineClaudeSessionsJSON: async () => JSON.stringify([{ id: 'aaaa-1', file: '/h/.claude/projects/-repo/aaaa-1.jsonl', title: 'Fix the login bug', cwd: '/repo', modified: new Date(Date.now() - 3600e3).toISOString(), size: 1200 }]),
           DeleteClaudeSession: asyncNoop,
