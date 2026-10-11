@@ -47,9 +47,9 @@ func providerAPIKeyFromEnv(id string) string {
 // these wire protocols; callAIProvider dispatches on the protocol rather than
 // on a hard-coded provider id, so new providers are just data.
 const (
-	protocolOpenAIResponses = "openai_responses" // OpenAI /v1/responses
-	protocolOpenAIChat      = "openai_chat"       // OpenAI-compatible /v1/chat/completions
-	protocolOllamaChat      = "ollama_chat"       // Ollama /api/chat
+	protocolOpenAIResponses = "openai_responses"   // OpenAI /v1/responses
+	protocolOpenAIChat      = "openai_chat"        // OpenAI-compatible /v1/chat/completions
+	protocolOllamaChat      = "ollama_chat"        // Ollama /api/chat
 	protocolAnthropicMsgs   = "anthropic_messages" // Anthropic /v1/messages
 
 	aiProviderAnthropic        = "anthropic"

@@ -54,8 +54,8 @@ var appendLocks sync.Map
 // to one per resumeID per limitDropLogInterval, so a runaway producer doesn't
 // flood the app log.
 var (
-	appendDropLog            sync.Map // resumeID -> *time.Time
-	limitDropLogInterval     = 1 * time.Minute
+	appendDropLog        sync.Map // resumeID -> *time.Time
+	limitDropLogInterval = 1 * time.Minute
 )
 
 func appendLockFor(resumeID string) *sync.Mutex {
