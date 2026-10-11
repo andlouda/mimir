@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -27,6 +26,7 @@ func TestTelemetrySettingsDefaultsAndNormalise(t *testing.T) {
 
 func TestUpdateTelemetrySettingsIsPartialAndKeepsToken(t *testing.T) {
 	cfg := t.TempDir()
+	t.Setenv("HOME", cfg) // macOS: UserConfigDir is $HOME/Library/Application Support
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	t.Setenv("APPDATA", cfg)
 	a := &App{telemetry: loadTelemetrySettings()}
@@ -45,7 +45,11 @@ func TestUpdateTelemetrySettingsIsPartialAndKeepsToken(t *testing.T) {
 	if a.telemetrySettings().Token != token || !a.hookToolEventsWanted() {
 		t.Fatal("token must be kept and the hook set wanted")
 	}
-	raw, err := os.ReadFile(filepath.Join(cfg, "mimir", telemetrySettingsFileName))
+	path, err := telemetrySettingsPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
