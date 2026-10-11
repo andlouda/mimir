@@ -130,6 +130,16 @@ that an `overflow` event is written once. The interval is the setting
 Everything that already ran when observation started is the baseline and
 is not reported. Processes shorter than one interval are missed.
 
+On Windows the sampler is native (Toolhelp32 for the tree, GetProcessTimes
+for the start time, QueryFullProcessImageName for the image path,
+GetExtendedTcpTable for TCP with owning pids): no PowerShell per tick. It
+has no command lines (attribution is strong or weak, never medium) and no
+UDP; the interval is at least 2 s. macOS has no sampler yet.
+
+Subagents: with the traces setting on, the subagent's tool calls carry
+spans whose parent span is the parent's Task call; the timeline tab nests
+them under that call.
+
 ## Correlation keys
 
 - **Pane ↔ session**: the hook runs as a child of the agent, so the hook

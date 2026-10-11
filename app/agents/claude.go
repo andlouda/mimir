@@ -367,7 +367,7 @@ func ParseClaudeSession(data []byte) Session {
 					if strings.TrimSpace(in.Command) == "" {
 						continue
 					}
-					out.Commands = append(out.Commands, CommandRun{Command: in.Command, Description: in.Description, At: rec.Timestamp})
+					out.Commands = append(out.Commands, CommandRun{Command: in.Command, Description: in.Description, At: rec.Timestamp, ToolUseID: b.ID})
 					if b.ID != "" {
 						pending[b.ID] = len(out.Commands) - 1
 					}

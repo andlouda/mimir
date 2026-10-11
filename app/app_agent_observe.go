@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"runtime"
 	"time"
 
 	"mimir/procwatch"
@@ -52,6 +53,9 @@ func (a *App) observeAgent(ctx context.Context, terminalID int, state agentTermi
 			return
 		}
 		interval := time.Duration(s.ObserveIntervalMs) * time.Millisecond
+		if runtime.GOOS == "windows" && interval < 2*time.Second {
+			interval = 2 * time.Second // a Toolhelp snapshot plus per-process handles costs more than /proc
+		}
 		if attributor.OpenWindows() == 0 {
 			interval *= 3
 		}
