@@ -132,6 +132,9 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	// The runtime observer (processes, connections) shares this lifetime.
+	go a.observeAgent(ctx, terminalID, state)
+
 	if state.kind == agents.KindOpenCode {
 		a.watchOpenCode(ctx, w, terminalID, state, fs, home, ticker)
 		return
