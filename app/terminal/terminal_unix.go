@@ -296,7 +296,7 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 		if injectHook {
 			rcContent += mimirBashHook
 		}
-		rcContent += launchEnvExports()
+		rcContent += launchEnvExports(false)
 		rcPath, err := writeMimirShellFile("bashrc", rcContent)
 		if err == nil {
 			launch.args = []string{"--rcfile", rcPath, "-i"}
@@ -313,7 +313,7 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 			if injectHook {
 				rcContent += mimirZshHook
 			}
-			rcContent += launchEnvExports()
+			rcContent += launchEnvExports(false)
 			if err := os.WriteFile(zshrcPath, []byte(rcContent), 0600); err == nil {
 				launch.env = []string{"ZDOTDIR=" + zdotdir}
 				launch.tmuxCommand = "env ZDOTDIR=" + quoteShellArg(zdotdir) + " " + quoteShellArg(shell) + " -i"

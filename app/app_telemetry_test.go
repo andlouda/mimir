@@ -43,6 +43,9 @@ func TestTelemetryEnvRendering(t *testing.T) {
 	if !strings.Contains(block.Posix, `export OTEL_EXPORTER_OTLP_HEADERS='x-mimir-token=abc'\''def'`) || !strings.Contains(block.PowerShell, `$env:OTEL_EXPORTER_OTLP_HEADERS = 'x-mimir-token=abc''def'`) || block.Endpoint != "http://127.0.0.1:14318" {
 		t.Fatalf("block: %+v", block)
 	}
+	if !strings.Contains(block.Wsl, "/dev/tcp/127.0.0.1/14318") || !strings.Contains(block.Wsl, "x-mimir-token=abc") {
+		t.Fatalf("wsl block: %s", block.Wsl)
+	}
 }
 
 func TestTelemetryListenerIngestsIntoTimeline(t *testing.T) {

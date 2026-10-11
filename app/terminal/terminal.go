@@ -122,7 +122,7 @@ func sanitizeTmuxName(name string) string {
 	return name
 }
 
-func conptyBashRcBase64() string {
+func conptyBashRcBase64(wsl bool) string {
 	rcContent := conptyBashRcBase
 	// Same rule as the unix path: Mimir's short prompt only in "mimir" mode.
 	if PromptMode() == PromptModeMimir {
@@ -133,7 +133,7 @@ func conptyBashRcBase64() string {
 	}
 	// Extra env (agent telemetry) travels inside the rc file: for WSL that
 	// is the only way across the Windows/Linux boundary.
-	rcContent += launchEnvExports()
+	rcContent += launchEnvExports(wsl)
 	return base64.StdEncoding.EncodeToString([]byte(rcContent))
 }
 
@@ -326,7 +326,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 		}
 	case "wsl":
 		if runtime.GOOS == "windows" {
-			inner := `mkdir -p ~/.cache/mimir/shell; printf ` + conptyBashRcBase64() + ` | base64 -d > ~/.cache/mimir/shell/bashrc; `
+			inner := `mkdir -p ~/.cache/mimir/shell; printf ` + conptyBashRcBase64(true) + ` | base64 -d > ~/.cache/mimir/shell/bashrc; `
 			if name := sanitizeTmuxName(tmuxSessionName); name != "" {
 				// Run the shell inside a tmux session (attach-or-create) so the
 				// session — and anything running in it, e.g. claude — survives
@@ -349,7 +349,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 			cmdString = "bash"
 		}
 	case "bash":
-		cmdString = `bash -lc "mkdir -p ~/.cache/mimir/shell; printf ` + conptyBashRcBase64() + ` | base64 -d > ~/.cache/mimir/shell/bashrc; exec bash --rcfile ~/.cache/mimir/shell/bashrc -i"`
+		cmdString = `bash -lc "mkdir -p ~/.cache/mimir/shell; printf ` + conptyBashRcBase64(false) + ` | base64 -d > ~/.cache/mimir/shell/bashrc; exec bash --rcfile ~/.cache/mimir/shell/bashrc -i"`
 	case "zsh":
 		cmdString = `zsh -lc "export PROMPT='%1~ %# '; exec zsh -f -i"`
 	default:
