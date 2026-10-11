@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"mimir/executil"
 	"strconv"
 	"strings"
 )
@@ -28,7 +29,7 @@ func tmuxHistoryScript(maxLines int) func(tmuxBin, session string) string {
 		maxLines = tmuxHistoryMaxLines
 	}
 	return func(tmuxBin, session string) string {
-		target := shellQuote(session + ":")
+		target := executil.ShellQuote(session + ":")
 		return tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on} #{history_size}' 2>/dev/null; ` +
 			`echo ` + agentProbeSeparator + `; ` +
 			`if [ "$(` + tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on}' 2>/dev/null)" != 1 ]; then ` +
@@ -38,7 +39,7 @@ func tmuxHistoryScript(maxLines int) func(tmuxBin, session string) string {
 
 // tmuxRefreshScript asks every client attached to the session to redraw.
 func tmuxRefreshScript(tmuxBin, session string) string {
-	q := shellQuote(session)
+	q := executil.ShellQuote(session)
 	return `echo ` + agentProbeSeparator + `; ` +
 		tmuxBin + ` list-clients -t ` + q + ` -F '#{client_name}' 2>/dev/null | while read -r c; do ` +
 		tmuxBin + ` refresh-client -t "$c" 2>/dev/null; done`

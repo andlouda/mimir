@@ -249,7 +249,7 @@ rm -f %s
 rm -rf %s
 nohup %s >/dev/null 2>&1 &
 printf '%%s started updated Mimir\n' "$(date -Iseconds)" >> "$log"
-`, shQuote(logPath), os.Getpid(), shQuote(pending.BinaryPath), shQuote(exe), shQuote(exe), shQuote(markerPath), shQuote(exe), shQuote(markerPath), shQuote(pendingDir), shQuote(exe))
+`, executil.ShellQuote(logPath), os.Getpid(), executil.ShellQuote(pending.BinaryPath), executil.ShellQuote(exe), executil.ShellQuote(exe), executil.ShellQuote(markerPath), executil.ShellQuote(exe), executil.ShellQuote(markerPath), executil.ShellQuote(pendingDir), executil.ShellQuote(exe))
 
 	cmd := exec.Command("sh", "-c", script)
 	if err := cmd.Start(); err != nil {
@@ -261,10 +261,6 @@ printf '%%s started updated Mimir\n' "$(date -Iseconds)" >> "$log"
 
 func psQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
-}
-
-func shQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 // GetPendingUpdate returns info about a staged update, or null JSON if none.

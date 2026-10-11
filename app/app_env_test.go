@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"mimir/executil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,8 +17,8 @@ func TestIsWSLTerminalType(t *testing.T) {
 		"bash": false, "zsh": false, "ssh": false, "": false, "wsl2": false,
 	}
 	for input, want := range cases {
-		if got := isWSLTerminalType(input); got != want {
-			t.Errorf("isWSLTerminalType(%q) = %v, want %v", input, got, want)
+		if got := executil.IsWSLTerminalType(input); got != want {
+			t.Errorf("executil.IsWSLTerminalType(%q) = %v, want %v", input, got, want)
 		}
 	}
 }

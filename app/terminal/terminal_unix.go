@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mimir/executil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -419,7 +420,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 			}
 			cmdPath = tmuxPath
 			cmdArgs = append([]string{
-				"-L", "mimir",
+				"-L", executil.TmuxSocket,
 				"new-session", "-A", "-s", tmuxSessionName, launch.tmuxCommand,
 			}, TmuxOptionArgs(tmuxMode)...)
 			meta.TmuxActive = true
@@ -464,7 +465,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 }
 
 func localTmuxEligible(terminalType string) bool {
-	return terminalType == "bash" || terminalType == "zsh" || terminalType == "wsl"
+	return executil.LocalTmuxShell(terminalType)
 }
 
 // RegisterSession registers an externally-created session (e.g. SSH) and returns its ID.

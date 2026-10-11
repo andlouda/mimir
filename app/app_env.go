@@ -142,7 +142,7 @@ func (a *App) ReadDotEnvForTerminalJSON(terminalID int, terminalType string) (st
 
 	var content string
 	var err error
-	if isWSLTerminalType(terminalType) {
+	if executil.IsWSLTerminalType(terminalType) {
 		// A WSL shell's directory is a Linux path the Windows-side process can't
 		// read directly, so read the file inside the distro, like discovery does.
 		content, err = readDotEnvViaWSL(dir)
@@ -154,10 +154,6 @@ func (a *App) ReadDotEnvForTerminalJSON(terminalID int, terminalType string) (st
 		return "", err
 	}
 	return marshalDotEnv("local", dir, content)
-}
-
-func isWSLTerminalType(terminalType string) bool {
-	return strings.EqualFold(strings.TrimSpace(terminalType), "wsl")
 }
 
 // readDotEnvViaWSL reads the .env file from a WSL terminal's directory by

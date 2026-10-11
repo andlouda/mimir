@@ -105,7 +105,7 @@ func (r *CachedDiscoveryResolver) runSpec(terminalType string, spec discoveryCmd
 	base := spec.name
 	// Resolve the executable on the host only for host-side runs; inside WSL
 	// the bare name must resolve via the distro's PATH.
-	if !isWSLTerminalType(terminalType) {
+	if !executil.IsWSLTerminalType(terminalType) {
 		base = discoveryExecutable(spec.name)
 	}
 	command, args, err := wrapDiscoveryCommand(terminalType, spec.wantsWorkdir, r.workdir, base, spec.args...)
@@ -120,7 +120,7 @@ func (r *CachedDiscoveryResolver) runSpec(terminalType string, spec discoveryCmd
 	executil.HideConsoleWindow(cmd)
 	// For WSL the workdir travels via `wsl.exe --cd`; setting Dir would point
 	// the Windows-side process at a Linux path.
-	if spec.wantsWorkdir && !isWSLTerminalType(terminalType) && filepath.IsAbs(r.workdir) {
+	if spec.wantsWorkdir && !executil.IsWSLTerminalType(terminalType) && filepath.IsAbs(r.workdir) {
 		cmd.Dir = r.workdir
 	}
 
@@ -227,7 +227,7 @@ func discoveryCommand(discoveryTool string, terminalType string, workdir string,
 	if err != nil {
 		return "", nil, err
 	}
-	if isWSLTerminalType(terminalType) {
+	if executil.IsWSLTerminalType(terminalType) {
 		// Keep the bare name: it must resolve inside the WSL distro's PATH.
 		// Resolving on the host would yield a Windows path (e.g. Rancher
 		// Desktop's docker.exe) that bash inside WSL cannot execute.
@@ -249,12 +249,8 @@ func discoveryExecutable(name string) string {
 	return name
 }
 
-func isWSLTerminalType(terminalType string) bool {
-	return strings.TrimSpace(strings.ToLower(terminalType)) == "wsl"
-}
-
 func wrapDiscoveryCommand(terminalType string, wantsWorkdir bool, workdir string, baseCommand string, args ...string) (string, []string, error) {
-	if isWSLTerminalType(terminalType) {
+	if executil.IsWSLTerminalType(terminalType) {
 		wrapped := []string{}
 		// The WSL workdir is a Linux path; pass it via --cd instead of cmd.Dir.
 		if wantsWorkdir && strings.HasPrefix(workdir, "/") {

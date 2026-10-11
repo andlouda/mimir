@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"mimir/executil"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -124,17 +123,10 @@ func (a *App) localTerminalCwd(terminalID int, terminalType string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var cmd *exec.Cmd
-	switch strings.TrimSpace(strings.ToLower(terminalType)) {
-	case "wsl":
-		cmd = exec.CommandContext(ctx, "wsl.exe", "--", "tmux", "-L", "mimir", "display-message", "-p", "-t", target, "#{pane_current_path}")
-	case "bash", "zsh":
-		cmd = exec.CommandContext(ctx, "tmux", "-L", "mimir", "display-message", "-p", "-t", target, "#{pane_current_path}")
-	default:
+	if !executil.LocalTmuxShell(terminalType) {
 		return ""
 	}
-
-	executil.HideConsoleWindow(cmd)
+	cmd := executil.TmuxCommand(ctx, executil.IsWSLTerminalType(terminalType), "display-message", "-p", "-t", target, "#{pane_current_path}")
 	output, err := cmd.Output()
 	if err != nil {
 		return ""

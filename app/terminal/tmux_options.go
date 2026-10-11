@@ -1,6 +1,10 @@
 package terminal
 
-import "strings"
+import (
+	"strings"
+
+	"mimir/executil"
+)
 
 // tmux integration modes. tmux keeps sessions alive across app restarts and
 // SSH drops; how much of it the user sees is a preference:
@@ -123,25 +127,10 @@ func TmuxOptionScript(mode string) string {
 			if i > 0 {
 				b.WriteByte(' ')
 			}
-			b.WriteString(posixQuote(tok))
+			b.WriteString(executil.ShellQuoteIfNeeded(tok))
 		}
 	}
 	return b.String()
-}
-
-// posixQuote single-quotes a token unless it is plainly safe.
-func posixQuote(tok string) string {
-	safe := tok != ""
-	for _, r := range tok {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("-_./:=", r)) {
-			safe = false
-			break
-		}
-	}
-	if safe {
-		return tok
-	}
-	return "'" + strings.ReplaceAll(tok, "'", `'\''`) + "'"
 }
 
 // SetTmuxIntegrationMode selects how new terminals use tmux.
@@ -201,7 +190,7 @@ func RenderTmuxScript(tmuxBin string, cmds [][]string) string {
 		}
 		for _, tok := range cmd {
 			b.WriteByte(' ')
-			b.WriteString(posixQuote(tok))
+			b.WriteString(executil.ShellQuoteIfNeeded(tok))
 		}
 	}
 	return b.String()

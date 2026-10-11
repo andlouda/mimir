@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"os/exec"
+	"log"
+	"mimir/executil"
 	"runtime"
 	"strconv"
 	"strings"
@@ -84,7 +85,9 @@ func (a *App) GetPaneResourcesJSON(idsJSON string) (string, error) {
 
 // localTmuxPanePIDs maps every local tmux session to its pane's root pid,
 // with one tmux call for all of them, cached for a minute (the pid of a
-// pane's shell does not change).
+// pane's shell does not change). Only called on Linux/macOS: on Windows the
+// sessions live in WSL, whose process tree this monitor cannot sample, so
+// GetPaneResourcesJSON skips tmux panes there.
 func localTmuxPanePIDs() map[string]int {
 	tmuxPanePIDs.Lock()
 	defer tmuxPanePIDs.Unlock()
@@ -93,7 +96,12 @@ func localTmuxPanePIDs() map[string]int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	out, _ := exec.CommandContext(ctx, "sh", "-c", `tmux -L mimir list-panes -a -F '#{session_name}	#{pane_pid}' 2>/dev/null`).Output()
+	out, err := executil.TmuxCommand(ctx, false, "list-panes", "-a", "-F", "#{session_name}\t#{pane_pid}").Output()
+	if err != nil {
+		// A dead server is normal right after the last pane closed; the
+		// caller then falls back to the shell pid it knows.
+		log.Printf("pane resources: tmux list-panes failed: %v", err)
+	}
 	pids := parseTmuxPanePIDs(string(out))
 	tmuxPanePIDs.pid, tmuxPanePIDs.at = pids, time.Now()
 	return pids

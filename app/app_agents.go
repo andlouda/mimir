@@ -100,7 +100,7 @@ const agentProbeSeparator = "__MIMIR_PS__"
 // agentProbeScript prints the pane's root pid and cwd, then the process list.
 // tmuxBin is the tmux invocation (with socket flag for local sessions).
 func agentProbeScript(tmuxBin, session string) string {
-	target := shellQuote(session + ":")
+	target := executil.ShellQuote(session + ":")
 	return tmuxBin + ` display-message -p -t ` + target + ` '#{pane_pid}` + "\t" + `#{pane_current_path}' 2>/dev/null; ` +
 		`echo ` + agentProbeSeparator + `; ` + agents.PSCommand + ` 2>/dev/null`
 }
@@ -115,7 +115,7 @@ const paneCaptureLines = 1500
 // shell's, not the agent's. In that case only the visible screen is
 // captured; the head line reports width and the alternate flag.
 func agentCaptureScript(tmuxBin, session string) string {
-	target := shellQuote(session + ":")
+	target := executil.ShellQuote(session + ":")
 	return tmuxBin + ` display-message -p -t ` + target + ` '#{pane_width} #{alternate_on}' 2>/dev/null; ` +
 		`echo ` + agentProbeSeparator + `; ` +
 		`if [ "$(` + tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on}' 2>/dev/null)" = 1 ]; then ` +
@@ -165,16 +165,10 @@ func (a *App) runPaneScript(terminalID int, terminalType string, build func(tmux
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
 	defer cancel()
-	var cmd *exec.Cmd
-	switch strings.ToLower(strings.TrimSpace(terminalType)) {
-	case "wsl":
-		cmd = exec.CommandContext(ctx, "wsl.exe", "--", "sh", "-c", build("tmux -L mimir", session))
-	case "bash", "zsh":
-		cmd = exec.CommandContext(ctx, "sh", "-c", build("tmux -L mimir", session))
-	default:
+	if !executil.LocalTmuxShell(terminalType) {
 		return "", fmt.Errorf("agent features need a tmux-backed terminal")
 	}
-	executil.HideConsoleWindow(cmd)
+	cmd := executil.ShellCommand(ctx, executil.IsWSLTerminalType(terminalType), build("tmux -L "+executil.TmuxSocket, session))
 	output, err := cmd.Output()
 	if err != nil && !strings.Contains(string(output), agentProbeSeparator) {
 		return "", fmt.Errorf("local tmux probe failed")
@@ -362,7 +356,7 @@ func (a *App) runInAgentDir(terminalID int, terminalType string, state agentTerm
 		if client == nil {
 			return "", fmt.Errorf("ssh connection is gone")
 		}
-		output, err := runSSHCommandWithTimeout(client, "cd "+shellQuote(state.cwd)+" 2>/dev/null && "+script, discoveryTimeout)
+		output, err := runSSHCommandWithTimeout(client, "cd "+executil.ShellQuote(state.cwd)+" 2>/dev/null && "+script, discoveryTimeout)
 		if err != nil && strings.TrimSpace(output) == "" {
 			return "", fmt.Errorf("remote command failed: %v", err)
 		}

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"mimir/executil"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,7 +28,7 @@ type agentPaneScreen struct {
 }
 
 func agentScreenScript(tmuxBin, session string) string {
-	target := shellQuote(session + ":")
+	target := executil.ShellQuote(session + ":")
 	return tmuxBin + ` display-message -p -t ` + target + ` '#{pane_width} #{pane_height} #{alternate_on}' 2>/dev/null; ` +
 		`echo ` + agentProbeSeparator + `; ` +
 		`if [ "$(` + tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on}' 2>/dev/null)" = 1 ]; then ` +
