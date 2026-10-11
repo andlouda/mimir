@@ -28,6 +28,9 @@ type CommandRun struct {
 	HasExit bool   `json:"hasExit"`
 	Failed  bool   `json:"failed"`
 	At      string `json:"at,omitempty"`
+	// ToolUseID is the agent's id of the call (Claude Code tool_use.id,
+	// Codex call_id): the join key to the timeline and the telemetry.
+	ToolUseID string `json:"toolUseId,omitempty"`
 }
 
 // Task is one entry of the agent's own todo list (Claude Code TodoWrite,

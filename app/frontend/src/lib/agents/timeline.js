@@ -137,7 +137,37 @@ export function buildItems(events) {
     if (g.pre && end && ms(g.pre.ts) && ms(end.ts) >= ms(g.pre.ts)) g.durationMs = ms(end.ts) - ms(g.pre.ts);
     else if (g.result?.attrs?.duration_ms != null) g.durationMs = Number(g.result.attrs.duration_ms);
   }
-  return items.sort((a, b) => ms(b.ts) - ms(a.ts) || (b.events[0]?.seq || 0) - (a.events[0]?.seq || 0));
+  return nestSubagents(items).sort((a, b) => ms(b.ts) - ms(a.ts) || (b.events[0]?.seq || 0) - (a.events[0]?.seq || 0));
+}
+
+/**
+ * Subagent calls (Claude Code's tracing beta) carry spans whose parent span
+ * belongs to the parent's Task/Agent tool call. Such groups move under
+ * their parent as `children`, newest first, one level deep.
+ */
+export function nestSubagents(items) {
+  const groupBySpan = new Map();
+  for (const it of items) {
+    if (it.kind !== 'tool') continue;
+    for (const ev of it.events) {
+      if (ev.source === 'otel' && ev.attrs?.span_id) groupBySpan.set(ev.attrs.span_id, it);
+    }
+  }
+  if (!groupBySpan.size) return items;
+  const nested = new Set();
+  for (const it of items) {
+    if (it.kind !== 'tool') continue;
+    const parentSpan = it.events.find((ev) => ev.type === 'span_tool' && ev.attrs?.parent_span_id)?.attrs.parent_span_id;
+    const parent = parentSpan ? groupBySpan.get(parentSpan) : null;
+    if (!parent || parent === it) continue;
+    parent.children = parent.children || [];
+    parent.children.push(it);
+    nested.add(it);
+  }
+  for (const it of items) {
+    if (it.children) it.children.sort((a, b) => ms(b.ts) - ms(a.ts));
+  }
+  return items.filter((it) => !nested.has(it));
 }
 
 /** Keeps the items whose category is enabled; tool groups always count as tools. */

@@ -18,3 +18,13 @@ func TestCleanUserTextDropsHarnessRecords(t *testing.T) {
 		}
 	}
 }
+
+func TestParseClaudeSessionKeepsToolUseIDOnCommands(t *testing.T) {
+	data := []byte(`{"type":"assistant","timestamp":"2026-10-11T10:00:00Z","message":{"id":"m1","role":"assistant","content":[{"type":"tool_use","id":"toolu_42","name":"Bash","input":{"command":"go test ./...","description":"tests"}}]}}
+{"type":"user","timestamp":"2026-10-11T10:00:05Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_42","content":"ok"}]}}
+`)
+	s := ParseClaudeSession(data)
+	if len(s.Commands) != 1 || s.Commands[0].ToolUseID != "toolu_42" || !s.Commands[0].HasExit || s.Commands[0].Failed {
+		t.Fatalf("commands: %+v", s.Commands)
+	}
+}
