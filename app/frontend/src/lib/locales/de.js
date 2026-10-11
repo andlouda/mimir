@@ -156,7 +156,7 @@ export default {
         notListening: 'Empfänger läuft nicht',
         events: 'Ereignisse',
         rejected: 'abgewiesen',
-        envHint: 'Neue Mimir-Shells bekommen die Variablen automatisch (kommt im nächsten Schritt). Für Claude Code in fremden Terminals: Umgebungsblock kopieren und in die Shell einfügen.',
+        envHint: 'Neue Mimir-Shells bekommen die Variablen automatisch; laufende Shells erst nach einem Neustart der Pane. Für Claude Code in fremden Terminals oder über SSH: Umgebungsblock kopieren und in die Shell einfügen. Unter WSL erreicht 127.0.0.1 den Empfänger nur mit gespiegeltem Netzwerk (.wslconfig networkingMode=mirrored).',
         copyEnvPosix: 'Für bash/zsh kopieren',
         copyEnvPowerShell: 'Für PowerShell kopieren',
         envCopied: 'Umgebungsblock kopiert. Enthält das Token.',
