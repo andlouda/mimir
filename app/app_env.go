@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mimir/executil"
+	"mimir/ssh"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -117,10 +118,10 @@ func (a *App) ReadDotEnvForTerminalJSON(terminalID int, terminalType string) (st
 		if meta := a.TerminalManager.GetSSHMeta(terminalID); meta != nil {
 			tmuxSession = meta.Config.TmuxSessionName
 		}
-		output, err := runSSHCommandWithTimeout(client, aiflow.RemoteTmuxCwdPrefix(tmuxSession)+envReadScript(), discoveryTimeout)
+		output, err := ssh.RunCommand(client, aiflow.RemoteTmuxCwdPrefix(tmuxSession)+envReadScript(), discoveryTimeout)
 		if err != nil {
 			logDotEnvEvent("dotenv_read_failed", "remote read error")
-			return "", fmt.Errorf("remote .env read failed: %s", firstOutputLine(strings.TrimSpace(output)))
+			return "", fmt.Errorf("remote .env read failed: %s", executil.FirstLine(strings.TrimSpace(output)))
 		}
 		content, err := interpretEnvOutput(output)
 		if err != nil {
@@ -168,7 +169,7 @@ func readDotEnvViaWSL(dir string) (string, error) {
 	executil.HideConsoleWindow(cmd)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("could not read .env in WSL: %s", firstOutputLine(strings.TrimSpace(string(output))))
+		return "", fmt.Errorf("could not read .env in WSL: %s", executil.FirstLine(strings.TrimSpace(string(output))))
 	}
 	return interpretEnvOutput(string(output))
 }

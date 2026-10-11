@@ -22,6 +22,14 @@ func TestLocalTmuxShell(t *testing.T) {
 	}
 }
 
+func TestValidTmuxSessionName(t *testing.T) {
+	for name, want := range map[string]bool{"mimir-local-3": true, "mimir-ssh-ab12-7": true, "dev_1": true, "": false, "a.b": false, "a:b": false, "a b": false, "x;rm": false} {
+		if got := ValidTmuxSessionName(name); got != want {
+			t.Errorf("ValidTmuxSessionName(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
 func TestShellQuote(t *testing.T) {
 	cases := map[string]string{
 		"":            "''",

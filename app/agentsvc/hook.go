@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"encoding/json"
@@ -24,13 +24,13 @@ const agentHookFlag = "--agent-hook"
 // response, which can run to megabytes before it is compacted.
 const hookStdinLimit = 2 * 1024 * 1024
 
-// runAgentHookMode handles "mimir --agent-hook": it reads one hook payload
+// RunHookMode handles "mimir --agent-hook": it reads one hook payload
 // from stdin, compacts and redacts it (agents.CompactHookEvent) and drops it
 // into the events directory. It never prints and never fails loudly: stdout
 // or a non-zero exit would feed back into Claude Code's decision for
 // PreToolUse, and Mimir only observes. Returns false when the flag is
 // absent.
-func runAgentHookMode(args []string, stdin io.Reader) bool {
+func RunHookMode(args []string, stdin io.Reader) bool {
 	found := false
 	for _, a := range args {
 		if a == agentHookFlag {
@@ -75,7 +75,7 @@ type agentPrompt struct {
 // markPromptAnswered remembers which prompt (by its arrival time) the user
 // answered from Mimir, so the watcher stops re-offering it until the
 // session file moves on.
-func (a *App) markPromptAnswered(terminalID int, at time.Time) {
+func (a *Service) markPromptAnswered(terminalID int, at time.Time) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	if a.agentAnswered == nil {
@@ -84,14 +84,14 @@ func (a *App) markPromptAnswered(terminalID int, at time.Time) {
 	a.agentAnswered[terminalID] = at
 }
 
-func (a *App) promptAnswered(terminalID int, at time.Time) bool {
+func (a *Service) promptAnswered(terminalID int, at time.Time) bool {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	t, ok := a.agentAnswered[terminalID]
 	return ok && t.Equal(at)
 }
 
-func (a *App) setAgentPrompt(terminalID int, ev *agents.HookEvent, at time.Time) {
+func (a *Service) setAgentPrompt(terminalID int, ev *agents.HookEvent, at time.Time) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	if ev == nil {
@@ -117,7 +117,7 @@ const (
 // permission prompt is pending (nothing is ever typed blindly), and it is
 // written to the activity log. The user still decides; Mimir only saves the
 // focus change.
-func (a *App) AnswerAgentPermission(terminalID int, allow bool) error {
+func (a *Service) AnswerAgentPermission(terminalID int, allow bool) error {
 	a.agentMu.Lock()
 	p, ok := a.agentPrompts[terminalID]
 	if ok {
@@ -137,7 +137,7 @@ func (a *App) AnswerAgentPermission(terminalID int, allow bool) error {
 		keys = agentPermissionAllowKeys
 		verb = "allowed"
 	}
-	if err := a.TerminalManager.WriteToTerminal(terminalID, keys); err != nil {
+	if err := a.terminals.WriteToTerminal(terminalID, keys); err != nil {
 		return err
 	}
 	logAgentEvent("agent_permission_answered", fmt.Sprintf("terminal %d: %s (%s)", terminalID, verb, p.event.Message))
@@ -194,12 +194,12 @@ type claudeHookStatus struct {
 // hookTarget resolves where the hook lives for a terminal. terminalID <= 0
 // means this machine (the settings view); otherwise the host the terminal's
 // agent runs on.
-func (a *App) hookTarget(terminalID int) (source string, fs hookFS, home string, cleanup func(), err error) {
+func (a *Service) hookTarget(terminalID int) (source string, fs hookFS, home string, cleanup func(), err error) {
 	source = "local"
 	if terminalID > 0 {
 		if st, ok := a.rememberedAgent(terminalID); ok && st.source != "" {
 			source = st.source
-		} else if a.TerminalManager != nil && a.TerminalManager.GetSSHClient(terminalID) != nil {
+		} else if a.terminals != nil && a.terminals.GetSSHClient(terminalID) != nil {
 			source = "ssh"
 		}
 	}
@@ -209,7 +209,7 @@ func (a *App) hookTarget(terminalID int) (source string, fs hookFS, home string,
 // hookTargetSource resolves the hook location for a known host: "local",
 // "wsl" (the default distro, reached over \\wsl$ from Windows) or "ssh"
 // (needs the terminal's SSH client).
-func (a *App) hookTargetSource(terminalID int, source string) (string, hookFS, string, func(), error) {
+func (a *Service) hookTargetSource(terminalID int, source string) (string, hookFS, string, func(), error) {
 	if source == "ssh" && terminalID <= 0 {
 		return source, nil, "", func() {}, fmt.Errorf("SSH hosts get the hook from the agent panel of a connected terminal")
 	}
@@ -259,7 +259,7 @@ func readSettings(fs agents.FS, file string) ([]byte, error) {
 
 // GetClaudeHookStatusJSON reports whether Mimir's Notification hook is in
 // Claude Code's settings on the host of the given terminal (0 = local).
-func (a *App) GetClaudeHookStatusJSON(terminalID int) string {
+func (a *Service) GetClaudeHookStatusJSON(terminalID int) string {
 	source, fs, home, cleanup, err := a.hookTarget(terminalID)
 	return a.hookStatusFrom(source, fs, home, cleanup, err)
 }
@@ -267,14 +267,14 @@ func (a *App) GetClaudeHookStatusJSON(terminalID int) string {
 // GetClaudeHookStatusForHostJSON is the settings-view variant: host is
 // "local" or "wsl". Claude Code inside WSL reads the distro's own
 // ~/.claude/settings.json, so it needs its own hook entry.
-func (a *App) GetClaudeHookStatusForHostJSON(host string) string {
+func (a *Service) GetClaudeHookStatusForHostJSON(host string) string {
 	source, fs, home, cleanup, err := a.hookTargetSource(0, hookHost(host))
 	return a.hookStatusFrom(source, fs, home, cleanup, err)
 }
 
 // ListClaudeHookHostsJSON lists the hosts the settings view can install the
 // hook on: this machine, plus the default WSL distro when one answers.
-func (a *App) ListClaudeHookHostsJSON() string {
+func (a *Service) ListClaudeHookHostsJSON() string {
 	hosts := []string{"local"}
 	if runtime.GOOS == "windows" {
 		if _, _, err := wslHomeUNC(); err == nil {
@@ -292,7 +292,7 @@ func hookHost(host string) string {
 	return "local"
 }
 
-func (a *App) hookStatusFrom(source string, fs hookFS, home string, cleanup func(), err error) string {
+func (a *Service) hookStatusFrom(source string, fs hookFS, home string, cleanup func(), err error) string {
 	status := claudeHookStatus{Host: source}
 	if err != nil {
 		status.Error = err.Error()
@@ -320,7 +320,7 @@ func marshalHookStatus(s claudeHookStatus) string {
 	return string(b)
 }
 
-// upgradeOutdatedClaudeHooks rewrites an installed but outdated hook set
+// UpgradeOutdatedHooks rewrites an installed but outdated hook set
 // on the hosts Mimir can reach without a terminal (local, WSL). An old
 // form (Notification only, event files without the agent pid) cannot
 // bind sessions to panes and attributes prompts by newest file, which
@@ -328,7 +328,10 @@ func marshalHookStatus(s claudeHookStatus) string {
 // opted into the hook once; keeping it current is part of that. The tool
 // events follow the timeline setting both ways: turning it off removes
 // them again, so an upgrade never widens collection on its own.
-func (a *App) upgradeOutdatedClaudeHooks() {
+func (a *Service) UpgradeOutdatedHooks() {
+	if a == nil {
+		return
+	}
 	wanted := a.hookToolEventsWanted()
 	hosts := []string{"local"}
 	if runtime.GOOS == "windows" {
@@ -360,16 +363,16 @@ func (a *App) upgradeOutdatedClaudeHooks() {
 // settings.json on the terminal's host (0 = local). Other settings and
 // foreign hooks are preserved; the file is rejected, not overwritten, when
 // it is not valid JSON.
-func (a *App) InstallClaudeHook(terminalID int) error {
+func (a *Service) InstallClaudeHook(terminalID int) error {
 	return a.installClaudeHook(a.hookTarget(terminalID))
 }
 
 // InstallClaudeHookOnHost installs on "local" or "wsl" (settings view).
-func (a *App) InstallClaudeHookOnHost(host string) error {
+func (a *Service) InstallClaudeHookOnHost(host string) error {
 	return a.installClaudeHook(a.hookTargetSource(0, hookHost(host)))
 }
 
-func (a *App) installClaudeHook(source string, fs hookFS, home string, cleanup func(), err error) error {
+func (a *Service) installClaudeHook(source string, fs hookFS, home string, cleanup func(), err error) error {
 	if err != nil {
 		return err
 	}
@@ -401,16 +404,16 @@ func (a *App) installClaudeHook(source string, fs hookFS, home string, cleanup f
 }
 
 // RemoveClaudeHook takes Mimir's hook out of settings.json again.
-func (a *App) RemoveClaudeHook(terminalID int) error {
+func (a *Service) RemoveClaudeHook(terminalID int) error {
 	return a.removeClaudeHook(a.hookTarget(terminalID))
 }
 
 // RemoveClaudeHookOnHost removes from "local" or "wsl" (settings view).
-func (a *App) RemoveClaudeHookOnHost(host string) error {
+func (a *Service) RemoveClaudeHookOnHost(host string) error {
 	return a.removeClaudeHook(a.hookTargetSource(0, hookHost(host)))
 }
 
-func (a *App) removeClaudeHook(source string, fs hookFS, home string, cleanup func(), err error) error {
+func (a *Service) removeClaudeHook(source string, fs hookFS, home string, cleanup func(), err error) error {
 	if err != nil {
 		return err
 	}

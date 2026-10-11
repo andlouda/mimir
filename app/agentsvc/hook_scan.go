@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"context"
@@ -83,7 +83,7 @@ func (s *hookScanSource) unboundPPIDs(stubs []agents.HookEventStub, known map[in
 
 // scanUnboundHookEvents runs until ctx ends. It does nothing while
 // detection is off or every open pane already has an agent.
-func (a *App) scanUnboundHookEvents(ctx context.Context) {
+func (a *Service) scanUnboundHookEvents(ctx context.Context) {
 	ticker := time.NewTicker(agentHookScanInterval)
 	defer ticker.Stop()
 	var sources []*hookScanSource
@@ -130,7 +130,7 @@ func (a *App) scanUnboundHookEvents(ctx context.Context) {
 
 // knownAgentPIDs is the detected agent pid per source ("local", "wsl",
 // "ssh"); pid spaces differ per host, so they are kept apart.
-func (a *App) knownAgentPIDs() map[string]map[int]bool {
+func (a *Service) knownAgentPIDs() map[string]map[int]bool {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	out := map[string]map[int]bool{}
@@ -148,15 +148,15 @@ func (a *App) knownAgentPIDs() map[string]map[int]bool {
 
 // hasAgentlessTerminal reports whether a pane without a detected agent is
 // open (SSH panes aside: their mailbox is not reachable without a session).
-func (a *App) hasAgentlessTerminal() bool {
-	ids := a.TerminalManager.SessionIDs()
+func (a *Service) hasAgentlessTerminal() bool {
+	ids := a.terminals.SessionIDs()
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	for _, id := range ids {
 		if _, ok := a.agentStates[id]; ok {
 			continue
 		}
-		if a.TerminalManager.GetSSHClient(id) != nil {
+		if a.terminals.GetSSHClient(id) != nil {
 			continue
 		}
 		return true
@@ -167,7 +167,7 @@ func (a *App) hasAgentlessTerminal() bool {
 // noteDetectionOutcome records why a probe found nothing, once per
 // distinct reason per pane, so a pane that stays without a badge leaves a
 // trace in the security events instead of silence.
-func (a *App) noteDetectionOutcome(terminalID int, terminalType string, res agentDetectionResult) {
+func (a *Service) noteDetectionOutcome(terminalID int, terminalType string, res agentDetectionResult) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	if a.agentDetectReasons == nil {
@@ -188,8 +188,11 @@ func (a *App) noteDetectionOutcome(terminalID int, terminalType string, res agen
 	logAgentEvent("agent_detection_none", fmt.Sprintf("terminal %d (%s, %s): %s", terminalID, terminalType, res.Source, reason))
 }
 
-// forgetDetectionOutcome drops the pane's entry when the pane closes.
-func (a *App) forgetDetectionOutcome(terminalID int) {
+// ForgetDetectionOutcome drops the pane's entry when the pane closes.
+func (a *Service) ForgetDetectionOutcome(terminalID int) {
+	if a == nil {
+		return
+	}
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	delete(a.agentDetectReasons, terminalID)

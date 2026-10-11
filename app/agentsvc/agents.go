@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"context"
@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"io"
 	"mimir/executil"
+	"mimir/ssh"
 	"mimir/terminal"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -66,7 +66,7 @@ func (s agentTerminalState) effectiveSessionFile() string {
 
 // boundElsewhere reports whether another terminal's agent is bound to (or
 // pinned on) the file, so two panes never follow the same session.
-func (a *App) boundElsewhere(terminalID int, file string) bool {
+func (a *Service) boundElsewhere(terminalID int, file string) bool {
 	if file == "" {
 		return false
 	}
@@ -82,7 +82,7 @@ func (a *App) boundElsewhere(terminalID int, file string) bool {
 
 // bindAgentSession records the session file a hook event named for the
 // terminal's agent process.
-func (a *App) bindAgentSession(terminalID, pid int, file string) {
+func (a *Service) bindAgentSession(terminalID, pid int, file string) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	st, ok := a.agentStates[terminalID]
@@ -93,16 +93,14 @@ func (a *App) bindAgentSession(terminalID, pid int, file string) {
 	a.agentStates[terminalID] = st
 }
 
-var tmuxSessionNamePattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
-
-const agentProbeSeparator = "__MIMIR_PS__"
+const ProbeSeparator = "__MIMIR_PS__"
 
 // agentProbeScript prints the pane's root pid and cwd, then the process list.
 // tmuxBin is the tmux invocation (with socket flag for local sessions).
 func agentProbeScript(tmuxBin, session string) string {
 	target := executil.ShellQuote(session + ":")
 	return tmuxBin + ` display-message -p -t ` + target + ` '#{pane_pid}` + "\t" + `#{pane_current_path}' 2>/dev/null; ` +
-		`echo ` + agentProbeSeparator + `; ` + agents.PSCommand + ` 2>/dev/null`
+		`echo ` + ProbeSeparator + `; ` + agents.PSCommand + ` 2>/dev/null`
 }
 
 // paneCaptureLines bounds how much scrollback the tmux capture returns.
@@ -117,7 +115,7 @@ const paneCaptureLines = 1500
 func agentCaptureScript(tmuxBin, session string) string {
 	target := executil.ShellQuote(session + ":")
 	return tmuxBin + ` display-message -p -t ` + target + ` '#{pane_width} #{alternate_on}' 2>/dev/null; ` +
-		`echo ` + agentProbeSeparator + `; ` +
+		`echo ` + ProbeSeparator + `; ` +
 		`if [ "$(` + tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on}' 2>/dev/null)" = 1 ]; then ` +
 		tmuxBin + ` capture-pane -p -J -t ` + target + ` 2>/dev/null; else ` +
 		tmuxBin + ` capture-pane -p -J -S -` + strconv.Itoa(paneCaptureLines) + ` -t ` + target + ` 2>/dev/null; fi`
@@ -126,7 +124,7 @@ func agentCaptureScript(tmuxBin, session string) string {
 // parseAgentCapture splits capture output into pane width, the alternate
 // screen flag and cleaned text with hard-wrapped full-width rows re-joined.
 func parseAgentCapture(output string) (text string, width int, alternate bool) {
-	head, tail, found := strings.Cut(output, agentProbeSeparator)
+	head, tail, found := strings.Cut(output, ProbeSeparator)
 	if !found {
 		return "", 0, false
 	}
@@ -141,26 +139,29 @@ func parseAgentCapture(output string) (text string, width int, alternate bool) {
 	return agents.JoinFullWidthRows(text, width), width, alternate
 }
 
-// runPaneScript executes a tmux script in the environment the terminal
+// RunPaneScript executes a tmux script in the environment the terminal
 // lives in (local shell, WSL distro or SSH host).
-func (a *App) runPaneScript(terminalID int, terminalType string, build func(tmuxBin, session string) string) (string, error) {
-	if client := a.TerminalManager.GetSSHClient(terminalID); client != nil {
+func (a *Service) RunPaneScript(terminalID int, terminalType string, build func(tmuxBin, session string) string) (string, error) {
+	if a == nil {
+		return "", fmt.Errorf("agent service not started")
+	}
+	if client := a.terminals.GetSSHClient(terminalID); client != nil {
 		session := ""
-		if meta := a.TerminalManager.GetSSHMeta(terminalID); meta != nil {
+		if meta := a.terminals.GetSSHMeta(terminalID); meta != nil {
 			session = strings.TrimSpace(meta.Config.TmuxSessionName)
 		}
-		if session == "" || !tmuxSessionNamePattern.MatchString(session) {
+		if session == "" || !executil.ValidTmuxSessionName(session) {
 			return "", fmt.Errorf("no tmux session on the remote host")
 		}
-		output, err := runSSHCommandWithTimeout(client, build("tmux", session), discoveryTimeout)
-		if err != nil && !strings.Contains(output, agentProbeSeparator) {
+		output, err := ssh.RunCommand(client, build("tmux", session), discoveryTimeout)
+		if err != nil && !strings.Contains(output, ProbeSeparator) {
 			return "", fmt.Errorf("remote tmux probe failed")
 		}
 		return output, nil
 	}
-	meta := a.TerminalManager.GetTerminalRuntimeMeta(terminalID)
+	meta := a.terminals.GetTerminalRuntimeMeta(terminalID)
 	session := strings.TrimSpace(meta.TmuxSessionName)
-	if !meta.TmuxActive || session == "" || !tmuxSessionNamePattern.MatchString(session) {
+	if !meta.TmuxActive || session == "" || !executil.ValidTmuxSessionName(session) {
 		return "", fmt.Errorf("no tmux session")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
@@ -170,15 +171,15 @@ func (a *App) runPaneScript(terminalID int, terminalType string, build func(tmux
 	}
 	cmd := executil.ShellCommand(ctx, executil.IsWSLTerminalType(terminalType), build("tmux -L "+executil.TmuxSocket, session))
 	output, err := cmd.Output()
-	if err != nil && !strings.Contains(string(output), agentProbeSeparator) {
+	if err != nil && !strings.Contains(string(output), ProbeSeparator) {
 		return "", fmt.Errorf("local tmux probe failed")
 	}
 	return string(output), nil
 }
 
 // capturePane returns the pane text (see agentCaptureScript) or "" on error.
-func (a *App) capturePane(terminalID int, terminalType string) (string, int) {
-	output, err := a.runPaneScript(terminalID, terminalType, agentCaptureScript)
+func (a *Service) capturePane(terminalID int, terminalType string) (string, int) {
+	output, err := a.RunPaneScript(terminalID, terminalType, agentCaptureScript)
 	if err != nil {
 		return "", 0
 	}
@@ -195,7 +196,7 @@ func agentDetectionDisabledPath() (string, error) {
 }
 
 // IsAgentDetectionEnabled reports the persisted setting (default on).
-func (a *App) IsAgentDetectionEnabled() bool {
+func (a *Service) IsAgentDetectionEnabled() bool {
 	path, err := agentDetectionDisabledPath()
 	if err != nil {
 		return true
@@ -208,7 +209,7 @@ func (a *App) IsAgentDetectionEnabled() bool {
 // it counts as consent for the prompt hook that reports the working
 // directory of terminals without tmux (see terminal.shellHookConsent); the
 // hook is injected into terminals opened from now on.
-func (a *App) SetAgentDetectionEnabled(enabled bool) error {
+func (a *Service) SetAgentDetectionEnabled(enabled bool) error {
 	path, err := agentDetectionDisabledPath()
 	if err != nil {
 		return err
@@ -233,19 +234,19 @@ func (a *App) SetAgentDetectionEnabled(enabled bool) error {
 
 // tmuxBufferScript prints the newest tmux paste buffer of the pane's server.
 func tmuxBufferScript(tmuxBin, _ string) string {
-	return `echo ` + agentProbeSeparator + `; ` + tmuxBin + ` show-buffer 2>/dev/null`
+	return `echo ` + ProbeSeparator + `; ` + tmuxBin + ` show-buffer 2>/dev/null`
 }
 
 // GetTmuxPasteBufferJSON returns the text tmux copied last (its newest paste
 // buffer) for a tmux-backed terminal. Mouse selections inside tmux land there
 // even when the remote tmux cannot forward them via OSC 52 (old versions,
 // missing Ms capability), so the frontend can still put them on the clipboard.
-func (a *App) GetTmuxPasteBufferJSON(terminalID int, terminalType string) (string, error) {
-	output, err := a.runPaneScript(terminalID, terminalType, tmuxBufferScript)
+func (a *Service) GetTmuxPasteBufferJSON(terminalID int, terminalType string) (string, error) {
+	output, err := a.RunPaneScript(terminalID, terminalType, tmuxBufferScript)
 	if err != nil {
 		return "", err
 	}
-	_, text, found := strings.Cut(output, agentProbeSeparator)
+	_, text, found := strings.Cut(output, ProbeSeparator)
 	if !found {
 		text = ""
 	}
@@ -282,8 +283,8 @@ const paneTailLines = 400
 // By default the text starts at the last shell prompt that launched the
 // agent, so the panel is not flooded with unrelated scrollback; full=true
 // returns the whole capture.
-func (a *App) GetAgentPaneTextJSON(terminalID int, terminalType string, full bool) (string, error) {
-	output, err := a.runPaneScript(terminalID, terminalType, agentCaptureScript)
+func (a *Service) GetAgentPaneTextJSON(terminalID int, terminalType string, full bool) (string, error) {
+	output, err := a.RunPaneScript(terminalID, terminalType, agentCaptureScript)
 	if err != nil {
 		return "", err
 	}
@@ -322,7 +323,7 @@ const gitStatusScript = `if git rev-parse --is-inside-work-tree >/dev/null 2>&1;
 // directory the agent runs in, so the panel can show a review summary next
 // to the files the agent touched. Runs git out-of-band in the pane's cwd
 // (local, WSL or over SSH) and never writes anything.
-func (a *App) GetAgentGitStatusJSON(terminalID int, terminalType string) (string, error) {
+func (a *Service) GetAgentGitStatusJSON(terminalID int, terminalType string) (string, error) {
 	state, ok := a.rememberedAgent(terminalID)
 	if !ok || state.cwd == "" {
 		return "", fmt.Errorf("no agent directory known for this terminal")
@@ -347,16 +348,16 @@ func (a *App) GetAgentGitStatusJSON(terminalID int, terminalType string) (string
 
 // runInAgentDir executes a POSIX shell script in the agent's working
 // directory in the environment the terminal lives in.
-func (a *App) runInAgentDir(terminalID int, terminalType string, state agentTerminalState, script string) (string, error) {
+func (a *Service) runInAgentDir(terminalID int, terminalType string, state agentTerminalState, script string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
 	defer cancel()
 	switch state.source {
 	case "ssh":
-		client := a.TerminalManager.GetSSHClient(terminalID)
+		client := a.terminals.GetSSHClient(terminalID)
 		if client == nil {
 			return "", fmt.Errorf("ssh connection is gone")
 		}
-		output, err := runSSHCommandWithTimeout(client, "cd "+executil.ShellQuote(state.cwd)+" 2>/dev/null && "+script, discoveryTimeout)
+		output, err := ssh.RunCommand(client, "cd "+executil.ShellQuote(state.cwd)+" 2>/dev/null && "+script, discoveryTimeout)
 		if err != nil && strings.TrimSpace(output) == "" {
 			return "", fmt.Errorf("remote command failed: %v", err)
 		}
@@ -384,7 +385,7 @@ func (a *App) runInAgentDir(terminalID int, terminalType string, state agentTerm
 // parseAgentProbe splits probe output into the pane root pid, its cwd and the
 // process rows.
 func parseAgentProbe(output string) (rootPID int, cwd string, procs []agents.Process) {
-	head, tail, found := strings.Cut(output, agentProbeSeparator)
+	head, tail, found := strings.Cut(output, ProbeSeparator)
 	if !found {
 		return 0, "", nil
 	}
@@ -397,7 +398,7 @@ func parseAgentProbe(output string) (rootPID int, cwd string, procs []agents.Pro
 	return rootPID, cwd, agents.ParsePS(tail)
 }
 
-func (a *App) rememberAgent(terminalID int, state agentTerminalState) {
+func (a *Service) rememberAgent(terminalID int, state agentTerminalState) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	if a.agentStates == nil {
@@ -406,13 +407,13 @@ func (a *App) rememberAgent(terminalID int, state agentTerminalState) {
 	a.agentStates[terminalID] = state
 }
 
-func (a *App) forgetAgent(terminalID int) {
+func (a *Service) forgetAgent(terminalID int) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	delete(a.agentStates, terminalID)
 }
 
-func (a *App) rememberedAgent(terminalID int) (agentTerminalState, bool) {
+func (a *Service) rememberedAgent(terminalID int) (agentTerminalState, bool) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	s, ok := a.agentStates[terminalID]
@@ -422,7 +423,7 @@ func (a *App) rememberedAgent(terminalID int) (agentTerminalState, bool) {
 // DetectAgentForTerminalJSON scans the process tree of a terminal's tmux pane
 // for a known coding agent. Detection is metadata only: the process list is
 // inspected in memory and never shown; the interactive PTY is not touched.
-func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (string, error) {
+func (a *Service) DetectAgentForTerminalJSON(terminalID int, terminalType string) (string, error) {
 	result := a.detectAgent(terminalID, terminalType)
 	a.noteDetectionOutcome(terminalID, terminalType, result)
 	if result.Detected {
@@ -437,7 +438,7 @@ func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (s
 		a.startAgentWatcher(terminalID, terminalType, state)
 	} else {
 		a.forgetAgent(terminalID)
-		a.stopAgentWatcher(terminalID)
+		a.StopWatcher(terminalID)
 	}
 	payload, err := json.Marshal(result)
 	if err != nil {
@@ -448,8 +449,8 @@ func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (s
 
 // sshAgentHost reports whether the SSH pane's profile opted into agent
 // detection. Not every SSH session is an agent session.
-func (a *App) sshAgentHost(terminalID int) bool {
-	meta := a.TerminalManager.GetSSHMeta(terminalID)
+func (a *Service) sshAgentHost(terminalID int) bool {
+	meta := a.terminals.GetSSHMeta(terminalID)
 	if meta == nil || a.sshProfileStore == nil {
 		return false
 	}
@@ -457,9 +458,9 @@ func (a *App) sshAgentHost(terminalID int) bool {
 	return ok && profile.AgentHost
 }
 
-func (a *App) detectAgent(terminalID int, terminalType string) agentDetectionResult {
+func (a *Service) detectAgent(terminalID int, terminalType string) agentDetectionResult {
 	source := "local"
-	if a.TerminalManager.GetSSHClient(terminalID) != nil {
+	if a.terminals.GetSSHClient(terminalID) != nil {
 		source = "ssh"
 	} else if strings.EqualFold(strings.TrimSpace(terminalType), "wsl") {
 		source = "wsl"
@@ -467,10 +468,10 @@ func (a *App) detectAgent(terminalID int, terminalType string) agentDetectionRes
 	if source == "ssh" && !a.sshAgentHost(terminalID) {
 		return agentDetectionResult{Source: source, Reason: "agent detection is off for this SSH profile (enable \"Agent host\" in the profile)"}
 	}
-	if source != "ssh" && !a.TerminalManager.GetTerminalRuntimeMeta(terminalID).TmuxActive {
+	if source != "ssh" && !a.terminals.GetTerminalRuntimeMeta(terminalID).TmuxActive {
 		return a.detectWithoutTmux(terminalID, source)
 	}
-	output, err := a.runPaneScript(terminalID, terminalType, agentProbeScript)
+	output, err := a.RunPaneScript(terminalID, terminalType, agentProbeScript)
 	if err != nil {
 		return agentDetectionResult{Reason: err.Error()}
 	}
@@ -484,8 +485,8 @@ func (a *App) detectAgent(terminalID int, terminalType string) agentDetectionRes
 // the process tree is the terminal's own child process; the working
 // directory comes from the prompt hook's cwd beacon (empty until the first
 // prompt was shown, in which case the newest session file is used).
-func (a *App) detectWithoutTmux(terminalID int, source string) agentDetectionResult {
-	rootPID := a.TerminalManager.SessionPID(terminalID)
+func (a *Service) detectWithoutTmux(terminalID int, source string) agentDetectionResult {
+	rootPID := a.terminals.SessionPID(terminalID)
 	if rootPID <= 0 {
 		return agentDetectionResult{Reason: "terminal process unknown"}
 	}
@@ -493,7 +494,7 @@ func (a *App) detectWithoutTmux(terminalID int, source string) agentDetectionRes
 	if err != nil {
 		return agentDetectionResult{Reason: "process list unavailable: " + err.Error()}
 	}
-	cwd := a.TerminalManager.GetLastReportedCwd(terminalID)
+	cwd := a.terminals.GetLastReportedCwd(terminalID)
 	det, ok := agents.FindAgent(procs, rootPID)
 	if !ok {
 		return agentDetectionResult{Cwd: cwd, Source: source}
@@ -559,7 +560,7 @@ func finishDetection(output, source string) agentDetectionResult {
 // belongs to a terminal. The session file is read out-of-band from the agent's
 // own storage (never through the PTY), so the returned text is exact and free
 // of terminal wrapping. Only metadata is logged.
-func (a *App) GetAgentTranscriptJSON(terminalID int, terminalType string, limit int) (string, error) {
+func (a *Service) GetAgentTranscriptJSON(terminalID int, terminalType string, limit int) (string, error) {
 	state, ok := a.rememberedAgent(terminalID)
 	if !ok {
 		// Detection may not have run yet (panel opened directly); run it now.
@@ -605,7 +606,7 @@ func (a *App) GetAgentTranscriptJSON(terminalID int, terminalType string, limit 
 	return string(payload), nil
 }
 
-func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, opts agents.ReadOptions) (agents.Transcript, error) {
+func (a *Service) readAgentTranscriptFile(terminalID int, state agentTerminalState, opts agents.ReadOptions) (agents.Transcript, error) {
 	fs, home, cleanup, err := a.agentFS(terminalID, state.source)
 	if err != nil {
 		return agents.Transcript{}, err
@@ -642,7 +643,7 @@ func (a *App) readAgentTranscriptFile(terminalID int, state agentTerminalState, 
 
 // ListAgentSessionsJSON lists the candidate sessions for the agent in a
 // terminal so the user can pick one when several exist for the directory.
-func (a *App) ListAgentSessionsJSON(terminalID int, terminalType string) (string, error) {
+func (a *Service) ListAgentSessionsJSON(terminalID int, terminalType string) (string, error) {
 	state, ok := a.rememberedAgent(terminalID)
 	if !ok {
 		return "", fmt.Errorf("no agent detected in this terminal")
@@ -680,14 +681,14 @@ func (a *App) ListAgentSessionsJSON(terminalID int, terminalType string) (string
 
 // SelectAgentSession pins a session for a terminal ("" returns to the
 // automatic choice). The watcher is restarted so its state follows the pin.
-func (a *App) SelectAgentSession(terminalID int, terminalType string, file string) error {
+func (a *Service) SelectAgentSession(terminalID int, terminalType string, file string) error {
 	state, ok := a.rememberedAgent(terminalID)
 	if !ok {
 		return fmt.Errorf("no agent detected in this terminal")
 	}
 	state.sessionFile = strings.TrimSpace(file)
 	a.rememberAgent(terminalID, state)
-	a.stopAgentWatcher(terminalID)
+	a.StopWatcher(terminalID)
 	a.startAgentWatcher(terminalID, terminalType, state)
 	logAgentEvent("agent_session_selected", fmt.Sprintf("%s via %s: %s", state.kind, state.source, map[bool]string{true: "automatic", false: "pinned"}[state.sessionFile == ""]))
 	return nil
@@ -717,11 +718,11 @@ func openCodeDBFor(source string, fs agents.FS, home string) (string, error) {
 
 // agentFS returns the filesystem and home directory where the agent stores
 // its sessions, depending on where the terminal runs.
-func (a *App) agentFS(terminalID int, source string) (agents.FS, string, func(), error) {
+func (a *Service) agentFS(terminalID int, source string) (agents.FS, string, func(), error) {
 	noop := func() {}
 	switch source {
 	case "ssh":
-		client, err := a.remoteFileClient(terminalID)
+		client, err := a.remoteFiles(terminalID)
 		if err != nil {
 			return nil, "", noop, err
 		}
@@ -756,7 +757,7 @@ func wslHomeUNC() (base string, home string, err error) {
 	executil.HideConsoleWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
-		return "", "", fmt.Errorf("could not query WSL home: %s", firstOutputLine(strings.TrimSpace(string(out))))
+		return "", "", fmt.Errorf("could not query WSL home: %s", executil.FirstLine(strings.TrimSpace(string(out))))
 	}
 	lines := strings.Split(strings.TrimSpace(strings.ReplaceAll(string(out), "\x00", "")), "\n")
 	if len(lines) < 2 || strings.TrimSpace(lines[0]) == "" || strings.TrimSpace(lines[1]) == "" {
@@ -767,7 +768,7 @@ func wslHomeUNC() (base string, home string, err error) {
 
 // sftpAgentFS adapts the SFTP client to agents.FS.
 type sftpAgentFS struct {
-	client remoteFileClient
+	client RemoteFiles
 }
 
 func (s sftpAgentFS) Join(elem ...string) string { return path.Join(elem...) }
