@@ -106,8 +106,15 @@ server), PowerShell and cmd through the process environment, WSL through
 the rc file inside the distro. A running shell keeps its old environment
 until the pane is restarted. SSH panes are not covered: the remote host's
 `127.0.0.1` is not Mimir's, and nothing is installed on SSH servers; the
-hook one-liner still delivers tool events there. Under WSL2, `127.0.0.1`
-reaches the Windows listener only with mirrored networking.
+hook one-liner still delivers tool events there.
+
+WSL2: inside the distro `127.0.0.1` is the VM, not Windows. With the "WSL
+bridge" setting (Windows, default on, needs the token) Mimir listens a
+second time on the host's address of the WSL virtual switch, the address
+the distro sees as its default gateway. The rc file of a WSL pane, and the
+"Für WSL kopieren" block, probe `127.0.0.1` first (mirrored networking) and
+otherwise use that gateway. Only clients from the WSL subnet are accepted
+on that listener, with the token.
 
 `OTEL_LOG_USER_PROMPTS` is never set. Records whose `event.name` is not
 `claude_code.*` are counted and dropped; records for a session no pane has

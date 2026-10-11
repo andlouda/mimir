@@ -50,8 +50,21 @@ func launchEnv() []string {
 
 // launchEnvExports renders the pairs as POSIX export lines for an rc file,
 // so they reach shells started inside an already running tmux server too.
-func launchEnvExports() string {
-	env := launchEnv()
+// wsl adds the host probe for WSL2 distros.
+func launchEnvExports(wsl bool) string {
+	return RenderExports(launchEnv(), wsl)
+}
+
+// endpointVar is the variable whose value differs inside WSL2.
+const endpointVar = "OTEL_EXPORTER_OTLP_ENDPOINT"
+
+var loopbackEndpoint = regexp.MustCompile(`^http://127\.0\.0\.1:(\d+)$`)
+
+// RenderExports renders KEY=VALUE pairs as POSIX export lines. With wsl,
+// a loopback endpoint becomes a probe: 127.0.0.1 when it answers (mirrored
+// networking), else the distro's default gateway, which is the Windows
+// host on the WSL virtual switch where Mimir listens as well.
+func RenderExports(env []string, wsl bool) string {
 	if len(env) == 0 {
 		return ""
 	}
@@ -59,6 +72,15 @@ func launchEnvExports() string {
 	b.WriteString("# Mimir: agent telemetry (Settings > Agent-Zeitleiste)\n")
 	for _, kv := range env {
 		k, v, _ := strings.Cut(kv, "=")
+		if wsl && k == endpointVar {
+			if m := loopbackEndpoint.FindStringSubmatch(v); m != nil {
+				port := m[1]
+				b.WriteString("if (exec 3<>/dev/tcp/127.0.0.1/" + port + ") 2>/dev/null; then __mimir_otel_host=127.0.0.1; else __mimir_otel_host=$(ip route show default 2>/dev/null | awk '/default/ {print $3; exit}'); fi\n")
+				b.WriteString("export " + k + "=\"http://${__mimir_otel_host:-127.0.0.1}:" + port + "\"\n")
+				b.WriteString("unset __mimir_otel_host\n")
+				continue
+			}
+		}
 		b.WriteString("export " + k + "=" + singleQuote(v) + "\n")
 	}
 	return b.String()

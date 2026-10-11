@@ -63,9 +63,11 @@ type App struct {
 	agentMu       sync.Mutex
 	// telemetry / timeline: the agent timeline settings and its store (see
 	// telemetry_settings.go, timeline package).
-	telemetry             TelemetrySettings
-	telemetryMu           sync.Mutex
-	telemetryServer       *otlp.Server
+	telemetry       TelemetrySettings
+	telemetryMu     sync.Mutex
+	telemetryServer *otlp.Server
+	// telemetryWSLServer is the second receiver on the WSL adapter (Windows).
+	telemetryWSLServer    *otlp.Server
 	telemetryStat         telemetryStatus
 	timeline              *timeline.Store
 	knownHostStore        *ssh.KnownHostStore

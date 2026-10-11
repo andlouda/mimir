@@ -31,6 +31,9 @@ type TelemetrySettings struct {
 	Port int `json:"port"`
 	// RequireToken makes the listener demand the shared token header.
 	RequireToken bool `json:"requireToken"`
+	// WSLBridge (Windows) also listens on the WSL virtual adapter so Claude
+	// Code inside WSL2 reaches the receiver; needs the token.
+	WSLBridge bool `json:"wslBridge"`
 	// Token is the shared secret; it stays in the file and is never sent to
 	// the frontend (HasToken says whether one exists).
 	Token    string `json:"token,omitempty"`
@@ -64,6 +67,7 @@ func defaultTelemetrySettings() TelemetrySettings {
 		OTelReceiver:      true,
 		Port:              telemetryDefaultPort,
 		RequireToken:      true,
+		WSLBridge:         true,
 		ToolDetails:       false,
 		TracesBeta:        false,
 		ExportIntervalMs:  1000,

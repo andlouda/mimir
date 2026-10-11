@@ -378,6 +378,8 @@
     if (next === 'files' && !git) refreshGit();
   }
 
+  // Alias kept for the older call sites; both show the transient line.
+  function showFeedback(message) { flash(message); }
   function flash(message) {
     feedback = message;
     if (feedbackTimer) clearTimeout(feedbackTimer);

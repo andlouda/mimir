@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -119,5 +120,20 @@ func TestServerStartBindsLoopbackOnly(t *testing.T) {
 	defer cancel()
 	if err := s.Stop(ctx); err != nil || s.ListenAddr() != "" {
 		t.Fatalf("stop: %v %q", err, s.ListenAddr())
+	}
+}
+
+func TestServerAllowFromPermitsNonLoopbackClients(t *testing.T) {
+	_, n, _ := net.ParseCIDR("172.20.0.0/20")
+	s := &Server{Token: "secret", AllowFrom: []*net.IPNet{n}}
+	if !s.allowed("127.0.0.1") || !s.allowed("172.20.3.7") || s.allowed("172.21.0.1") || s.allowed("203.0.113.9") || s.allowed("nope") {
+		t.Fatal("allowed() classification")
+	}
+	// A non-loopback bind needs both AllowFrom and a token.
+	if err := (&Server{Addr: "0.0.0.0:0", AllowFrom: []*net.IPNet{n}}).Start(); err != ErrNotLoopback {
+		t.Fatalf("no token must be refused: %v", err)
+	}
+	if err := (&Server{Addr: "0.0.0.0:0", Token: "secret"}).Start(); err != ErrNotLoopback {
+		t.Fatalf("no AllowFrom must be refused: %v", err)
 	}
 }

@@ -33,8 +33,13 @@ type Server struct {
 	// AcceptTraces parses /v1/traces; otherwise spans are acknowledged and
 	// dropped.
 	AcceptTraces bool
-	OnLogs       func([]Record)
-	OnSpans      func([]Span)
+	// AllowFrom permits clients from these networks besides loopback (the
+	// WSL virtual adapter: WSL2 reaches the Windows host through it, not
+	// through 127.0.0.1). A non-loopback bind requires AllowFrom and a
+	// Token.
+	AllowFrom []*net.IPNet
+	OnLogs    func([]Record)
+	OnSpans   func([]Span)
 	// OnReject is told about refused requests (status, reason).
 	OnReject func(status int, reason string)
 
@@ -54,7 +59,7 @@ func (s *Server) Start() error {
 	if err != nil {
 		return fmt.Errorf("telemetry listen address: %w", err)
 	}
-	if !isLoopback(host) {
+	if !isLoopback(host) && (len(s.AllowFrom) == 0 || s.Token == "") {
 		return ErrNotLoopback
 	}
 	ln, err := net.Listen("tcp", s.Addr)
@@ -140,7 +145,7 @@ func (s *Server) handle(process func(body []byte) error) http.HandlerFunc {
 			s.reject(w, http.StatusMethodNotAllowed, "POST only")
 			return
 		}
-		if host, _, err := net.SplitHostPort(r.RemoteAddr); err != nil || !isLoopback(host) {
+		if host, _, err := net.SplitHostPort(r.RemoteAddr); err != nil || !s.allowed(host) {
 			s.reject(w, http.StatusForbidden, "loopback only")
 			return
 		}
@@ -190,6 +195,23 @@ func (s *Server) tokenOK(r *http.Request) bool {
 		}
 	}
 	return got != "" && subtle.ConstantTimeCompare([]byte(got), []byte(s.Token)) == 1
+}
+
+// allowed reports whether a client address may talk to the receiver.
+func (s *Server) allowed(host string) bool {
+	if isLoopback(host) {
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	for _, n := range s.AllowFrom {
+		if n != nil && n.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 func isLoopback(host string) bool {

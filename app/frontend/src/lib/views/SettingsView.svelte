@@ -18,10 +18,12 @@
   let gpuPolicy = '';
   let gpuSaved = '';
   let isLinux = false;
+  let isWindows = false;
   onMount(async () => {
     try {
       const env = await window['runtime']?.['Environment']?.();
       isLinux = env?.platform === 'linux';
+      isWindows = env?.platform === 'windows';
     } catch { isLinux = false; }
     try { gpuPolicy = gpuSaved = await window['go']['main']['App']['GetGPUPolicy'](); } catch { gpuPolicy = gpuSaved = 'never'; }
     try { waylandFix = waylandSaved = await window['go']['main']['App']['GetWaylandFix'](); } catch { waylandFix = waylandSaved = 'auto'; }
@@ -50,7 +52,7 @@
   async function copyTelemetryEnv(kind) {
     try {
       const block = await loadTelemetryEnvBlock();
-      await ClipboardSetText(kind === 'powershell' ? block.powershell : block.posix);
+      await ClipboardSetText(kind === 'powershell' ? block.powershell : kind === 'wsl' ? block.wsl : block.posix);
       telemetryNote = $t('settings.cards.agentTelemetry.envCopied');
       setTimeout(() => { telemetryNote = ''; }, 3000);
     } catch (error) { telemetryError = String(error?.message || error); }
@@ -360,15 +362,19 @@
                 <option value="5000">5 s</option>
               </select>
             </label>
+            {#if isWindows}
+              <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.wslBridge} disabled={!telemetry.requireToken} on:change={(e) => patchTelemetry({ wslBridge: e.target.checked })} /> {$t('settings.cards.agentTelemetry.wslBridge')}</label>
+            {/if}
             <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.toolDetails} on:change={(e) => patchTelemetry({ toolDetails: e.target.checked })} /> {$t('settings.cards.agentTelemetry.toolDetails')}</label>
             <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.tracesBeta} on:change={(e) => patchTelemetry({ tracesBeta: e.target.checked })} /> {$t('settings.cards.agentTelemetry.tracesBeta')}</label>
             <p class="settings-note">
-              {#if telemetryStatus?.listening}{$t('settings.cards.agentTelemetry.listening', { addr: telemetryStatus.addr })} · {telemetryStatus.eventsReceived} {$t('settings.cards.agentTelemetry.events')}{#if telemetryStatus.rejected} · {telemetryStatus.rejected} {$t('settings.cards.agentTelemetry.rejected')}{/if}{:else}{$t('settings.cards.agentTelemetry.notListening')}{#if telemetryStatus?.lastError}: {telemetryStatus.lastError}{/if}{/if}
+              {#if telemetryStatus?.listening}{$t('settings.cards.agentTelemetry.listening', { addr: telemetryStatus.addr })}{#if telemetryStatus.wslAddr} + {telemetryStatus.wslAddr}{/if} · {telemetryStatus.eventsReceived} {$t('settings.cards.agentTelemetry.events')}{#if telemetryStatus.rejected} · {telemetryStatus.rejected} {$t('settings.cards.agentTelemetry.rejected')}{/if}{:else}{$t('settings.cards.agentTelemetry.notListening')}{#if telemetryStatus?.lastError}: {telemetryStatus.lastError}{/if}{/if}
               <button type="button" class="agent-link settings-inline-btn" on:click|preventDefault={refreshTelemetryStatus}>↻</button>
             </p>
             <p class="settings-note">{$t('settings.cards.agentTelemetry.envHint')}
               <button type="button" class="agent-link settings-inline-btn" on:click|preventDefault={() => copyTelemetryEnv('posix')}>{$t('settings.cards.agentTelemetry.copyEnvPosix')}</button>
               <button type="button" class="agent-link settings-inline-btn" on:click|preventDefault={() => copyTelemetryEnv('powershell')}>{$t('settings.cards.agentTelemetry.copyEnvPowerShell')}</button>
+              <button type="button" class="agent-link settings-inline-btn" on:click|preventDefault={() => copyTelemetryEnv('wsl')}>{$t('settings.cards.agentTelemetry.copyEnvWsl')}</button>
             </p>
             {#if telemetryNote}<p class="settings-note">{telemetryNote}</p>{/if}
           {/if}
