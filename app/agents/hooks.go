@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mimir/redact"
 	"path"
 	"sort"
 	"strconv"
@@ -30,7 +31,9 @@ const HookEventsDirName = "agent-events"
 // HookMatcher lists the notification types Mimir reacts to.
 const HookMatcher = "permission_prompt|idle_prompt|agent_needs_input|elicitation_dialog"
 
-// HookEvent is the payload Claude Code writes to a Notification hook.
+// HookEvent is the payload Claude Code writes to one of Mimir's hooks:
+// notifications and session events always, tool events (PreToolUse,
+// PostToolUse, Stop, SubagentStop) when the agent timeline is on.
 type HookEvent struct {
 	SessionID        string `json:"session_id"`
 	TranscriptPath   string `json:"transcript_path"`
@@ -39,6 +42,17 @@ type HookEvent struct {
 	NotificationType string `json:"notification_type"`
 	Message          string `json:"message"`
 	AgentID          string `json:"agent_id"`
+	// StartSource is SessionStart's "source": startup, resume, clear, compact.
+	StartSource string `json:"source"`
+	// Tool events. ToolInput is the compacted, redacted argument object
+	// (see CompactHookEvent); ToolResponse is reduced to a summary
+	// {bytes, is_error, interrupted} because the output itself is already
+	// in the transcript and may be large.
+	ToolName       string          `json:"tool_name"`
+	ToolUseID      string          `json:"tool_use_id"`
+	ToolInput      json.RawMessage `json:"tool_input"`
+	ToolResponse   json.RawMessage `json:"tool_response"`
+	StopHookActive bool            `json:"stop_hook_active"`
 	// PPID is the process that ran the hook command, i.e. the agent itself.
 	// It is not part of the payload; the hook command encodes it in the file
 	// name, which makes the pane assignment exact even when several panes
@@ -46,9 +60,9 @@ type HookEvent struct {
 	PPID int `json:"-"`
 }
 
-// ParseHookEvent decodes a payload and rejects anything that is not a
-// notification (the directory is only ever written by the hook, but a stray
-// file must not crash the watcher).
+// ParseHookEvent decodes a payload and rejects anything that is not one of
+// the events Mimir subscribes to (the directory is only ever written by the
+// hook, but a stray file must not crash the watcher).
 func ParseHookEvent(data []byte) (HookEvent, error) {
 	var ev HookEvent
 	if err := json.Unmarshal(data, &ev); err != nil {
@@ -58,6 +72,14 @@ func ParseHookEvent(data []byte) (HookEvent, error) {
 	case "Notification":
 		if ev.NotificationType == "" {
 			return ev, errors.New("notification without a type")
+		}
+	case "PreToolUse", "PostToolUse":
+		if ev.ToolName == "" || ev.SessionID == "" {
+			return ev, errors.New("tool event without tool name or session")
+		}
+	case "Stop", "SubagentStop":
+		if ev.TranscriptPath == "" && ev.SessionID == "" {
+			return ev, errors.New("stop event without a session")
 		}
 	case "SessionStart", "UserPromptSubmit":
 		// Bind the pane to its session file: the moment Claude starts (or
@@ -74,12 +96,112 @@ func ParseHookEvent(data []byte) (HookEvent, error) {
 	return ev, nil
 }
 
-// hookEvents lists the Claude Code events Mimir subscribes to, with the
-// matcher for each ("" = every occurrence).
-var hookEvents = []struct{ Event, Matcher string }{
+// hookEventSpec is one Claude Code hook event with its matcher ("" = every
+// occurrence).
+type hookEventSpec struct{ Event, Matcher string }
+
+// baseHookEvents are always installed: they drive prompts and the pane
+// binding and carry no tool data.
+var baseHookEvents = []hookEventSpec{
 	{"Notification", HookMatcher},
 	{"SessionStart", ""},
 	{"UserPromptSubmit", ""},
+}
+
+// toolHookEvents are installed only when the agent timeline is on: they
+// name every tool call with its id and timing.
+var toolHookEvents = []hookEventSpec{
+	{"PreToolUse", ""},
+	{"PostToolUse", ""},
+	{"Stop", ""},
+	{"SubagentStop", ""},
+}
+
+// HookEventsFor lists the events Mimir wants installed.
+func HookEventsFor(toolEvents bool) []hookEventSpec {
+	if !toolEvents {
+		return baseHookEvents
+	}
+	return append(append([]hookEventSpec{}, baseHookEvents...), toolHookEvents...)
+}
+
+// IsToolHookEvent reports whether an event name belongs to the tool set.
+func IsToolHookEvent(name string) bool {
+	for _, he := range toolHookEvents {
+		if he.Event == name {
+			return true
+		}
+	}
+	return false
+}
+
+// hookEventNames is every event Mimir has ever installed; removal sweeps
+// them all.
+func hookEventNames() []string {
+	out := make([]string, 0, len(baseHookEvents)+len(toolHookEvents))
+	for _, he := range HookEventsFor(true) {
+		out = append(out, he.Event)
+	}
+	return out
+}
+
+// Caps for compacted hook payloads: the argument object of a tool call is
+// kept whole up to this size, strings inside it to maxHookString bytes,
+// except the shell command, which is the one value worth keeping in full.
+const (
+	MaxHookInputBytes = 4 * 1024
+	maxHookString     = 512
+	maxHookItems      = 32
+	maxHookDepth      = 4
+)
+
+// hookDropKeys are removed from every payload: the prompt text (never read
+// by Mimir), file contents and edit strings (they are in the transcript).
+var hookDropKeys = []string{"prompt", "content", "old_string", "new_string", "edits", "todos"}
+
+// CompactHookEvent reduces a raw hook payload to what the timeline keeps:
+// the tool response becomes {bytes, is_error, interrupted}, the tool input
+// is redacted and capped, prompt text and file contents are dropped. The
+// result is what the hook process writes, so secrets never reach disk.
+func CompactHookEvent(data []byte) ([]byte, error) {
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	if resp, ok := doc["tool_response"]; ok {
+		doc["tool_response"] = summarizeToolResponse(resp)
+	}
+	if in, ok := doc["tool_input"]; ok {
+		v, _ := redact.Value(in, redact.Options{MaxString: maxHookString, KeepLong: []string{"command"}, MaxLong: MaxHookInputBytes, MaxItems: maxHookItems, MaxDepth: maxHookDepth, Drop: hookDropKeys})
+		doc["tool_input"] = v
+	}
+	for _, k := range hookDropKeys {
+		delete(doc, k)
+	}
+	// Anything else (message, cwd, paths) still goes through the string
+	// redaction.
+	out, _ := redact.Value(doc, redact.Options{MaxString: MaxHookInputBytes, MaxItems: maxHookItems, MaxDepth: maxHookDepth + 2})
+	return json.Marshal(out)
+}
+
+// summarizeToolResponse keeps only the size and the error flags of a tool
+// result. Bash results carry "interrupted"; generic results an "is_error"
+// or an "error" string.
+func summarizeToolResponse(resp any) map[string]any {
+	raw, _ := json.Marshal(resp)
+	out := map[string]any{"bytes": len(raw)}
+	if m, ok := resp.(map[string]any); ok {
+		if b, ok := m["interrupted"].(bool); ok && b {
+			out["interrupted"] = true
+		}
+		if b, ok := m["is_error"].(bool); ok && b {
+			out["is_error"] = true
+		}
+		if e, ok := m["error"].(string); ok && e != "" {
+			out["is_error"] = true
+		}
+	}
+	return out
 }
 
 // StateForNotification maps a notification type to an agent state.
@@ -146,6 +268,9 @@ type hookEntry struct {
 	Hooks   []map[string]any `json:"hooks"`
 }
 
+// mimirHook is the settings.json entry. The hook command must never print
+// to stdout and never exit non-zero: for PreToolUse that would feed a
+// permission decision back into Claude Code, and Mimir only observes.
 func mimirHook(command string, args []string) map[string]any {
 	h := map[string]any{
 		"type":          "command",
@@ -176,10 +301,12 @@ func isMimirHook(h map[string]any) bool {
 	return false
 }
 
-// InstallClaudeHook returns settings.json content with Mimir's Notification
-// hook added (or refreshed). Other settings are preserved; an empty or
-// missing file yields a minimal document.
-func InstallClaudeHook(settings []byte, command string, args []string) ([]byte, error) {
+// InstallClaudeHook returns settings.json content with Mimir's hooks added
+// (or refreshed) for the wanted event set and removed from the others, so
+// turning tool events off also takes their entries out. Other settings and
+// foreign hooks are preserved; an empty or missing file yields a minimal
+// document.
+func InstallClaudeHook(settings []byte, command string, args []string, toolEvents bool) ([]byte, error) {
 	doc, err := parseSettings(settings)
 	if err != nil {
 		return nil, err
@@ -188,9 +315,13 @@ func InstallClaudeHook(settings []byte, command string, args []string) ([]byte, 
 	if hooks == nil {
 		hooks = map[string]any{}
 	}
-	for _, he := range hookEvents {
+	wanted := map[string]hookEventSpec{}
+	for _, he := range HookEventsFor(toolEvents) {
+		wanted[he.Event] = he
+	}
+	for _, event := range hookEventNames() {
 		var entries []hookEntry
-		if raw, ok := hooks[he.Event]; ok {
+		if raw, ok := hooks[event]; ok {
 			b, _ := json.Marshal(raw)
 			_ = json.Unmarshal(b, &entries)
 		}
@@ -207,8 +338,14 @@ func InstallClaudeHook(settings []byte, command string, args []string) ([]byte, 
 				kept = append(kept, e)
 			}
 		}
-		kept = append(kept, hookEntry{Matcher: he.Matcher, Hooks: []map[string]any{mimirHook(command, args)}})
-		hooks[he.Event] = kept
+		if he, ok := wanted[event]; ok {
+			kept = append(kept, hookEntry{Matcher: he.Matcher, Hooks: []map[string]any{mimirHook(command, args)}})
+		}
+		if len(kept) == 0 {
+			delete(hooks, event)
+		} else {
+			hooks[event] = kept
+		}
 	}
 	doc["hooks"] = hooks
 	return json.MarshalIndent(doc, "", "  ")
@@ -225,8 +362,8 @@ func RemoveClaudeHook(settings []byte) ([]byte, bool, error) {
 		return settings, false, nil
 	}
 	removed := false
-	for _, he := range hookEvents {
-		raw, ok := hooks[he.Event]
+	for _, event := range hookEventNames() {
+		raw, ok := hooks[event]
 		if !ok {
 			continue
 		}
@@ -254,9 +391,9 @@ func RemoveClaudeHook(settings []byte) ([]byte, bool, error) {
 		}
 		removed = true
 		if len(kept) == 0 {
-			delete(hooks, he.Event)
+			delete(hooks, event)
 		} else {
-			hooks[he.Event] = kept
+			hooks[event] = kept
 		}
 	}
 	if !removed {
@@ -277,16 +414,27 @@ func HasClaudeHook(settings []byte) bool {
 	return hasMimirHookFor(settings, "Notification")
 }
 
-// HookUpToDate reports whether every event Mimir subscribes to has its
-// entry; an older install (Notification only) is reported as outdated so
-// the UI can offer a refresh.
-func HookUpToDate(settings []byte) bool {
-	for _, he := range hookEvents {
-		if !hasMimirHookFor(settings, he.Event) {
+// HookUpToDate reports whether the installed set is exactly the wanted
+// one: every wanted event has its entry and no unwanted one does. An older
+// install (Notification only) is outdated, and so is a tool-event install
+// after the user turned the timeline off; the UI offers a refresh and the
+// start-up upgrade applies it.
+func HookUpToDate(settings []byte, toolEvents bool) bool {
+	wanted := map[string]bool{}
+	for _, he := range HookEventsFor(toolEvents) {
+		wanted[he.Event] = true
+	}
+	for _, event := range hookEventNames() {
+		if hasMimirHookFor(settings, event) != wanted[event] {
 			return false
 		}
 	}
 	return true
+}
+
+// HasToolHooks reports whether the tool-event entries are installed.
+func HasToolHooks(settings []byte) bool {
+	return hasMimirHookFor(settings, "PreToolUse")
 }
 
 func hasMimirHookFor(settings []byte, event string) bool {
@@ -344,6 +492,11 @@ const hookEventMaxAge = 10 * time.Minute
 // events nobody will ever match (pane closed long ago).
 const hookEventHardMaxAge = 24 * time.Hour
 
+// maxHookFileBytes bounds one event file. Local files are compacted by the
+// hook process and stay small; a remote PostToolUse with a huge response
+// beyond this is dropped (its result is in the transcript anyway).
+const maxHookFileBytes = 256 * 1024
+
 // ScanHookEvents reads all payloads in dir, oldest first. Unparseable or
 // stale files are removed when fs can delete; a missing directory is not an
 // error.
@@ -370,9 +523,14 @@ func ScanHookEvents(fs FS, dir string) []HookEventFile {
 		}
 		p := fs.Join(dir, e.Name)
 		stale := newest.Sub(e.ModTime) > hookEventMaxAge || time.Since(e.ModTime) > hookEventHardMaxAge
-		data, err := fs.ReadHead(p, 64*1024)
+		data, err := fs.ReadHead(p, maxHookFileBytes)
 		if err != nil {
 			continue
+		}
+		// Files written by the remote one-liner are raw; compact them here
+		// so stored events are the same shape wherever they came from.
+		if compact, cerr := CompactHookEvent(data); cerr == nil {
+			data = compact
 		}
 		ev, perr := ParseHookEvent(data)
 		if perr != nil || stale {

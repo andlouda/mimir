@@ -11,7 +11,7 @@ import (
 
 func TestInstallAndRemoveClaudeHook(t *testing.T) {
 	original := []byte(`{"model":"opus","hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo hi"}]}],"Notification":[{"matcher":"idle_prompt","hooks":[{"type":"command","command":"notify-send x"}]}]}}`)
-	out, err := InstallClaudeHook(original, "/opt/mimir", []string{"--agent-hook"})
+	out, err := InstallClaudeHook(original, "/opt/mimir", []string{"--agent-hook"}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,31 +30,50 @@ func TestInstallAndRemoveClaudeHook(t *testing.T) {
 	}
 	// Installing twice keeps exactly one Mimir entry per event
 	// (Notification + SessionStart).
-	out2, _ := InstallClaudeHook(out, "/opt/mimir", []string{"--agent-hook"})
+	out2, _ := InstallClaudeHook(out, "/opt/mimir", []string{"--agent-hook"}, false)
 	if strings.Count(string(out2), HookMarker) != 3 || !strings.Contains(string(out2), `"SessionStart"`) || !strings.Contains(string(out2), `"UserPromptSubmit"`) {
 		t.Fatalf("expected one marker per event, got %d: %s", strings.Count(string(out2), HookMarker), out2)
 	}
-	if !HookUpToDate(out2) {
-		t.Fatalf("fresh install must be up to date")
+	if !HookUpToDate(out2, false) || HookUpToDate(out2, true) || HasToolHooks(out2) {
+		t.Fatalf("base install must be up to date only without tool events")
 	}
 	// An older install with only the Notification entry is outdated.
 	old := []byte(`{"hooks":{"Notification":[{"matcher":"permission_prompt","hooks":[{"type":"command","command":"/opt/mimir","args":["--agent-hook"],"statusMessage":"mimir-agent-hook"}]}]}}`)
-	if !HasClaudeHook(old) || HookUpToDate(old) {
+	if !HasClaudeHook(old) || HookUpToDate(old, false) {
 		t.Fatalf("notification-only install must count as installed but outdated")
+	}
+	// Tool events: seven entries, the user's own PreToolUse hook stays, and
+	// turning them off again removes exactly Mimir's tool entries.
+	withTools, err := InstallClaudeHook(out2, "/opt/mimir", []string{"--agent-hook"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(withTools), HookMarker) != 7 || !HasToolHooks(withTools) || !HookUpToDate(withTools, true) || HookUpToDate(withTools, false) {
+		t.Fatalf("tool install: %d markers: %s", strings.Count(string(withTools), HookMarker), withTools)
+	}
+	if !strings.Contains(string(withTools), `"echo hi"`) {
+		t.Fatalf("user's PreToolUse hook dropped: %s", withTools)
+	}
+	withoutTools, _ := InstallClaudeHook(withTools, "/opt/mimir", []string{"--agent-hook"}, false)
+	if strings.Count(string(withoutTools), HookMarker) != 3 || HasToolHooks(withoutTools) || !strings.Contains(string(withoutTools), `"echo hi"`) || strings.Contains(string(withoutTools), `"Stop"`) {
+		t.Fatalf("tool entries must be removed again: %s", withoutTools)
+	}
+	if removedAll, ok, _ := RemoveClaudeHook(withTools); !ok || strings.Contains(string(removedAll), HookMarker) || !strings.Contains(string(removedAll), `"echo hi"`) {
+		t.Fatalf("remove must sweep tool entries too: %s", removedAll)
 	}
 	removed, ok, err := RemoveClaudeHook(out2)
 	if err != nil || !ok || HasClaudeHook(removed) || !strings.Contains(string(removed), `"notify-send x"`) {
 		t.Fatalf("remove failed: %v %v %s", err, ok, removed)
 	}
 	// Empty file → minimal document; removal on a file without the hook is a no-op.
-	fresh, err := InstallClaudeHook(nil, "/opt/mimir", []string{"--agent-hook"})
+	fresh, err := InstallClaudeHook(nil, "/opt/mimir", []string{"--agent-hook"}, false)
 	if err != nil || !HasClaudeHook(fresh) {
 		t.Fatalf("fresh install: %v %s", err, fresh)
 	}
 	if _, ok, _ := RemoveClaudeHook([]byte(`{"a":1}`)); ok {
 		t.Fatalf("removal must report false when nothing was there")
 	}
-	if _, err := InstallClaudeHook([]byte("{not json"), "/x", nil); err == nil {
+	if _, err := InstallClaudeHook([]byte("{not json"), "/x", nil, false); err == nil {
 		t.Fatalf("invalid json must be rejected, not overwritten")
 	}
 }
@@ -68,7 +87,17 @@ func TestParseHookEventAndState(t *testing.T) {
 		t.Fatalf("state mapping wrong")
 	}
 	if _, err := ParseHookEvent([]byte(`{"hook_event_name":"PreToolUse"}`)); err == nil {
-		t.Fatalf("non-notification must be rejected")
+		t.Fatalf("tool event without tool name and session must be rejected")
+	}
+	if _, err := ParseHookEvent([]byte(`{"hook_event_name":"PreCompact","session_id":"s"}`)); err == nil {
+		t.Fatalf("unsubscribed event must be rejected")
+	}
+	pre, err := ParseHookEvent([]byte(`{"session_id":"s","transcript_path":"/h/s.jsonl","cwd":"/p","hook_event_name":"PreToolUse","tool_name":"Bash","tool_use_id":"toolu_1","tool_input":{"command":"ls"}}`))
+	if err != nil || pre.ToolName != "Bash" || pre.ToolUseID != "toolu_1" || string(pre.ToolInput) != `{"command":"ls"}` || StateForNotification(pre.NotificationType) != StateUnknown {
+		t.Fatalf("pre tool use: %v %+v", err, pre)
+	}
+	if !IsToolHookEvent("PostToolUse") || IsToolHookEvent("Notification") {
+		t.Fatal("tool event classification")
 	}
 	start, err := ParseHookEvent([]byte(`{"session_id":"s","transcript_path":"/h/s.jsonl","hook_event_name":"SessionStart","source":"startup"}`))
 	if err != nil || start.TranscriptPath != "/h/s.jsonl" || StateForNotification(start.NotificationType) != StateUnknown {
@@ -160,5 +189,47 @@ func TestIsSubagentTranscript(t *testing.T) {
 	}
 	if IsSubagentTranscript("/h/.claude/projects/-p/abc.jsonl") {
 		t.Fatal("session file must not count as subagent")
+	}
+}
+
+func TestCompactHookEvent(t *testing.T) {
+	big := strings.Repeat("x", 300*1024)
+	raw := []byte(`{"session_id":"s","transcript_path":"/h/s.jsonl","cwd":"/p","hook_event_name":"PostToolUse","tool_name":"Bash","tool_use_id":"toolu_1","tool_input":{"command":"curl -H \"Authorization: Bearer abcdefghijklmnop\" https://x","description":"fetch","timeout":1000},"tool_response":{"stdout":"` + big + `","stderr":"","interrupted":true}}`)
+	out, err := CompactHookEvent(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) > 4096 {
+		t.Fatalf("compact payload still %d bytes", len(out))
+	}
+	ev, err := ParseHookEvent(out)
+	if err != nil || ev.ToolUseID != "toolu_1" || ev.Cwd != "/p" {
+		t.Fatalf("compact payload must still parse: %v %+v", err, ev)
+	}
+	var in map[string]any
+	if err := json.Unmarshal(ev.ToolInput, &in); err != nil {
+		t.Fatal(err)
+	}
+	if in["command"] != `curl -H "Authorization: Bearer [REDACTED]" https://x` || in["description"] != "fetch" || in["timeout"] != float64(1000) {
+		t.Fatalf("tool_input: %v", in)
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(ev.ToolResponse, &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["interrupted"] != true || resp["bytes"].(float64) < 300*1024 || resp["stdout"] != nil {
+		t.Fatalf("tool_response: %v", resp)
+	}
+	// Prompt text and file contents never survive compaction.
+	out, _ = CompactHookEvent([]byte(`{"session_id":"s","hook_event_name":"UserPromptSubmit","prompt":"my secret plan"}`))
+	if strings.Contains(string(out), "secret plan") {
+		t.Fatalf("prompt kept: %s", out)
+	}
+	out, _ = CompactHookEvent([]byte(`{"session_id":"s","hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"/p/a.txt","content":"PASSWORD=hunter2 and lots of text"}}`))
+	if strings.Contains(string(out), "hunter2") || strings.Contains(string(out), "lots of text") || !strings.Contains(string(out), "/p/a.txt") {
+		t.Fatalf("write content kept: %s", out)
+	}
+	if _, err := CompactHookEvent([]byte("{nope")); err == nil {
+		t.Fatal("invalid json must error")
 	}
 }
