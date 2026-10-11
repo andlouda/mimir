@@ -20,6 +20,7 @@
   import { activeTerminalId, terminalMap } from './stores/terminalStore.js';
   import { notesPanelOpen } from './stores/uiStore.js';
   import AgentScreenMirror from './AgentScreenMirror.svelte';
+  import AgentTimeline from './AgentTimeline.svelte';
   import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneScreen, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, rerenderClaudeNow, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation, loadOfflineSessions, deleteOfflineSession, resumeCommand, lastUsedText } from './actions/agentActions.js';
   import { addTerminal } from './actions/terminalActions.js';
 
@@ -27,7 +28,7 @@
 
   const REFRESH_WORKING_MS = 6000;
   const MESSAGE_LIMIT = 24;
-  const ALL_TABS = ['snippets', 'summary', 'tasks', 'files', 'commands', 'processes', 'history', 'sessions', 'screen'];
+  const ALL_TABS = ['snippets', 'summary', 'tasks', 'files', 'commands', 'processes', 'timeline', 'history', 'sessions', 'screen'];
   const PROCESS_REFRESH_MS = 5000;
 
   let transcript = null;
@@ -476,6 +477,7 @@
       case 'files': return $t('agentPanel.tabFiles') + (changedFiles.length ? ` (${changedFiles.length})` : '');
       case 'commands': return $t('agentPanel.tabCommands') + (failedCommands ? ` (${failedCommands}✗)` : '');
       case 'processes': return $t('agentPanel.tabProcesses') + (procs?.processes?.length > 1 ? ` (${procs.processes.length})` : '');
+      case 'timeline': return $t('agentPanel.tabTimeline');
       case 'summary': return $t('agentPanel.tabSummary');
       case 'history': return $t('agentPanel.tabHistory');
       case 'sessions': return $t('agentPanel.tabSessions') + (offline && offlineRows.length ? ` (${offlineRows.length})` : '');
@@ -801,6 +803,8 @@
           {/each}
           <p class="agent-panel-hint">{$t('agentPanel.processesHint')}</p>
         {/if}
+      {:else if view === 'timeline'}
+        <AgentTimeline {terminalId} {hook} {hookBusy} onInstallHook={installHook} onFeedback={showFeedback} />
       {:else if view === 'commands'}
         {#if commandsNewestFirst.length === 0}
           <p class="agent-panel-hint">{$t('agentPanel.noCommands')}</p>
