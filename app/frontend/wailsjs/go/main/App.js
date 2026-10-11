@@ -494,6 +494,30 @@ export function GetAgentProcessesJSON(arg1, arg2) {
   return window['go']['main']['App']['GetAgentProcessesJSON'](arg1, arg2);
 }
 
+export function GetAgentTimelineJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetAgentTimelineJSON'](arg1, arg2, arg3);
+}
+
+export function GetAgentTimelinePath(arg1) {
+  return window['go']['main']['App']['GetAgentTimelinePath'](arg1);
+}
+
+export function OpenAgentTimelineFolder() {
+  return window['go']['main']['App']['OpenAgentTimelineFolder']();
+}
+
+export function GetTelemetrySettingsJSON() {
+  return window['go']['main']['App']['GetTelemetrySettingsJSON']();
+}
+
+export function UpdateTelemetrySettingsJSON(arg1) {
+  return window['go']['main']['App']['UpdateTelemetrySettingsJSON'](arg1);
+}
+
+export function RotateTelemetryToken() {
+  return window['go']['main']['App']['RotateTelemetryToken']();
+}
+
 export function AnswerAgentPermission(arg1, arg2) {
   return window['go']['main']['App']['AnswerAgentPermission'](arg1, arg2);
 }

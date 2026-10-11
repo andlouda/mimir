@@ -184,6 +184,12 @@ export function SetAgentSessionAnnotation(arg1:string,arg2:string,arg3:string,ar
 export function SetAgentProjectName(arg1:string,arg2:string):Promise<void>;
 
 export function GetAgentProcessesJSON(arg1:number,arg2:string):Promise<string>;
+export function GetAgentTimelineJSON(arg1:number,arg2:number,arg3:number):Promise<string>;
+export function GetAgentTimelinePath(arg1:number):Promise<string>;
+export function OpenAgentTimelineFolder():Promise<void>;
+export function GetTelemetrySettingsJSON():Promise<string>;
+export function UpdateTelemetrySettingsJSON(arg1:string):Promise<string>;
+export function RotateTelemetryToken():Promise<void>;
 
 export function AnswerAgentPermission(arg1:number,arg2:boolean):Promise<void>;
 

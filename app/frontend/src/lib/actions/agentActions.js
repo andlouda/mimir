@@ -5,7 +5,7 @@ import { agentAnnotations, agentDetectionEnabled, agentNotificationsEnabled, age
 import { t } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import { outputMentionsAgent, parseAgentTitle } from '../agents/agentSignals.js';
-import { EventsOn } from '../../../wailsjs/runtime';
+import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
 
 function app() {
   return window['go']['main']['App'];
@@ -443,6 +443,38 @@ export async function selectAgentSession(id, file) {
 export async function loadAgentProcesses(id) {
   const raw = await app()['GetAgentProcessesJSON'](id, terminalType(id));
   return JSON.parse(raw);
+}
+
+/**
+ * Timeline events of the pane's agent session (see docs/agent-timeline.md):
+ * { enabled, sessionId, path, events, nextSeq }.
+ */
+export async function loadAgentTimeline(id, afterSeq = 0, limit = 500) {
+  const raw = await app()['GetAgentTimelineJSON'](id, afterSeq, limit);
+  const res = JSON.parse(raw || '{}');
+  if (!Array.isArray(res.events)) res.events = [];
+  return res;
+}
+
+/** Copies the session's JSONL path to the clipboard; returns it ('' when none). */
+export async function copyAgentTimelinePath(id) {
+  const path = await app()['GetAgentTimelinePath'](id);
+  if (path) await ClipboardSetText(path);
+  return path || '';
+}
+
+export async function openAgentTimelineFolder() {
+  await app()['OpenAgentTimelineFolder']();
+}
+
+/** Agent timeline settings (telemetry_settings.json), token never included. */
+export async function loadTelemetrySettings() {
+  return JSON.parse(await app()['GetTelemetrySettingsJSON']());
+}
+
+/** Partial update: only the given fields change. Returns the saved settings. */
+export async function updateTelemetrySettings(patch) {
+  return JSON.parse(await app()['UpdateTelemetrySettingsJSON'](JSON.stringify(patch || {})));
 }
 
 /**
