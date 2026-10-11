@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"mimir/agentsvc"
 	"mimir/executil"
 	"os"
 	"os/exec"
@@ -55,15 +56,9 @@ type App struct {
 	PlaybookStore       *workflow.PlaybookStore
 	sshProfileStore     *ssh.ProfileStore
 	sshSecretStore      *ssh.SecretStore
-	agentStates         map[int]agentTerminalState
-	agentPrompts        map[int]agentPrompt
-	// agentAnswered: arrival time of the prompt answered per pane, see
-	// markPromptAnswered.
-	agentAnswered map[int]time.Time
-	agentWatchers map[int]*agentWatcher
-	// agentDetectReasons: last logged "nothing found" reason per pane.
-	agentDetectReasons map[int]string
-	agentMu            sync.Mutex
+	// agents: detection, prompts, hooks and timeline of the AI agents
+	// running in panes (package agentsvc); App only forwards the bindings.
+	agents *agentsvc.Service
 	// telemetry / timeline: the agent timeline settings and its store (see
 	// telemetry_settings.go, timeline package).
 	telemetry       TelemetrySettings
@@ -190,6 +185,14 @@ func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 		app.folderStore = fldStore
 	}
 
+	app.agents = agentsvc.New(agentsvc.Deps{
+		Terminals:   app.TerminalManager,
+		Timeline:    app.timeline,
+		SSHProfiles: app.sshProfileStore,
+		Settings:    app.telemetrySettings,
+		RemoteFiles: app.remoteFileClient,
+		OpenPath:    app.OpenPathInExplorer,
+	})
 	return app
 }
 
@@ -208,10 +211,9 @@ func (a *App) startup(ctx context.Context) {
 	}
 
 	// An outdated Claude Code hook misattributes sessions; refresh it.
-	go a.upgradeOutdatedClaudeHooks()
-	go a.scanUnboundHookEvents(ctx)
+	a.agents.Start(ctx)
+	go a.agents.UpgradeOutdatedHooks()
 	go a.purgeAgentTimeline()
-	a.startTimelineEmitter()
 	a.startTelemetryListener()
 
 	// Remove orphaned atomic-write temp files left by a previous crash/force-quit.
@@ -583,7 +585,7 @@ func (a *App) KillTmuxSession(sessionName string) error {
 	if sessionName == "" {
 		return nil
 	}
-	if !isValidTmuxSessionName(sessionName) {
+	if !executil.ValidTmuxSessionName(sessionName) {
 		return fmt.Errorf("invalid tmux session name")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
@@ -701,7 +703,7 @@ func (a *App) ResizeTerminal(id int, rowsStr string, colsStr string) error {
 }
 
 func (a *App) CloseTerminal(id int) error {
-	a.forgetDetectionOutcome(id)
+	a.agents.ForgetDetectionOutcome(id)
 	return a.TerminalManager.CloseTerminal(id)
 }
 
@@ -823,18 +825,6 @@ func (a *App) GetAvailableTerminalTypes() []TerminalTypeOption {
 }
 
 // isValidPath validates if a path is safe to access.
-func isValidTmuxSessionName(name string) bool {
-	if len(name) == 0 || len(name) > 256 {
-		return false
-	}
-	for _, c := range name {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_') {
-			return false
-		}
-	}
-	return true
-}
-
 func isValidPath(path string) bool {
 	if path == "" {
 		return false

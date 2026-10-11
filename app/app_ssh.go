@@ -501,7 +501,7 @@ func (a *App) ReconnectSSHTerminal(id int) error {
 	}
 	// The agent watcher holds an SFTP client of the dead connection; drop
 	// it, the next detection pass starts a fresh one.
-	a.stopAgentWatcher(id)
+	a.agents.StopWatcher(id)
 	return nil
 }
 

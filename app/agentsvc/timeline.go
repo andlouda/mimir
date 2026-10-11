@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"encoding/json"
@@ -32,7 +32,7 @@ const (
 
 // startTimelineEmitter wires the store to the frontend: appended events of
 // a bound pane arrive as "agent-timeline-<id>" in small batches.
-func (a *App) startTimelineEmitter() {
+func (a *Service) startTimelineEmitter() {
 	if a.timeline == nil || a.ctx == nil {
 		return
 	}
@@ -49,7 +49,7 @@ func (a *App) startTimelineEmitter() {
 
 // timelineSessionFor resolves the session a pane's timeline belongs to: the
 // hook binding first, else the pinned or bound transcript file.
-func (a *App) timelineSessionFor(terminalID int) string {
+func (a *Service) timelineSessionFor(terminalID int) string {
 	if a.timeline == nil {
 		return ""
 	}
@@ -66,7 +66,7 @@ func (a *App) timelineSessionFor(terminalID int) string {
 
 // GetAgentTimelineJSON returns the recent timeline events of a pane's agent
 // session (Seq > afterSeq, newest limit of them; limit 0 = 500).
-func (a *App) GetAgentTimelineJSON(terminalID int, afterSeq int, limit int) (string, error) {
+func (a *Service) GetAgentTimelineJSON(terminalID int, afterSeq int, limit int) (string, error) {
 	payload := agentTimelinePayload{Enabled: a.telemetrySettings().Enabled, TerminalID: terminalID, Events: []timeline.Event{}}
 	if limit <= 0 {
 		limit = timelineDefaultLoad
@@ -101,7 +101,7 @@ func (a *App) GetAgentTimelineJSON(terminalID int, afterSeq int, limit int) (str
 
 // GetAgentTimelinePath is the JSONL file of a pane's session ("" when none
 // has been written yet).
-func (a *App) GetAgentTimelinePath(terminalID int) (string, error) {
+func (a *Service) GetAgentTimelinePath(terminalID int) (string, error) {
 	session := a.timelineSessionFor(terminalID)
 	if session == "" {
 		return "", nil
@@ -117,7 +117,7 @@ func (a *App) GetAgentTimelinePath(terminalID int) (string, error) {
 }
 
 // OpenAgentTimelineFolder shows the timeline directory in the file manager.
-func (a *App) OpenAgentTimelineFolder() error {
+func (a *Service) OpenAgentTimelineFolder() error {
 	if a.timeline == nil {
 		return fmt.Errorf("timeline store unavailable")
 	}
@@ -125,5 +125,5 @@ func (a *App) OpenAgentTimelineFolder() error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	return a.OpenPathInExplorer(dir)
+	return a.deps.OpenPath(dir)
 }

@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 // platform, faster while a tool call is in flight and slower when the
 // agent waits. The first snapshot is the baseline: processes that already
 // ran when observation started are not reported as new.
-func (a *App) observeAgent(ctx context.Context, terminalID int, state agentTerminalState) {
+func (a *Service) observeAgent(ctx context.Context, terminalID int, state agentTerminalState) {
 	if a.timeline == nil || state.source != "local" || state.pid <= 0 {
 		return
 	}
@@ -141,7 +141,7 @@ func runtimeEvent(ch procwatch.Change, terminalID int) timeline.Event {
 	return ev
 }
 
-func (a *App) appendTimeline(ev timeline.Event) {
+func (a *Service) appendTimeline(ev timeline.Event) {
 	if _, err := a.timeline.Append(ev); err != nil {
 		log.Printf("agent timeline: %v", err)
 	}

@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"testing"
@@ -40,7 +40,7 @@ func TestHookScanSourceUnboundPPIDs(t *testing.T) {
 }
 
 func TestNoteDetectionOutcomeLogsOncePerReason(t *testing.T) {
-	a := &App{}
+	a := &Service{}
 	a.noteDetectionOutcome(1, "wsl", agentDetectionResult{Source: "wsl", Reason: "no tmux session"})
 	a.noteDetectionOutcome(1, "wsl", agentDetectionResult{Source: "wsl", Reason: "no tmux session"})
 	if a.agentDetectReasons[1] != "no tmux session" {
@@ -55,11 +55,11 @@ func TestNoteDetectionOutcomeLogsOncePerReason(t *testing.T) {
 		t.Fatal("a detection clears the entry")
 	}
 	a.noteDetectionOutcome(2, "bash", agentDetectionResult{Reason: "x"})
-	a.forgetDetectionOutcome(2)
+	a.ForgetDetectionOutcome(2)
 	if len(a.agentDetectReasons) != 0 {
 		t.Fatal("forget must drop the pane")
 	}
-	known := (&App{agentStates: map[int]agentTerminalState{1: {source: "wsl", pid: 7}, 2: {source: "local", pid: 7}, 3: {source: "local"}}}).knownAgentPIDs()
+	known := (&Service{agentStates: map[int]agentTerminalState{1: {source: "wsl", pid: 7}, 2: {source: "local", pid: 7}, 3: {source: "local"}}}).knownAgentPIDs()
 	if !known["wsl"][7] || !known["local"][7] || len(known["local"]) != 1 {
 		t.Fatalf("known pids per source: %+v", known)
 	}

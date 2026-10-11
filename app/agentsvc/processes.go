@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"context"
@@ -32,7 +32,7 @@ func agentProcessScript(tmuxBin, session string) string {
 
 // GetAgentProcessesJSON returns the process tree below the detected agent
 // of a terminal.
-func (a *App) GetAgentProcessesJSON(terminalID int, terminalType string) (string, error) {
+func (a *Service) GetAgentProcessesJSON(terminalID int, terminalType string) (string, error) {
 	state, ok := a.rememberedAgent(terminalID)
 	if !ok || state.pid <= 0 {
 		return "", fmt.Errorf("no agent known for this terminal")
@@ -41,11 +41,11 @@ func (a *App) GetAgentProcessesJSON(terminalID int, terminalType string) (string
 		procs []agents.Process
 		err   error
 	)
-	if state.source != "ssh" && !a.TerminalManager.GetTerminalRuntimeMeta(terminalID).TmuxActive {
+	if state.source != "ssh" && !a.terminals.GetTerminalRuntimeMeta(terminalID).TmuxActive {
 		procs, err = listLocalProcessesDetailed()
 	} else {
 		var out string
-		out, err = a.runPaneScript(terminalID, terminalType, agentProcessScript)
+		out, err = a.RunPaneScript(terminalID, terminalType, agentProcessScript)
 		if err == nil {
 			procs = agents.ParsePSDetailed(out)
 		}

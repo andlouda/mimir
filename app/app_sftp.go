@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
+	"mimir/agentsvc"
 	"strings"
 	"time"
 
@@ -27,15 +27,8 @@ var remoteSFTPNewClient = func(client *gossh.Client) (remoteFileClient, error) {
 	return sftp.NewClient(client)
 }
 
-type remoteFileClient interface {
-	ReadDir(path string) ([]os.FileInfo, error)
-	Stat(path string) (os.FileInfo, error)
-	Open(path string) (*sftp.File, error)
-	OpenFile(path string, flags int) (*sftp.File, error)
-	Remove(path string) error
-	Getwd() (string, error)
-	Close() error
-}
+// remoteFileClient is the SFTP surface the app and the agent service share.
+type remoteFileClient = agentsvc.RemoteFiles
 
 func newRemoteSFTPClient(ctx context.Context, client *gossh.Client) (remoteFileClient, error) {
 	factory := remoteSFTPNewClient

@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"os/exec"
@@ -31,7 +31,7 @@ func TestAgentProbeAgainstRealTmux(t *testing.T) {
 
 	script := agentProbeScript("tmux -L "+socket, session)
 	out, err := exec.Command("sh", "-c", script).Output()
-	if err != nil && !strings.Contains(string(out), agentProbeSeparator) {
+	if err != nil && !strings.Contains(string(out), ProbeSeparator) {
 		t.Fatalf("probe failed: %v\n%s", err, out)
 	}
 	res := finishDetection(string(out), "local")
@@ -40,7 +40,7 @@ func TestAgentProbeAgainstRealTmux(t *testing.T) {
 	}
 
 	capture, err := exec.Command("sh", "-c", agentCaptureScript("tmux -L "+socket, session)).Output()
-	if err != nil && !strings.Contains(string(capture), agentProbeSeparator) {
+	if err != nil && !strings.Contains(string(capture), ProbeSeparator) {
 		t.Fatalf("capture failed: %v\n%s", err, capture)
 	}
 	_, width, _ := parseAgentCapture(string(capture))
