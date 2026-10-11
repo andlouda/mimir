@@ -477,6 +477,20 @@ export async function updateTelemetrySettings(patch) {
   return JSON.parse(await app()['UpdateTelemetrySettingsJSON'](JSON.stringify(patch || {})));
 }
 
+/** Receiver state: { listening, addr, eventsReceived, rejected, lastEventAt, lastError }. */
+export async function loadTelemetryStatus() {
+  return JSON.parse(await app()['GetTelemetryStatusJSON']());
+}
+
+/** Shell lines that point Claude Code at Mimir's receiver: { posix, powershell, endpoint }. */
+export async function loadTelemetryEnvBlock() {
+  return JSON.parse(await app()['GetTelemetryEnvBlockJSON']());
+}
+
+export async function rotateTelemetryToken() {
+  await app()['RotateTelemetryToken']();
+}
+
 /**
  * "12s" / "3m 05s" since an ISO timestamp; empty when unknown. Used next to
  * the live activity so a hanging command is visible as such.
