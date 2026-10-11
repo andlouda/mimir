@@ -19,6 +19,7 @@ import (
 	"mimir/folder"
 	"mimir/history"
 	"mimir/notes"
+	"mimir/otlp"
 	"mimir/recording"
 	"mimir/safeio"
 	"mimir/session"
@@ -64,6 +65,8 @@ type App struct {
 	// telemetry_settings.go, timeline package).
 	telemetry             TelemetrySettings
 	telemetryMu           sync.Mutex
+	telemetryServer       *otlp.Server
+	telemetryStat         telemetryStatus
 	timeline              *timeline.Store
 	knownHostStore        *ssh.KnownHostStore
 	pendingHostKeys       map[string]pendingSSHHostKey
@@ -200,6 +203,7 @@ func (a *App) startup(ctx context.Context) {
 	go a.upgradeOutdatedClaudeHooks()
 	go a.purgeAgentTimeline()
 	a.startTimelineEmitter()
+	a.startTelemetryListener()
 
 	// Remove orphaned atomic-write temp files left by a previous crash/force-quit.
 	if configDir, cfgErr := os.UserConfigDir(); cfgErr == nil {
@@ -212,6 +216,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.stopTelemetryListener()
 	a.TerminalManager.CloseAll()
 	if a.historyStore != nil {
 		if err := a.historyStore.Close(); err != nil {

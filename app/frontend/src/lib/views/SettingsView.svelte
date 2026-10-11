@@ -6,7 +6,8 @@
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
   import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, claudeRerenderOnWiden, inactivePaneThrottle, inactivePaneInterval, INACTIVE_PANE_INTERVALS, paneResourceOverlay, paneResourceScale, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
-  import { loadTelemetrySettings, updateTelemetrySettings } from '../actions/agentActions.js';
+  import { loadTelemetrySettings, updateTelemetrySettings, loadTelemetryStatus, loadTelemetryEnvBlock, rotateTelemetryToken } from '../actions/agentActions.js';
+  import { ClipboardSetText } from '../../../wailsjs/runtime';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onDestroy, onMount } from 'svelte';
   import { perfStats, startDiagnostics, stopDiagnostics } from '../perf/diagnostics.js';
@@ -32,8 +33,30 @@
   // the files, so the setting lives there).
   let telemetry = null;
   let telemetryError = '';
+  let telemetryStatus = null;
+  let telemetryNote = '';
   async function patchTelemetry(patch) {
     try { telemetry = await updateTelemetrySettings(patch); telemetryError = ''; } catch (error) { telemetryError = String(error?.message || error); }
+    refreshTelemetryStatus();
+  }
+  async function refreshTelemetryStatus() {
+    try { telemetryStatus = await loadTelemetryStatus(); } catch { telemetryStatus = null; }
+  }
+  $: if (telemetry?.enabled && telemetry?.otelReceiver && !telemetryStatus) refreshTelemetryStatus();
+  function changeTelemetryPort(event) {
+    const port = Number(event.target.value);
+    if (Number.isInteger(port) && port >= 1024 && port <= 65535) patchTelemetry({ port });
+  }
+  async function copyTelemetryEnv(kind) {
+    try {
+      const block = await loadTelemetryEnvBlock();
+      await ClipboardSetText(kind === 'powershell' ? block.powershell : block.posix);
+      telemetryNote = $t('settings.cards.agentTelemetry.envCopied');
+      setTimeout(() => { telemetryNote = ''; }, 3000);
+    } catch (error) { telemetryError = String(error?.message || error); }
+  }
+  async function rotateToken() {
+    try { await rotateTelemetryToken(); telemetry = await loadTelemetrySettings(); telemetryNote = $t('settings.cards.agentTelemetry.tokenRotated'); setTimeout(() => { telemetryNote = ''; }, 3000); } catch (error) { telemetryError = String(error?.message || error); }
   }
   let waylandFix = '';
   let waylandSaved = '';
@@ -308,6 +331,34 @@
             </select>
           </label>
           <p class="settings-note">{$t('settings.cards.agentTelemetry.hookNote')}</p>
+          <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.otelReceiver} on:change={(e) => patchTelemetry({ otelReceiver: e.target.checked })} /> {$t('settings.cards.agentTelemetry.otelReceiver')}</label>
+          {#if telemetry.otelReceiver}
+            <label class="settings-sub-row">{$t('settings.cards.agentTelemetry.port')}
+              <input class="settings-port" type="number" min="1024" max="65535" value={telemetry.port} on:change={changeTelemetryPort} />
+            </label>
+            <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.requireToken} on:change={(e) => patchTelemetry({ requireToken: e.target.checked })} /> {$t('settings.cards.agentTelemetry.requireToken')}
+              <button type="button" class="agent-link settings-inline-btn" on:click|preventDefault={rotateToken}>{$t('settings.cards.agentTelemetry.rotateToken')}</button>
+            </label>
+            <label class="settings-sub-row">{$t('settings.cards.agentTelemetry.exportInterval')}
+              <select value={String(telemetry.exportIntervalMs)} on:change={(e) => patchTelemetry({ exportIntervalMs: Number(e.target.value) })}>
+                <option value="500">0.5 s</option>
+                <option value="1000">1 s</option>
+                <option value="2000">2 s</option>
+                <option value="5000">5 s</option>
+              </select>
+            </label>
+            <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.toolDetails} on:change={(e) => patchTelemetry({ toolDetails: e.target.checked })} /> {$t('settings.cards.agentTelemetry.toolDetails')}</label>
+            <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.tracesBeta} on:change={(e) => patchTelemetry({ tracesBeta: e.target.checked })} /> {$t('settings.cards.agentTelemetry.tracesBeta')}</label>
+            <p class="settings-note">
+              {#if telemetryStatus?.listening}{$t('settings.cards.agentTelemetry.listening', { addr: telemetryStatus.addr })} · {telemetryStatus.eventsReceived} {$t('settings.cards.agentTelemetry.events')}{#if telemetryStatus.rejected} · {telemetryStatus.rejected} {$t('settings.cards.agentTelemetry.rejected')}{/if}{:else}{$t('settings.cards.agentTelemetry.notListening')}{#if telemetryStatus?.lastError}: {telemetryStatus.lastError}{/if}{/if}
+              <button type="button" class="agent-link settings-inline-btn" on:click|preventDefault={refreshTelemetryStatus}>↻</button>
+            </p>
+            <p class="settings-note">{$t('settings.cards.agentTelemetry.envHint')}
+              <button type="button" class="agent-link settings-inline-btn" on:click|preventDefault={() => copyTelemetryEnv('posix')}>{$t('settings.cards.agentTelemetry.copyEnvPosix')}</button>
+              <button type="button" class="agent-link settings-inline-btn" on:click|preventDefault={() => copyTelemetryEnv('powershell')}>{$t('settings.cards.agentTelemetry.copyEnvPowerShell')}</button>
+            </p>
+            {#if telemetryNote}<p class="settings-note">{telemetryNote}</p>{/if}
+          {/if}
         </div>
       {/if}
       {#if telemetryError}<p class="settings-note">{telemetryError}</p>{/if}
@@ -714,5 +765,7 @@
   .diagnostics-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--text, #e6edf3); }
   .settings-sub { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
   .settings-sub-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-  .settings-sub-row select { margin-left: auto; }
+  .settings-sub-row select, .settings-sub-row .settings-port { margin-left: auto; }
+  .settings-port { width: 7em; background: var(--bg-elevated, rgba(255,255,255,0.06)); border: 1px solid var(--border-subtle); color: inherit; border-radius: 4px; padding: 1px 6px; font: inherit; }
+  .settings-inline-btn { margin-left: 6px; }
 </style>
