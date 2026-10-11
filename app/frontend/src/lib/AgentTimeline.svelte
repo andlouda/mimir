@@ -149,6 +149,7 @@
           <code class="tl-summary">{item.pre ? summarize(item.pre) : (item.post ? summarize(item.post) : '')}</code>
           <span class="tl-meta">
             {#if item.durationMs != null}{durationText(item.durationMs)}{/if}
+            {#if item.children?.length} · {item.children.length} {$t('agentPanel.timeline.subagents')}{/if}
             {#if item.processes.length} · {item.processes.length} {$t('agentPanel.timeline.procs')}{/if}
             {#if item.connections.length} · {item.connections.length} {$t('agentPanel.timeline.conns')}{/if}
             {#if item.anomalies.length} · <span class="tl-anomaly">{item.anomalies.map((a) => $t(`agentPanel.timeline.anomaly_${a}`)).join(', ')}</span>{/if}
@@ -156,6 +157,15 @@
         </button>
         {#if expanded.has(item.key)}
           <div class="tl-children">
+            {#each item.children || [] as child (child.key)}
+              <div class="tl-row tl-child tl-subagent" title={child.toolUseId}>
+                <span class="tl-time">{clockText(child.ts)}</span>
+                <span class="tl-mark">{statusMark(child)}</span>
+                <span class="tl-tool-name">{child.tool || '?'}</span>
+                <code class="tl-summary">{child.pre ? summarize(child.pre) : ''}</code>
+                <span class="tl-meta">{$t('agentPanel.timeline.subagent')}{#if child.durationMs != null} · {durationText(child.durationMs)}{/if}{#if child.processes.length} · {child.processes.length} {$t('agentPanel.timeline.procs')}{/if}</span>
+              </div>
+            {/each}
             <div class="tl-row tl-child tl-dim"><span class="tl-time"></span><span class="tl-type">tool_use_id</span><code class="tl-summary">{item.toolUseId}</code></div>
             {#each item.events as ev (ev.seq)}
               <div class="tl-row tl-child" title={JSON.stringify(ev.attrs || {}, null, 1)}>
@@ -211,4 +221,5 @@
   .tl-dim { color: var(--text-secondary); }
   .tl-anomaly { color: #f6ad55; }
   .tl-conf { font-family: var(--font-mono); letter-spacing: -1px; }
+  .tl-subagent { border-left: 2px solid var(--border-subtle); margin-left: 18px; padding-left: 8px; }
 </style>

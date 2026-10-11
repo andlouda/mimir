@@ -60,8 +60,9 @@ One JSON object per line, fields in `snake_case`:
 | hook | `notification` | `notification_type`, `message` |
 | otel | `tool_result`, `tool_decision`, `api_request`, `api_error`, `api_refusal`, `user_prompt`, `permission_mode_changed`, `mcp_connection`, `skill_activated`, `otel_other` | whitelisted attributes per type (`success`, `duration_ms`, `decision`, `model`, `cost_usd`, token counts, `request_id`, ...); never `prompt`, `user.*`, `organization.id`; `tool_parameters` only when the tool-details setting is on |
 | otel (traces beta) | `span_interaction`, `span_llm`, `span_tool`, `span_tool_exec`, `span_tool_blocked`, `span_hook` | `trace_id`, `span_id`, `parent_span_id`, `duration_ms`, `status`, tool/model attributes |
-| proc | `process_start`, `process_end` | `cmdline`, `exe`, `started_at`, `lifetime_ms` (later step) |
-| net | `conn_open`, `conn_close` | `proto`, `local`, `remote`, `state` (later step) |
+| proc | `process_start`, `process_end` | `cmdline` (redacted), `started_at`, `lifetime_ms` |
+| net | `conn_open`, `conn_close` | `proto` (tcp, tcp6, udp, udp6), `local`, `remote`, `state`, `inode` |
+| mimir | `observe_started` | `procs`, `conns` at the baseline snapshot |
 | mimir | `pane_bound`, `overflow` | `terminal_id`, `reason`, `dropped` |
 
 ### Redaction
@@ -114,6 +115,31 @@ claimed are stored under their session id but not shown live (cap: 50 new
 sessions per hour). Claude Code supports one endpoint per signal, so a user
 with a real collector has to choose.
 
+## Runtime observation
+
+With "Prozesse und Verbindungen der Pane beobachten" on (Linux only for
+now), Mimir samples the process tree below the agent through `/proc`:
+`/proc/<pid>/task/<pid>/children` for the tree, `stat` for ppid and start
+time, `cmdline`, the `fd` directory for socket inodes, and `/proc/net/tcp`
+and `tcp6` (udp on request) once per sample to resolve them. No root, own
+processes only; processes in another network namespace (containers) are
+not visible. Processes are keyed by pid plus start time, so pid reuse is a
+distinct process. Bounds: 300 processes, 2000 descriptors per sample; above
+that an `overflow` event is written once. The interval is the setting
+(default 1 s) while a tool call is in flight and three times that otherwise.
+Everything that already ran when observation started is the baseline and
+is not reported. Processes shorter than one interval are missed.
+
+On Windows the sampler is native (Toolhelp32 for the tree, GetProcessTimes
+for the start time, QueryFullProcessImageName for the image path,
+GetExtendedTcpTable for TCP with owning pids): no PowerShell per tick. It
+has no command lines (attribution is strong or weak, never medium) and no
+UDP; the interval is at least 2 s. macOS has no sampler yet.
+
+Subagents: with the traces setting on, the subagent's tool calls carry
+spans whose parent span is the parent's Task call; the timeline tab nests
+them under that call.
+
 ## Correlation keys
 
 - **Pane ↔ session**: the hook runs as a child of the agent, so the hook
@@ -121,11 +147,18 @@ with a real collector has to choose.
   found in the pane. From then on the pane follows that session.
 - **Tool call across sources**: `tool_use_id` is identical in the hook
   payload, the transcript's `tool_use` block and the agent's telemetry.
-- **Process ↔ tool call** (later step): a process below the agent whose
-  start time falls into the window between `tool_pre` and `tool_post` of
-  the only running Bash call is attributed with confidence `strong`; with
-  several calls in flight, a command line match gives `medium`, otherwise
-  `weak`; outside every window `none` plus `anomaly: unattributed_process`.
+- **Process ↔ tool call**: a process below the agent whose start time
+  falls into the window between `tool_pre` and `tool_post` (or the
+  telemetry's `tool_result`) of the only running spawning tool (Bash, Task,
+  Skill, MCP tools) is attributed with confidence `strong`; with several
+  calls in flight, a command line match gives `medium`, otherwise `weak`
+  (earliest window); outside every window `none` plus
+  `anomaly: unattributed_process`. Connections inherit their process's
+  attribution; one from an unattributed process gets
+  `unattributed_connection`. A process still alive after its window closed
+  gets `outlived_tool` on its `process_end`. Runtime events wait 3 s before
+  they are resolved so the hook file, which the watcher polls every 2 s,
+  can arrive first; windows are widened by 1 s on both sides.
 
 ## Reading the files
 

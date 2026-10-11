@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { applyFilters, buildItems, categoryOf, clockText, durationText, mergeBatch, summarize, confidenceLabel } from './timeline.js';
+import { applyFilters, buildItems, categoryOf, clockText, durationText, mergeBatch, summarize, confidenceLabel, nestSubagents } from './timeline.js';
 
 const pre = { seq: 1, ts: '2026-10-11T10:42:01Z', source: 'hook', type: 'tool_pre', session_id: 's', tool_use_id: 't1', tool_name: 'Bash', attrs: { tool_input: { command: 'python analyze.py' } } };
 const proc = { seq: 2, ts: '2026-10-11T10:42:02Z', source: 'proc', type: 'process_start', session_id: 's', tool_use_id: 't1', pid: 1234, confidence: 'strong', attrs: { cmdline: 'python analyze.py' } };
@@ -73,5 +73,19 @@ describe('timeline text', () => {
     expect(durationText(1234)).toBe('1.2 s');
     expect(durationText(125000)).toBe('2 min');
     expect(durationText(-1)).toBe('');
+  });
+
+  test('subagent tool calls nest under the parent Task call via span ids', () => {
+    const task = { seq: 1, ts: '2026-10-11T10:50:00Z', source: 'hook', type: 'tool_pre', tool_use_id: 'task1', tool_name: 'Task', attrs: { tool_input: { description: 'explore' } } };
+    const taskSpan = { seq: 2, ts: '2026-10-11T10:50:00Z', source: 'otel', type: 'span_tool', tool_use_id: 'task1', tool_name: 'Task', attrs: { span_id: 'S1', trace_id: 'T' } };
+    const subPre = { seq: 3, ts: '2026-10-11T10:50:02Z', source: 'hook', type: 'tool_pre', tool_use_id: 'sub1', tool_name: 'Bash', attrs: { tool_input: { command: 'grep -r foo' } } };
+    const subSpan = { seq: 4, ts: '2026-10-11T10:50:02Z', source: 'otel', type: 'span_tool', tool_use_id: 'sub1', tool_name: 'Bash', attrs: { span_id: 'S2', parent_span_id: 'S1', trace_id: 'T' } };
+    const other = { seq: 5, ts: '2026-10-11T10:51:00Z', source: 'hook', type: 'tool_pre', tool_use_id: 'x', tool_name: 'Read', attrs: { tool_input: { file_path: '/a' } } };
+    const items = buildItems([task, taskSpan, subPre, subSpan, other]);
+    expect(items.map((i) => i.toolUseId)).toEqual(['x', 'task1']);
+    expect(items[1].children.map((c) => c.toolUseId)).toEqual(['sub1']);
+    expect(items[1].children[0].tool).toBe('Bash');
+    // Without spans nothing nests.
+    expect(nestSubagents(buildItems([task, subPre])).length).toBe(2);
   });
 });
