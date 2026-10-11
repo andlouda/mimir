@@ -25,6 +25,7 @@ import (
 	"mimir/ssh"
 	"mimir/template"
 	"mimir/terminal"
+	"mimir/timeline"
 	"mimir/transcript"
 	"mimir/update"
 	"mimir/workflow"
@@ -56,9 +57,14 @@ type App struct {
 	agentPrompts        map[int]agentPrompt
 	// agentAnswered: arrival time of the prompt answered per pane, see
 	// markPromptAnswered.
-	agentAnswered         map[int]time.Time
-	agentWatchers         map[int]*agentWatcher
-	agentMu               sync.Mutex
+	agentAnswered map[int]time.Time
+	agentWatchers map[int]*agentWatcher
+	agentMu       sync.Mutex
+	// telemetry / timeline: the agent timeline settings and its store (see
+	// telemetry_settings.go, timeline package).
+	telemetry             TelemetrySettings
+	telemetryMu           sync.Mutex
+	timeline              *timeline.Store
 	knownHostStore        *ssh.KnownHostStore
 	pendingHostKeys       map[string]pendingSSHHostKey
 	pendingHostKeyMu      sync.Mutex
@@ -88,6 +94,10 @@ func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 	}
 
 	app.TerminalManager.SetTmuxIntegrationMode(loadTmuxIntegrationMode())
+	app.telemetry = loadTelemetrySettings()
+	if dir, err := timelineDir(); err == nil {
+		app.timeline = timeline.NewStore(dir)
+	}
 
 	// Load templates during app initialization
 	err := app.TemplateManager.LoadTemplates()
@@ -188,6 +198,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// An outdated Claude Code hook misattributes sessions; refresh it.
 	go a.upgradeOutdatedClaudeHooks()
+	go a.purgeAgentTimeline()
 
 	// Remove orphaned atomic-write temp files left by a previous crash/force-quit.
 	if configDir, cfgErr := os.UserConfigDir(); cfgErr == nil {
@@ -952,4 +963,16 @@ func (a *App) logSecurityEvent(entry activitylog.SecurityEventEntry) {
 
 func (a *App) logToolExecution(entry activitylog.ToolExecutionEntry) {
 	_ = activitylog.Append(activitylog.KindToolExecutions, entry)
+}
+
+// purgeAgentTimeline applies the retention settings to the timeline files.
+func (a *App) purgeAgentTimeline() {
+	if a.timeline == nil {
+		return
+	}
+	s := a.telemetrySettings()
+	retention := time.Duration(s.RetentionDays) * 24 * time.Hour
+	if n := a.timeline.Purge(retention, int64(s.MaxFileMB)*1024*1024); n > 0 {
+		log.Printf("agent timeline: %d file(s) purged or rotated", n)
+	}
 }

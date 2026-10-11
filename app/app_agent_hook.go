@@ -20,10 +20,16 @@ import (
 
 const agentHookFlag = "--agent-hook"
 
-// runAgentHookMode handles "mimir --agent-hook": it reads one Notification
-// payload from stdin and drops it into the events directory. It never fails
-// loudly (an exit code would surface inside Claude Code), it only validates
-// the payload before writing. Returns false when the flag is absent.
+// hookStdinLimit bounds a hook payload: PostToolUse carries the whole tool
+// response, which can run to megabytes before it is compacted.
+const hookStdinLimit = 2 * 1024 * 1024
+
+// runAgentHookMode handles "mimir --agent-hook": it reads one hook payload
+// from stdin, compacts and redacts it (agents.CompactHookEvent) and drops it
+// into the events directory. It never prints and never fails loudly: stdout
+// or a non-zero exit would feed back into Claude Code's decision for
+// PreToolUse, and Mimir only observes. Returns false when the flag is
+// absent.
 func runAgentHookMode(args []string, stdin io.Reader) bool {
 	found := false
 	for _, a := range args {
@@ -35,7 +41,11 @@ func runAgentHookMode(args []string, stdin io.Reader) bool {
 	if !found {
 		return false
 	}
-	data, err := io.ReadAll(io.LimitReader(stdin, 64*1024))
+	raw, err := io.ReadAll(io.LimitReader(stdin, hookStdinLimit))
+	if err != nil {
+		return true
+	}
+	data, err := agents.CompactHookEvent(raw)
 	if err != nil {
 		return true
 	}
@@ -167,13 +177,18 @@ type hookFS interface {
 
 type claudeHookStatus struct {
 	Installed bool `json:"installed"`
-	// Outdated: installed, but an older entry set (missing SessionStart);
+	// Outdated: installed, but not the wanted entry set (an older install,
+	// or tool events present/missing against the timeline setting);
 	// installing again refreshes it.
-	Outdated     bool   `json:"outdated"`
-	Host         string `json:"host"` // local | wsl | ssh
-	SettingsPath string `json:"settingsPath"`
-	Command      string `json:"command,omitempty"`
-	Error        string `json:"error,omitempty"`
+	Outdated bool `json:"outdated"`
+	// ToolEvents: the PreToolUse/PostToolUse entries are installed;
+	// ToolEventsWanted: the timeline setting asks for them.
+	ToolEvents       bool   `json:"toolEvents"`
+	ToolEventsWanted bool   `json:"toolEventsWanted"`
+	Host             string `json:"host"` // local | wsl | ssh
+	SettingsPath     string `json:"settingsPath"`
+	Command          string `json:"command,omitempty"`
+	Error            string `json:"error,omitempty"`
 }
 
 // hookTarget resolves where the hook lives for a terminal. terminalID <= 0
@@ -291,7 +306,9 @@ func (a *App) hookStatusFrom(source string, fs hookFS, home string, cleanup func
 		return marshalHookStatus(status)
 	}
 	status.Installed = agents.HasClaudeHook(data)
-	status.Outdated = status.Installed && !agents.HookUpToDate(data)
+	status.ToolEventsWanted = a.hookToolEventsWanted()
+	status.ToolEvents = agents.HasToolHooks(data)
+	status.Outdated = status.Installed && !agents.HookUpToDate(data, status.ToolEventsWanted)
 	if cmd, args, err := hookCommandFor(source); err == nil {
 		status.Command = strings.TrimSpace(cmd + " " + strings.Join(args, " "))
 	}
@@ -308,8 +325,11 @@ func marshalHookStatus(s claudeHookStatus) string {
 // form (Notification only, event files without the agent pid) cannot
 // bind sessions to panes and attributes prompts by newest file, which
 // shows the wrong session when several run in one directory. The user
-// opted into the hook once; keeping it current is part of that.
+// opted into the hook once; keeping it current is part of that. The tool
+// events follow the timeline setting both ways: turning it off removes
+// them again, so an upgrade never widens collection on its own.
 func (a *App) upgradeOutdatedClaudeHooks() {
+	wanted := a.hookToolEventsWanted()
 	hosts := []string{"local"}
 	if runtime.GOOS == "windows" {
 		if _, _, err := wslHomeUNC(); err == nil {
@@ -322,7 +342,7 @@ func (a *App) upgradeOutdatedClaudeHooks() {
 			continue
 		}
 		data, rerr := readSettings(fs, claudeSettingsPath(fs, home))
-		outdated := rerr == nil && agents.HasClaudeHook(data) && !agents.HookUpToDate(data)
+		outdated := rerr == nil && agents.HasClaudeHook(data) && !agents.HookUpToDate(data, wanted)
 		cleanup()
 		if !outdated {
 			continue
@@ -331,8 +351,8 @@ func (a *App) upgradeOutdatedClaudeHooks() {
 			log.Printf("claude hook on %s is outdated and could not be refreshed: %v", source, err)
 			continue
 		}
-		log.Printf("claude hook on %s refreshed to the current form", source)
-		logAgentEvent("claude_hook_upgraded", source)
+		log.Printf("claude hook on %s refreshed to the current form (tool events: %v)", source, wanted)
+		logAgentEvent("claude_hook_upgraded", fmt.Sprintf("%s: tool events %v", source, wanted))
 	}
 }
 
@@ -363,7 +383,8 @@ func (a *App) installClaudeHook(source string, fs hookFS, home string, cleanup f
 	if err != nil {
 		return err
 	}
-	out, err := agents.InstallClaudeHook(data, cmd, args)
+	toolEvents := a.hookToolEventsWanted()
+	out, err := agents.InstallClaudeHook(data, cmd, args, toolEvents)
 	if err != nil {
 		return err
 	}
@@ -375,7 +396,7 @@ func (a *App) installClaudeHook(source string, fs hookFS, home string, cleanup f
 			_ = os.MkdirAll(dir, 0700)
 		}
 	}
-	logAgentEvent("claude_hook_installed", source)
+	logAgentEvent("claude_hook_installed", fmt.Sprintf("%s: tool events %v", source, toolEvents))
 	return nil
 }
 

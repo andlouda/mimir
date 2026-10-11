@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"mimir/agents"
+	"mimir/timeline"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -259,6 +260,7 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 				if ev.Event.TranscriptPath != "" && ev.Event.PPID > 0 && !subagent {
 					a.bindAgentSession(terminalID, state.pid, ev.Event.TranscriptPath)
 				}
+				a.ingestHookEvent(terminalID, ev, subagent)
 				if !subagent && state.sessionFile == "" && ev.Event.TranscriptPath != "" && ev.Event.TranscriptPath != file {
 					file, lastSize, lastMod, bound = ev.Event.TranscriptPath, -1, time.Time{}, true
 				} else if ev.Event.TranscriptPath == file {
@@ -320,6 +322,30 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 			return
 		case <-ticker.C:
 		}
+	}
+}
+
+// ingestHookEvent records a matched hook event on the pane's timeline and
+// keeps the session-to-pane index current. The timeline is off until the
+// user turns it on; the base hooks (prompts, binding) are stored even
+// then only when the store exists, so nothing is written for them either.
+func (a *App) ingestHookEvent(terminalID int, ev agents.HookEventFile, subagent bool) {
+	if a.timeline == nil || !a.telemetrySettings().Enabled {
+		return
+	}
+	session := timeline.HookSessionID(ev.Event)
+	if session == "" {
+		return
+	}
+	if !subagent && ev.Event.PPID > 0 {
+		a.timeline.SetTerminal(session, terminalID)
+	}
+	tev, ok := timeline.NewFromHook(ev.Event, ev.ModTime, terminalID)
+	if !ok {
+		return
+	}
+	if _, err := a.timeline.Append(tev); err != nil {
+		log.Printf("agent timeline: %v", err)
 	}
 }
 
