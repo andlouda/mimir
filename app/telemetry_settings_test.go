@@ -42,7 +42,7 @@ func TestUpdateTelemetrySettingsIsPartialAndKeepsToken(t *testing.T) {
 	if !view.Enabled || view.RetentionDays != 3 || !view.HookToolEvents || view.Token != "" {
 		t.Fatalf("update result: %+v", view)
 	}
-	if a.telemetrySettings().Token != token || !a.hookToolEventsWanted() {
+	if s := a.telemetrySettings(); s.Token != token || !s.Enabled || !s.HookToolEvents {
 		t.Fatal("token must be kept and the hook set wanted")
 	}
 	path, err := telemetrySettingsPath()

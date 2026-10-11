@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"mimir/ssh"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -74,11 +75,11 @@ func (a *App) applyTmuxModeToRunning(mode string) {
 	for _, id := range a.TerminalManager.SessionIDs() {
 		if client := a.TerminalManager.GetSSHClient(id); client != nil {
 			meta := a.TerminalManager.GetSSHMeta(id)
-			if meta == nil || !meta.Config.TmuxActive || !tmuxSessionNamePattern.MatchString(meta.Config.TmuxSessionName) {
+			if meta == nil || !meta.Config.TmuxActive || !executil.ValidTmuxSessionName(meta.Config.TmuxSessionName) {
 				continue
 			}
 			script := terminal.RenderTmuxScript("tmux", terminal.TmuxLiveUpdateCommands(mode, meta.Config.TmuxSessionName))
-			if _, err := runSSHCommandWithTimeout(client, script, discoveryTimeout); err != nil {
+			if _, err := ssh.RunCommand(client, script, discoveryTimeout); err != nil {
 				log.Printf("tmux mode: remote update for terminal %d failed: %v", id, err)
 				continue
 			}
@@ -86,7 +87,7 @@ func (a *App) applyTmuxModeToRunning(mode string) {
 			continue
 		}
 		rt := a.TerminalManager.GetTerminalRuntimeMeta(id)
-		if !rt.TmuxActive || !tmuxSessionNamePattern.MatchString(rt.TmuxSessionName) {
+		if !rt.TmuxActive || !executil.ValidTmuxSessionName(rt.TmuxSessionName) {
 			continue
 		}
 		args := terminal.RenderTmuxArgs(terminal.TmuxLiveUpdateCommands(mode, rt.TmuxSessionName))

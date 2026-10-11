@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"context"
@@ -57,7 +57,7 @@ const (
 // startAgentWatcher follows the agent's session file and pushes state
 // changes to the frontend. It replaces title parsing and polling: the file
 // is the source of truth for "working" vs "waiting for the user".
-func (a *App) startAgentWatcher(terminalID int, terminalType string, state agentTerminalState) {
+func (a *Service) startAgentWatcher(terminalID int, terminalType string, state agentTerminalState) {
 	desc, ok := agents.Lookup(state.kind)
 	if !ok || !desc.Transcripts {
 		return
@@ -83,7 +83,10 @@ func (a *App) startAgentWatcher(terminalID int, terminalType string, state agent
 	go a.watchAgentSession(ctx, w, terminalID, terminalType, state)
 }
 
-func (a *App) stopAgentWatcher(terminalID int) {
+func (a *Service) StopWatcher(terminalID int) {
+	if a == nil {
+		return
+	}
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	if w, ok := a.agentWatchers[terminalID]; ok {
@@ -97,15 +100,15 @@ func (a *App) stopAgentWatcher(terminalID int) {
 // ownsAgentWatcher reports whether w is still the pane's current watcher.
 // A replaced goroutine (agent restarted with a new pid) may run one more
 // tick after cancel; it must not clear what its successor stored.
-func (a *App) ownsAgentWatcher(terminalID int, w *agentWatcher) bool {
+func (a *Service) ownsAgentWatcher(terminalID int, w *agentWatcher) bool {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	return a.agentWatchers[terminalID] == w
 }
 
-// releaseAgentWatcher is stopAgentWatcher for the watcher's own exit: it
+// releaseAgentWatcher is StopWatcher for the watcher's own exit: it
 // only removes its own entry and prompt.
-func (a *App) releaseAgentWatcher(terminalID int, w *agentWatcher) {
+func (a *Service) releaseAgentWatcher(terminalID int, w *agentWatcher) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	if a.agentWatchers[terminalID] != w {
@@ -117,7 +120,7 @@ func (a *App) releaseAgentWatcher(terminalID int, w *agentWatcher) {
 	delete(a.agentAnswered, terminalID)
 }
 
-func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID int, terminalType string, state agentTerminalState) {
+func (a *Service) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID int, terminalType string, state agentTerminalState) {
 	fs, home, cleanup, err := a.agentFS(terminalID, state.source)
 	if err != nil {
 		log.Printf("agent watch %d: %v", terminalID, err)
@@ -171,7 +174,7 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 	locate := func() {
 		cwd = state.cwd
 		if cwd == "" {
-			cwd = a.TerminalManager.GetLastReportedCwd(terminalID)
+			cwd = a.terminals.GetLastReportedCwd(terminalID)
 		}
 		if f := state.effectiveSessionFile(); f != "" {
 			file, lastSize, lastMod = f, -1, time.Time{}
@@ -211,7 +214,7 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 		}
 		// Stop when the terminal is gone.
 		alive := false
-		for _, id := range a.TerminalManager.SessionIDs() {
+		for _, id := range a.terminals.SessionIDs() {
 			if id == terminalID {
 				alive = true
 				break
@@ -332,7 +335,7 @@ func (a *App) watchAgentSession(ctx context.Context, w *agentWatcher, terminalID
 // keeps the session-to-pane index current. The timeline is off until the
 // user turns it on; the base hooks (prompts, binding) are stored even
 // then only when the store exists, so nothing is written for them either.
-func (a *App) ingestHookEvent(terminalID int, ev agents.HookEventFile, subagent bool) {
+func (a *Service) ingestHookEvent(terminalID int, ev agents.HookEventFile, subagent bool) {
 	if a.timeline == nil || !a.telemetrySettings().Enabled {
 		return
 	}
@@ -352,14 +355,14 @@ func (a *App) ingestHookEvent(terminalID int, ev agents.HookEventFile, subagent 
 	}
 }
 
-func (a *App) heldPrompt(terminalID int) (agentPrompt, bool) {
+func (a *Service) heldPrompt(terminalID int) (agentPrompt, bool) {
 	a.agentMu.Lock()
 	defer a.agentMu.Unlock()
 	p, ok := a.agentPrompts[terminalID]
 	return p, ok
 }
 
-func (a *App) emitAgentState(terminalID int, payload agentStatePayload) {
+func (a *Service) emitAgentState(terminalID int, payload agentStatePayload) {
 	if a.ctx == nil {
 		return
 	}
@@ -372,7 +375,7 @@ func (a *App) emitAgentState(terminalID int, payload agentStatePayload) {
 
 // watchOpenCode polls the database's change stamp (main file + WAL) and
 // re-derives the state when it moves.
-func (a *App) watchOpenCode(ctx context.Context, w *agentWatcher, terminalID int, state agentTerminalState, fs agents.FS, home string, ticker *time.Ticker) {
+func (a *Service) watchOpenCode(ctx context.Context, w *agentWatcher, terminalID int, state agentTerminalState, fs agents.FS, home string, ticker *time.Ticker) {
 	defer a.releaseAgentWatcher(terminalID, w)
 	dbPath, err := openCodeDBFor(state.source, fs, home)
 	if err != nil {
@@ -382,7 +385,7 @@ func (a *App) watchOpenCode(ctx context.Context, w *agentWatcher, terminalID int
 	var lastPayload agentStatePayload
 	for {
 		alive := false
-		for _, id := range a.TerminalManager.SessionIDs() {
+		for _, id := range a.terminals.SessionIDs() {
 			if id == terminalID {
 				alive = true
 				break
@@ -395,7 +398,7 @@ func (a *App) watchOpenCode(ctx context.Context, w *agentWatcher, terminalID int
 			lastStamp = stamp
 			cwd := state.cwd
 			if cwd == "" {
-				cwd = a.TerminalManager.GetLastReportedCwd(terminalID)
+				cwd = a.terminals.GetLastReportedCwd(terminalID)
 			}
 			sessionID := ""
 			if i := strings.LastIndex(state.sessionFile, "#"); i >= 0 {

@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"encoding/json"
@@ -36,7 +36,7 @@ const agentProjectScript = `git rev-parse --show-toplevel 2>/dev/null; echo ` + 
 	`git rev-parse --git-common-dir 2>/dev/null`
 
 // GetAgentProjectJSON resolves the project of a terminal's agent.
-func (a *App) GetAgentProjectJSON(terminalID int, terminalType string) (string, error) {
+func (a *Service) GetAgentProjectJSON(terminalID int, terminalType string) (string, error) {
 	state, ok := a.rememberedAgent(terminalID)
 	if !ok || state.cwd == "" {
 		return "", fmt.Errorf("no agent directory known for this terminal")
@@ -73,10 +73,10 @@ func applyProjectOutput(info *agentProjectInfo, out string) {
 }
 
 // agentHost is the host part of annotation keys.
-func (a *App) agentHost(terminalID int, source string) string {
+func (a *Service) agentHost(terminalID int, source string) string {
 	switch source {
 	case "ssh":
-		if h := a.TerminalManager.SSHHostFor(terminalID); h != "" {
+		if h := a.terminals.SSHHostFor(terminalID); h != "" {
 			return h
 		}
 		return "ssh"
@@ -170,7 +170,7 @@ func trimRunes(s string, max int) string {
 }
 
 // GetAgentAnnotationsJSON returns all session and project annotations.
-func (a *App) GetAgentAnnotationsJSON() (string, error) {
+func (a *Service) GetAgentAnnotationsJSON() (string, error) {
 	path, err := agentAnnotationsPath()
 	if err != nil {
 		return "", err
@@ -187,7 +187,7 @@ func (a *App) GetAgentAnnotationsJSON() (string, error) {
 
 // SetAgentSessionAnnotation stores name, note and archived flag for a
 // session (key: host|sessionFile). Empty values remove the entry.
-func (a *App) SetAgentSessionAnnotation(key, name, note string, archived bool) error {
+func (a *Service) SetAgentSessionAnnotation(key, name, note string, archived bool) error {
 	if err := validAnnotationKey(key); err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func (a *App) SetAgentSessionAnnotation(key, name, note string, archived bool) e
 
 // SetAgentProjectName stores a display name for a project (key: host|root).
 // An empty name removes it.
-func (a *App) SetAgentProjectName(key, name string) error {
+func (a *Service) SetAgentProjectName(key, name string) error {
 	if err := validAnnotationKey(key); err != nil {
 		return err
 	}

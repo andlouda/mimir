@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mimir/executil"
+	"mimir/ssh"
 	"strings"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 )
 
-const discoveryTimeout = 10 * time.Second
+const discoveryTimeout = executil.HelperTimeout
 
 // RunDiscoveryForTerminalJSON resolves discovery values in the context of a
 // specific terminal:
@@ -66,48 +67,19 @@ func (a *App) runRemoteDiscovery(client *gossh.Client, terminalID int, discovery
 		return nil, err
 	}
 
-	output, err := runSSHCommandWithTimeout(client, script, discoveryTimeout)
+	output, err := ssh.RunCommand(client, script, discoveryTimeout)
 	if err != nil {
 		message := strings.TrimSpace(output)
 		if message == "" {
 			message = err.Error()
 		}
 		logRemoteDiscoveryEvent("discovery_failed", discoveryTool, message)
-		return nil, fmt.Errorf("remote discovery %s failed: %s", discoveryTool, firstOutputLine(message))
+		return nil, fmt.Errorf("remote discovery %s failed: %s", discoveryTool, executil.FirstLine(message))
 	}
 
 	values := aiflow.NormalizeDiscoveryOutput(output)
 	logRemoteDiscoveryEvent("discovery_resolved", discoveryTool, fmt.Sprintf("%d values", len(values)))
 	return values, nil
-}
-
-// runSSHCommandWithTimeout executes a command in a fresh exec session on the
-// existing SSH connection. No new login or credentials are involved.
-func runSSHCommandWithTimeout(client *gossh.Client, command string, timeout time.Duration) (string, error) {
-	session, err := client.NewSession()
-	if err != nil {
-		return "", fmt.Errorf("ssh session failed: %w", err)
-	}
-	defer session.Close()
-
-	type result struct {
-		output []byte
-		err    error
-	}
-	done := make(chan result, 1)
-	go func() {
-		output, err := session.CombinedOutput(command)
-		done <- result{output, err}
-	}()
-
-	select {
-	case r := <-done:
-		return string(r.output), r.err
-	case <-time.After(timeout):
-		// Close unblocks the CombinedOutput goroutine.
-		session.Close()
-		return "", fmt.Errorf("remote command timed out after %s", timeout)
-	}
 }
 
 // localTerminalCwd resolves the current working directory of a local terminal
@@ -144,13 +116,6 @@ func marshalDiscoveryValues(values []string) (string, error) {
 		return "", fmt.Errorf("failed to encode discovery result: %w", err)
 	}
 	return string(payload), nil
-}
-
-func firstOutputLine(message string) string {
-	if index := strings.IndexByte(message, '\n'); index >= 0 {
-		return strings.TrimSpace(message[:index])
-	}
-	return message
 }
 
 func logRemoteDiscoveryEvent(event string, discoveryTool string, reason string) {

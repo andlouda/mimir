@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"encoding/json"
@@ -26,7 +26,7 @@ func workspaceJSON(data agentworkspace.Data, err error) (string, error) {
 	return string(b), err
 }
 
-func (a *App) GetAgentWorkspaceJSON() (string, error) {
+func (a *Service) GetAgentWorkspaceJSON() (string, error) {
 	s, err := workspaceStore()
 	if err != nil {
 		return "", err
@@ -34,7 +34,7 @@ func (a *App) GetAgentWorkspaceJSON() (string, error) {
 	return workspaceJSON(s.Snapshot())
 }
 
-func (a *App) SaveAgentWorkspaceProjectJSON(raw string) (string, error) {
+func (a *Service) SaveAgentWorkspaceProjectJSON(raw string) (string, error) {
 	var p agentworkspace.Project
 	if len(raw) > 65536 || json.Unmarshal([]byte(raw), &p) != nil {
 		return "", fmt.Errorf("invalid project data")
@@ -53,7 +53,7 @@ func (a *App) SaveAgentWorkspaceProjectJSON(raw string) (string, error) {
 	return workspaceJSON(d, err)
 }
 
-func (a *App) SaveAgentWorkspaceTaskJSON(raw string) (string, error) {
+func (a *Service) SaveAgentWorkspaceTaskJSON(raw string) (string, error) {
 	var t agentworkspace.Task
 	if len(raw) > 65536 || json.Unmarshal([]byte(raw), &t) != nil {
 		return "", fmt.Errorf("invalid task data")
@@ -74,7 +74,7 @@ func (a *App) SaveAgentWorkspaceTaskJSON(raw string) (string, error) {
 
 // Only references returned by discovery for this terminal can be linked. Host,
 // kind and directory are resolved here, never trusted from frontend input.
-func (a *App) LinkAgentWorkspaceSessionJSON(projectID, taskID string, terminalID int, terminalType, file string) (string, error) {
+func (a *Service) LinkAgentWorkspaceSessionJSON(projectID, taskID string, terminalID int, terminalType, file string) (string, error) {
 	if len(file) > 4096 {
 		return "", fmt.Errorf("invalid session reference")
 	}
@@ -132,7 +132,7 @@ func discoveredWorkspaceSession(state agentTerminalState, host string, candidate
 	return agentworkspace.Session{}, fmt.Errorf("session was not found in this terminal's discovered sessions")
 }
 
-func (a *App) UnlinkAgentWorkspaceSessionJSON(id string) (string, error) {
+func (a *Service) UnlinkAgentWorkspaceSessionJSON(id string) (string, error) {
 	s, err := workspaceStore()
 	if err != nil {
 		return "", err

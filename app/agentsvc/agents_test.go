@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseAgentProbe(t *testing.T) {
-	out := "4242\t/home/u/proj\n" + agentProbeSeparator + "\n" +
+	out := "4242\t/home/u/proj\n" + ProbeSeparator + "\n" +
 		" 4242     1 -bash\n 4300  4242 node /home/u/.nvm/versions/node/v20/bin/claude\n"
 	root, cwd, procs := parseAgentProbe(out)
 	if root != 4242 || cwd != "/home/u/proj" || len(procs) != 2 {
@@ -20,7 +20,7 @@ func TestParseAgentProbe(t *testing.T) {
 	}
 
 	// Without a pane the probe reports a reason instead of an error.
-	res = finishDetection(agentProbeSeparator+"\n 1 0 init\n", "local")
+	res = finishDetection(ProbeSeparator+"\n 1 0 init\n", "local")
 	if res.Detected || res.Reason == "" {
 		t.Fatalf("expected undetected with reason, got %+v", res)
 	}
@@ -34,7 +34,7 @@ func TestAgentProbeScriptQuotesSession(t *testing.T) {
 }
 
 func TestParseAgentCaptureJoinsFullWidthRows(t *testing.T) {
-	out := "20\n" + agentProbeSeparator + "\n" + "  /tmp/claude-1000/-\n  mnt-a-selfmade   \nprompt $ \n\n\n"
+	out := "20\n" + ProbeSeparator + "\n" + "  /tmp/claude-1000/-\n  mnt-a-selfmade   \nprompt $ \n\n\n"
 	text, width, _ := parseAgentCapture(out)
 	if width != 20 {
 		t.Fatalf("width = %d", width)

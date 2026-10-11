@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"log"
+	"mimir/agentsvc"
 	"os"
 	"runtime"
 
@@ -29,7 +30,7 @@ func main() {
 	// "mimir --agent-hook" is what Claude Code runs as Notification hook: it
 	// stores the payload from stdin for the running Mimir and exits. No
 	// window, no GTK, no desktop integration.
-	if runAgentHookMode(os.Args[1:], os.Stdin) {
+	if agentsvc.RunHookMode(os.Args[1:], os.Stdin) {
 		return
 	}
 
