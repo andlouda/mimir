@@ -152,6 +152,15 @@ them under that call.
 - **Pane ↔ session**: the hook runs as a child of the agent, so the hook
   file name carries the agent's pid; Mimir matches that against the pid it
   found in the pane. From then on the pane follows that session.
+- **Hook as detection trigger**: pane detection is event-driven (window
+  title, start-up banner). A start that shows neither, such as `claude -r`
+  inside tmux, still fires the agent's SessionStart hook. Mimir lists the
+  mailbox (file names only, nothing is read or removed) every 3 s while a
+  pane without an agent is open; an event from a pid no pane claims makes
+  the frontend re-probe the agentless panes of that host (`local` or
+  `wsl`), at most once per 5 s and once per pid per 10 minutes. A probe
+  that finds nothing is logged once per reason as `agent_detection_none`
+  in the security events.
 - **Tool call across sources**: `tool_use_id` is identical in the hook
   payload, the transcript's `tool_use` block and the agent's telemetry.
 - **Process ↔ tool call**: a process below the agent whose start time

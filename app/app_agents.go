@@ -424,6 +424,7 @@ func (a *App) rememberedAgent(terminalID int) (agentTerminalState, bool) {
 // inspected in memory and never shown; the interactive PTY is not touched.
 func (a *App) DetectAgentForTerminalJSON(terminalID int, terminalType string) (string, error) {
 	result := a.detectAgent(terminalID, terminalType)
+	a.noteDetectionOutcome(terminalID, terminalType, result)
 	if result.Detected {
 		state := agentTerminalState{kind: result.Kind, cwd: result.Cwd, source: result.Source, pid: result.PID}
 		if prev, ok := a.rememberedAgent(terminalID); ok && prev.kind == state.kind {
