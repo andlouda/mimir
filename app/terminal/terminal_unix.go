@@ -296,6 +296,7 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 		if injectHook {
 			rcContent += mimirBashHook
 		}
+		rcContent += launchEnvExports()
 		rcPath, err := writeMimirShellFile("bashrc", rcContent)
 		if err == nil {
 			launch.args = []string{"--rcfile", rcPath, "-i"}
@@ -312,6 +313,7 @@ func localShellLaunch(terminalType string, shell string) shellLaunch {
 			if injectHook {
 				rcContent += mimirZshHook
 			}
+			rcContent += launchEnvExports()
 			if err := os.WriteFile(zshrcPath, []byte(rcContent), 0600); err == nil {
 				launch.env = []string{"ZDOTDIR=" + zdotdir}
 				launch.tmuxCommand = "env ZDOTDIR=" + quoteShellArg(zdotdir) + " " + quoteShellArg(shell) + " -i"
@@ -432,7 +434,10 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 		meta.TmuxMode = "off"
 		meta.TmuxStatus = "unsupported"
 	}
+	// The rc files above carry the extra env into tmux-hosted shells; the
+	// direct path gets it through the process environment as well.
 	cmdEnv := append(os.Environ(), append([]string{"TERM=xterm-256color"}, launch.env...)...)
+	cmdEnv = append(cmdEnv, launchEnv()...)
 
 	cmd, ptmx, err := startLocalPty(cmdPath, cmdArgs, cmdEnv)
 	if err != nil {
