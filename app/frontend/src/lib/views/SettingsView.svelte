@@ -6,6 +6,7 @@
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
   import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, claudeRerenderOnWiden, inactivePaneThrottle, inactivePaneInterval, INACTIVE_PANE_INTERVALS, paneResourceOverlay, paneResourceScale, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
   import { refreshTmuxStatuses } from '../actions/terminalActions.js';
+  import { loadTelemetrySettings, updateTelemetrySettings } from '../actions/agentActions.js';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onDestroy, onMount } from 'svelte';
   import { perfStats, startDiagnostics, stopDiagnostics } from '../perf/diagnostics.js';
@@ -25,7 +26,15 @@
     try { waylandFix = waylandSaved = await window['go']['main']['App']['GetWaylandFix'](); } catch { waylandFix = waylandSaved = 'auto'; }
     try { isWayland = !!(await window['go']['main']['App']['IsWaylandSession']()); } catch { isWayland = false; }
     try { imModule = imSaved = await window['go']['main']['App']['GetIMModule'](); imEffective = !!(await window['go']['main']['App']['IMModuleEffective']()); } catch { imModule = imSaved = 'auto'; }
+    try { telemetry = await loadTelemetrySettings(); } catch { telemetry = null; }
   });
+  // Agent timeline (backend-backed: the Go side installs hooks and keeps
+  // the files, so the setting lives there).
+  let telemetry = null;
+  let telemetryError = '';
+  async function patchTelemetry(patch) {
+    try { telemetry = await updateTelemetrySettings(patch); telemetryError = ''; } catch (error) { telemetryError = String(error?.message || error); }
+  }
   let waylandFix = '';
   let waylandSaved = '';
   let isWayland = false;
@@ -267,6 +276,41 @@
       {#if openCards.has('inactiveThrottle')}
       <p>{$t('settings.cards.inactiveThrottle.desc')}</p>
       {/if}
+    </label>
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x2630;</span>
+        <input type="checkbox" checked={!!telemetry?.enabled} disabled={!telemetry} on:change={(e) => patchTelemetry({ enabled: e.target.checked })} />
+      </div>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('agentTelemetry')} on:click|preventDefault|stopPropagation={() => toggleCard('agentTelemetry')}><strong>{$t('settings.cards.agentTelemetry.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('agentTelemetry') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('agentTelemetry')}
+      <p>{$t('settings.cards.agentTelemetry.desc')}</p>
+      {/if}
+      {#if telemetry?.enabled}
+        <div class="settings-sub">
+          <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.hookToolEvents} on:change={(e) => patchTelemetry({ hookToolEvents: e.target.checked })} /> {$t('settings.cards.agentTelemetry.hookToolEvents')}</label>
+          <label class="settings-sub-row">{$t('settings.cards.agentTelemetry.retention')}
+            <select value={String(telemetry.retentionDays)} on:change={(e) => patchTelemetry({ retentionDays: Number(e.target.value) })}>
+              <option value="3">3 {$t('settings.cards.agentTelemetry.days')}</option>
+              <option value="7">7 {$t('settings.cards.agentTelemetry.days')}</option>
+              <option value="14">14 {$t('settings.cards.agentTelemetry.days')}</option>
+              <option value="30">30 {$t('settings.cards.agentTelemetry.days')}</option>
+              <option value="90">90 {$t('settings.cards.agentTelemetry.days')}</option>
+              <option value="0">{$t('settings.cards.agentTelemetry.keepForever')}</option>
+            </select>
+          </label>
+          <label class="settings-sub-row">{$t('settings.cards.agentTelemetry.maxFile')}
+            <select value={String(telemetry.maxFileMb)} on:change={(e) => patchTelemetry({ maxFileMb: Number(e.target.value) })}>
+              <option value="10">10 MB</option>
+              <option value="50">50 MB</option>
+              <option value="200">200 MB</option>
+              <option value="1000">1 GB</option>
+            </select>
+          </label>
+          <p class="settings-note">{$t('settings.cards.agentTelemetry.hookNote')}</p>
+        </div>
+      {/if}
+      {#if telemetryError}<p class="settings-note">{telemetryError}</p>{/if}
     </label>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
@@ -668,4 +712,7 @@
   .diagnostics-table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 4px; }
   .diagnostics-table td { padding: 2px 0; color: var(--text-muted, #9aa4b2); }
   .diagnostics-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--text, #e6edf3); }
+  .settings-sub { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
+  .settings-sub-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .settings-sub-row select { margin-left: auto; }
 </style>
