@@ -101,6 +101,9 @@ func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 	if dir, err := timelineDir(); err == nil {
 		app.timeline = timeline.NewStore(dir)
 	}
+	// New local shells get the variables that point Claude Code's telemetry
+	// at Mimir's receiver (empty while the timeline or the receiver is off).
+	terminal.SetLaunchEnvProvider(func() []string { return telemetryEnv(app.telemetrySettings()) })
 
 	// Load templates during app initialization
 	err := app.TemplateManager.LoadTemplates()

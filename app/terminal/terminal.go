@@ -131,6 +131,9 @@ func conptyBashRcBase64() string {
 	if isHistoryEnabled() || shellHookConsent() {
 		rcContent += conptyBashHistoryHook
 	}
+	// Extra env (agent telemetry) travels inside the rc file: for WSL that
+	// is the only way across the Windows/Linux boundary.
+	rcContent += launchEnvExports()
 	return base64.StdEncoding.EncodeToString([]byte(rcContent))
 }
 
@@ -353,7 +356,11 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 		return 0, fmt.Errorf("unsupported terminal type: %s", terminalType)
 	}
 
-	c, err := conpty.Start(cmdString)
+	var opts []conpty.ConPtyOption
+	if extra := launchEnv(); len(extra) > 0 {
+		opts = append(opts, conpty.ConPtyEnv(append(os.Environ(), extra...)))
+	}
+	c, err := conpty.Start(cmdString, opts...)
 	if err != nil {
 		return 0, fmt.Errorf("failed to start pty for %s: %w", terminalType, err)
 	}

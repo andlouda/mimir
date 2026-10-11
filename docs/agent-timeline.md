@@ -98,6 +98,16 @@ export OTEL_LOGS_EXPORT_INTERVAL=1000
 export OTEL_EXPORTER_OTLP_HEADERS=x-mimir-token=<token>
 ```
 
+Mimir's own local shells get these variables automatically while the
+receiver is on: bash and zsh through the rc file Mimir already writes per
+launch (so they also reach shells inside an existing `tmux -L mimir`
+server), PowerShell and cmd through the process environment, WSL through
+the rc file inside the distro. A running shell keeps its old environment
+until the pane is restarted. SSH panes are not covered: the remote host's
+`127.0.0.1` is not Mimir's, and nothing is installed on SSH servers; the
+hook one-liner still delivers tool events there. Under WSL2, `127.0.0.1`
+reaches the Windows listener only with mirrored networking.
+
 `OTEL_LOG_USER_PROMPTS` is never set. Records whose `event.name` is not
 `claude_code.*` are counted and dropped; records for a session no pane has
 claimed are stored under their session id but not shown live (cap: 50 new

@@ -157,3 +157,47 @@ func TestLocalShellLaunchZshIncludesHistoryHookWhenEnabled(t *testing.T) {
 		t.Fatalf("tmux command should use generated zsh dotdir, got %q", launch.tmuxCommand)
 	}
 }
+
+func TestLocalShellLaunchCarriesExtraEnvIntoRcFiles(t *testing.T) {
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(homeDir, ".config"))
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	SetLaunchEnvProvider(func() []string {
+		return []string{"OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:14318", "OTEL_EXPORTER_OTLP_HEADERS=x-mimir-token=t0k"}
+	})
+	t.Cleanup(func() { SetLaunchEnvProvider(nil) })
+
+	bash := localShellLaunch("bash", "/bin/bash")
+	rc, err := os.ReadFile(bash.args[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rc), "export OTEL_EXPORTER_OTLP_ENDPOINT='http://127.0.0.1:14318'") || !strings.Contains(string(rc), "export OTEL_EXPORTER_OTLP_HEADERS='x-mimir-token=t0k'") {
+		t.Fatalf("bash rc lacks the exports:\n%s", rc)
+	}
+	zsh := localShellLaunch("zsh", "/bin/zsh")
+	var zdotdir string
+	for _, kv := range zsh.env {
+		if strings.HasPrefix(kv, "ZDOTDIR=") {
+			zdotdir = strings.TrimPrefix(kv, "ZDOTDIR=")
+		}
+	}
+	if zdotdir == "" {
+		t.Fatalf("zsh launch without ZDOTDIR: %#v", zsh)
+	}
+	zrc, err := os.ReadFile(filepath.Join(zdotdir, ".zshrc"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(zrc), "export OTEL_EXPORTER_OTLP_ENDPOINT=") {
+		t.Fatalf("zsh rc lacks the exports:\n%s", zrc)
+	}
+	// Without a provider the rc files carry nothing extra.
+	SetLaunchEnvProvider(nil)
+	plain := localShellLaunch("bash", "/bin/bash")
+	rc, _ = os.ReadFile(plain.args[1])
+	if strings.Contains(string(rc), "OTEL_") {
+		t.Fatalf("exports must disappear with the provider:\n%s", rc)
+	}
+}
