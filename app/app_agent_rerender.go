@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"mimir/executil"
 	"path/filepath"
 	"strings"
 	"time"
@@ -52,22 +53,10 @@ func claudeResumeCommand(args string, sessionID string) (string, error) {
 	}
 	quoted := make([]string, 0, len(kept)+2)
 	for _, t := range kept {
-		quoted = append(quoted, shellQuoteIfNeeded(t))
+		quoted = append(quoted, executil.ShellQuoteIfNeeded(t))
 	}
-	quoted = append(quoted, "--resume", shellQuoteIfNeeded(sessionID))
+	quoted = append(quoted, "--resume", executil.ShellQuoteIfNeeded(sessionID))
 	return strings.Join(quoted, " "), nil
-}
-
-func shellQuoteIfNeeded(t string) string {
-	if t == "" {
-		return "''"
-	}
-	for _, r := range t {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("-_./=:@%+,", r)) {
-			return shellQuote(t)
-		}
-	}
-	return t
 }
 
 func claudeSessionID(state agentTerminalState) string {

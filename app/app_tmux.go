@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -90,16 +89,9 @@ func (a *App) applyTmuxModeToRunning(mode string) {
 		if !rt.TmuxActive || !tmuxSessionNamePattern.MatchString(rt.TmuxSessionName) {
 			continue
 		}
-		args := append([]string{"-L", "mimir"}, terminal.RenderTmuxArgs(terminal.TmuxLiveUpdateCommands(mode, rt.TmuxSessionName))...)
+		args := terminal.RenderTmuxArgs(terminal.TmuxLiveUpdateCommands(mode, rt.TmuxSessionName))
 		ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
-		var cmd *exec.Cmd
-		if runtime.GOOS == "windows" {
-			cmd = exec.CommandContext(ctx, "wsl.exe", append([]string{"--", "tmux"}, args...)...)
-		} else {
-			cmd = exec.CommandContext(ctx, "tmux", args...)
-		}
-		executil.HideConsoleWindow(cmd)
-		err := cmd.Run()
+		err := executil.TmuxCommand(ctx, runtime.GOOS == "windows", args...).Run()
 		cancel()
 		if err != nil {
 			log.Printf("tmux mode: local update for terminal %d failed: %v", id, err)

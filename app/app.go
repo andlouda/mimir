@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"log"
+	"mimir/executil"
 	"os"
 	"os/exec"
 	"os/user"
@@ -582,10 +583,9 @@ func (a *App) KillTmuxSession(sessionName string) error {
 	if !isValidTmuxSessionName(sessionName) {
 		return fmt.Errorf("invalid tmux session name")
 	}
-	if runtime.GOOS == "windows" {
-		return exec.Command("wsl.exe", "tmux", "-L", "mimir", "kill-session", "-t", sessionName).Run()
-	}
-	return exec.Command("tmux", "-L", "mimir", "kill-session", "-t", sessionName).Run()
+	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
+	defer cancel()
+	return executil.TmuxCommand(ctx, runtime.GOOS == "windows", "kill-session", "-t", sessionName).Run()
 }
 
 // RemoveTerminalState is called by the frontend when a terminal is closed.

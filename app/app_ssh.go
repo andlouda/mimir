@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"mimir/executil"
 	"net"
 	"os"
 	"regexp"
@@ -38,7 +39,7 @@ type pendingSSHHostKey struct {
 func sshTmuxBootstrapCommand(sessionName string, shellCommand string, tmuxMode string) string {
 	tmuxShell := ""
 	if shellCommand != "" {
-		tmuxShell = " " + shellQuote(shellCommand)
+		tmuxShell = " " + executil.ShellQuote(shellCommand)
 	}
 	fallback := `exec "${SHELL:-sh}"`
 	if shellCommand != "" {
@@ -46,9 +47,9 @@ func sshTmuxBootstrapCommand(sessionName string, shellCommand string, tmuxMode s
 	}
 	// The option chain (mouse handling, clipboard, key bindings) is shared with
 	// the local launch paths; see terminal.TmuxOptionCommands.
-	script := `if command -v tmux >/dev/null 2>&1; then exec tmux new-session -A -s ` + shellQuote(sessionName) + tmuxShell +
+	script := `if command -v tmux >/dev/null 2>&1; then exec tmux new-session -A -s ` + executil.ShellQuote(sessionName) + tmuxShell +
 		terminal.TmuxOptionScript(tmuxMode) + `; else ` + fallback + `; fi`
-	return "sh -lc " + shellQuote(script)
+	return "sh -lc " + executil.ShellQuote(script)
 }
 
 func sshTmuxSessionName(profileID string) string {
@@ -62,10 +63,6 @@ func sshTmuxSessionName(profileID string) string {
 	}
 	n := atomic.AddUint64(&sshTmuxCounter, 1)
 	return fmt.Sprintf("mimir-ssh-%s-%d", shortID, n)
-}
-
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
 func expandLocalPath(path string) string {
@@ -116,7 +113,7 @@ func sshShellCommand(profile ssh.Profile) (string, error) {
 		encoded := base64.StdEncoding.EncodeToString(data)
 		return fmt.Sprintf(
 			`sh -lc 'mkdir -p ~/.cache/mimir/shell && printf %%s %s | base64 -d > %s && exec bash --rcfile %s -i'`,
-			shellQuote(encoded),
+			executil.ShellQuote(encoded),
 			remotePath,
 			remotePath,
 		), nil
