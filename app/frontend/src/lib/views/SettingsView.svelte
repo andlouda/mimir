@@ -331,6 +331,19 @@
             </select>
           </label>
           <p class="settings-note">{$t('settings.cards.agentTelemetry.hookNote')}</p>
+          <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.observe} on:change={(e) => patchTelemetry({ observe: e.target.checked })} /> {$t('settings.cards.agentTelemetry.observe')}</label>
+          {#if telemetry.observe}
+            <label class="settings-sub-row">{$t('settings.cards.agentTelemetry.observeInterval')}
+              <select value={String(telemetry.observeIntervalMs)} on:change={(e) => patchTelemetry({ observeIntervalMs: Number(e.target.value) })}>
+                <option value="500">0.5 s</option>
+                <option value="1000">1 s</option>
+                <option value="2000">2 s</option>
+                <option value="5000">5 s</option>
+              </select>
+            </label>
+            <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.observeUdp} on:change={(e) => patchTelemetry({ observeUdp: e.target.checked })} /> {$t('settings.cards.agentTelemetry.observeUdp')}</label>
+            <p class="settings-note">{$t('settings.cards.agentTelemetry.observeNote')}</p>
+          {/if}
           <label class="settings-sub-row"><input type="checkbox" checked={!!telemetry.otelReceiver} on:change={(e) => patchTelemetry({ otelReceiver: e.target.checked })} /> {$t('settings.cards.agentTelemetry.otelReceiver')}</label>
           {#if telemetry.otelReceiver}
             <label class="settings-sub-row">{$t('settings.cards.agentTelemetry.port')}
