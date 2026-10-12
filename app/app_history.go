@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"mimir/safeio"
 	"os"
 	"path/filepath"
 
@@ -94,10 +95,7 @@ func (a *App) SetHistoryTracking(enabled bool) error {
 		return err
 	}
 	if enabled {
-		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-			return fmt.Errorf("history consent dir: %w", err)
-		}
-		return os.WriteFile(path, []byte("enabled\n"), 0600)
+		return safeio.AtomicWriteFile(path, []byte("enabled\n"), 0600)
 	}
 	err = os.Remove(path)
 	if os.IsNotExist(err) {

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"mimir/executil"
 	"mimir/history"
@@ -24,6 +25,72 @@ import (
 // shell: the session type that wraps the PTY/ConPTY and
 // StartTerminalWithOptions.
 
+// historyQueueSize bounds the commands waiting for the history worker; a
+// burst beyond it (a script printing thousands of prompts) drops entries
+// with a log line rather than growing without limit.
+const historyQueueSize = 256
+
+// historyDrainTimeout is how long CloseAll waits for queued entries.
+const historyDrainTimeout = 2 * time.Second
+
+// historyInserter is what the worker needs from the store.
+type historyInserter interface {
+	Insert(history.CommandEntry) error
+}
+
+// startHistoryWorker is called with ptyMutex held; a second call is a no-op.
+func (m *Manager) startHistoryWorker(store historyInserter) {
+	if m.historyQueue != nil {
+		return
+	}
+	m.historyQueue = make(chan history.CommandEntry, historyQueueSize)
+	m.historyDone = make(chan struct{})
+	go runHistoryWorker(store, m.historyQueue, m.historyDone)
+}
+
+func runHistoryWorker(store historyInserter, queue <-chan history.CommandEntry, done chan<- struct{}) {
+	defer close(done)
+	for e := range queue {
+		if err := store.Insert(e); err != nil {
+			log.Printf("history: insert failed: %v", err)
+		}
+	}
+}
+
+// enqueueHistory hands an entry to the worker without blocking; the send
+// happens under the mutex so it can never race with stopHistoryWorker
+// closing the channel.
+func (m *Manager) enqueueHistory(e history.CommandEntry) {
+	m.ptyMutex.Lock()
+	defer m.ptyMutex.Unlock()
+	if m.historyQueue == nil {
+		return
+	}
+	select {
+	case m.historyQueue <- e:
+	default:
+		log.Printf("history: queue full, dropping %q", e.Command)
+	}
+}
+
+// stopHistoryWorker closes the queue and waits briefly for the worker to
+// write what is left, so the store can be closed afterwards.
+func (m *Manager) stopHistoryWorker() {
+	m.ptyMutex.Lock()
+	queue, done := m.historyQueue, m.historyDone
+	m.historyQueue, m.historyDone = nil, nil
+	m.ptyMutex.Unlock()
+	if queue == nil {
+		return
+	}
+	close(queue)
+	select {
+	case <-done:
+	case <-time.After(historyDrainTimeout):
+		log.Printf("history: worker did not drain within %s", historyDrainTimeout)
+	}
+}
+
 // pidSession is implemented by local sessions that own a process.
 type pidSession interface {
 	Pid() int
@@ -38,6 +105,11 @@ type Manager struct {
 	readySignals map[int]chan struct{}
 	sshMeta      map[int]*SSHMeta
 	historyStore *history.Store
+	// historyQueue feeds one worker that writes command entries; the output
+	// pump never blocks on the store and never spawns a goroutine per
+	// command. nil once stopped (CloseAll) or when there is no store.
+	historyQueue chan history.CommandEntry
+	historyDone  chan struct{}
 	oscBuffers   map[int][]byte
 	sessionMeta  map[int]SessionMeta
 	runtimeMeta  map[int]TerminalRuntimeMeta
@@ -87,6 +159,9 @@ func NewManager() *Manager {
 // SetHistoryStore sets the history store for recording commands.
 func (m *Manager) SetHistoryStore(store *history.Store) {
 	m.historyStore = store
+	if store != nil {
+		m.startHistoryWorker(store)
+	}
 }
 
 // SessionPID returns the pid at the root of a local terminal's process
@@ -326,11 +401,7 @@ func (m *Manager) InitializeTerminal(id int) error {
 						SSHProfile:  meta.SSHProfile,
 						StartedAt:   cmd.Timestamp,
 					}
-					go func(e history.CommandEntry) {
-						if err := m.historyStore.Insert(e); err != nil {
-							log.Printf("history: insert failed: %v", err)
-						}
-					}(entry)
+					m.enqueueHistory(entry)
 				}
 			}
 
@@ -544,6 +615,7 @@ func (m *Manager) ReconnectSSH(id int) error {
 // CloseAll closes every terminal session and stops all active recorders.
 // Called during app shutdown to ensure resources are released cleanly.
 func (m *Manager) CloseAll() {
+	defer m.stopHistoryWorker()
 	m.ptyMutex.Lock()
 	ids := make([]int, 0, len(m.sessions))
 	for id := range m.sessions {
