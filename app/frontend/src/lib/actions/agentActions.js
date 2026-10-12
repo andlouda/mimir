@@ -4,7 +4,7 @@ import { createClaudeRerender } from '../agents/claudeRerender.js';
 import { agentAnnotations, agentDetectionEnabled, agentNotificationsEnabled, agentPanelPinned, agentPanelTerminalId, agentStates } from '../stores/agentStore.js';
 import { t } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
-import { outputMentionsAgent, parseAgentTitle } from '../agents/agentSignals.js';
+import { outputMentionsAgent, parseAgentTitle, plainOutput } from '../agents/agentSignals.js';
 import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
 
 function app() {
@@ -294,19 +294,57 @@ export function handleTerminalTitle(id, title) {
   setState(id, { status: parsed.status, subject: parsed.subject, attention, lastChange: Date.now() });
 }
 
+// BANNER_TAIL_CHARS of the previous chunk are kept so a banner that
+// arrives in two pieces ("Claude" | " Code") is still seen.
+const BANNER_TAIL_CHARS = 64;
+
 /** Cheap sniff of terminal output for agent startup banners. */
 export function noteTerminalOutput(id, chunk) {
   if (!get(agentDetectionEnabled)) return;
   if (get(agentStates)[id]) return;
-  if (outputMentionsAgent(chunk)) scheduleAgentDetection(id);
+  const watch = watches.get(id);
+  const text = (watch?.tail || '') + plainOutput(chunk);
+  if (watch) watch.tail = text.slice(-BANNER_TAIL_CHARS);
+  if (outputMentionsAgent(text)) {
+    if (watch) watch.tail = '';
+    scheduleAgentDetection(id);
+  }
+}
+
+// The backend lists the hook mailbox for panes nobody matched: a hook
+// event from an agent pid no pane claims means some pane started an agent
+// without a title or banner (claude -r inside tmux). Probe the panes of
+// that host that have no agent yet; the probe is what binds the pane.
+const HINT_TYPES = {
+  local: (type) => type !== 'wsl' && type !== 'ssh',
+  wsl: (type) => type === 'wsl',
+};
+let hintOff = null;
+
+export function handleDetectHint(payload) {
+  if (!get(agentDetectionEnabled)) return;
+  const wants = HINT_TYPES[payload?.source];
+  if (!wants) return;
+  const states = get(agentStates);
+  for (const [id, watch] of watches) {
+    if (states[id]) continue;
+    if (!wants(watch.type || terminalType(id))) continue;
+    scheduleAgentDetection(id, { immediate: true });
+  }
+}
+
+function ensureDetectHints() {
+  if (hintOff) return;
+  hintOff = EventsOn('agent-detect-hint', (payload) => handleDetectHint(payload));
 }
 
 /** Starts periodic detection for a terminal (call once after it is ready). */
 export function startAgentWatch(id, type) {
   stopAgentWatch(id);
-  const watch = { type, timer: null, pending: null, lastRun: 0 };
+  const watch = { type, timer: null, pending: null, lastRun: 0, tail: '' };
   watches.set(id, watch);
   if (!get(agentDetectionEnabled)) return;
+  ensureDetectHints();
   // One probe after start-up covers restored sessions where an agent is
   // already running; afterwards only events trigger probes.
   setTimeout(() => scheduleAgentDetection(id, { immediate: true }), INITIAL_DELAY_MS);
@@ -322,6 +360,10 @@ export function stopAgentWatch(id) {
   watches.delete(id);
   setState(id, null);
   if (get(agentPanelTerminalId) === id) agentPanelTerminalId.set(null);
+  if (watches.size === 0 && hintOff) {
+    hintOff();
+    hintOff = null;
+  }
 }
 
 function windowInFront() {

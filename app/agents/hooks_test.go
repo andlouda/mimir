@@ -233,3 +233,26 @@ func TestCompactHookEvent(t *testing.T) {
 		t.Fatal("invalid json must error")
 	}
 }
+
+func TestListHookEventStubs(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"1700000000-10-4242.json", "1700000001-11.json", "notes.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("{}"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stubs := ListHookEventStubs(LocalFS{}, dir)
+	if len(stubs) != 2 {
+		t.Fatalf("expected two json stubs, got %+v", stubs)
+	}
+	byName := map[string]int{}
+	for _, s := range stubs {
+		byName[s.Name] = s.PPID
+	}
+	if byName["1700000000-10-4242.json"] != 4242 || byName["1700000001-11.json"] != 0 {
+		t.Fatalf("ppid from name: %+v", byName)
+	}
+	if got := ListHookEventStubs(LocalFS{}, filepath.Join(dir, "missing")); got != nil {
+		t.Fatalf("missing dir must yield nothing, got %+v", got)
+	}
+}

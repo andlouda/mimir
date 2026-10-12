@@ -25,8 +25,21 @@ export function parseAgentTitle(title) {
 // output stream is a cheap trigger to (re)run process detection.
 const BANNER_PATTERN = /OpenAI Codex|Claude Code|Gemini CLI|opencode|Aider v\d|Hermes/i;
 
-/** True when a chunk of terminal output looks like an agent starting up. */
+// Terminal control sequences (CSI, OSC, other escapes, C0 bytes): a styled
+// banner carries them between words ("Claude" + bold + "Code").
+const CONTROL_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()*+/][ -~]|\x1b[@-Z\\-_]|[\x00-\x08\x0b\x0c\x0e-\x1f]/g;
+
+/** Output with control sequences removed, '' for oversized chunks. */
+export function plainOutput(chunk) {
+  if (!chunk || chunk.length > 200000) return '';
+  return chunk.replace(CONTROL_RE, '');
+}
+
+/**
+ * True when terminal output looks like an agent starting up. The text is
+ * stripped of control sequences first; callers may prepend the tail of the
+ * previous chunk so a banner split across chunks still matches.
+ */
 export function outputMentionsAgent(chunk) {
-  if (!chunk || chunk.length > 200000) return false;
-  return BANNER_PATTERN.test(chunk);
+  return BANNER_PATTERN.test(plainOutput(chunk));
 }

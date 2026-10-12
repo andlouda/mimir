@@ -10,6 +10,7 @@ import { EventsOn } from '../../../wailsjs/runtime';
 import {
   answerAgentPermission,
   handleAgentStateEvent,
+  handleDetectHint,
   projectFolderName,
   projectKey,
   sessionKey,
@@ -112,6 +113,44 @@ describe('agent detection', () => {
     noteTerminalOutput(1, 'Welcome to OpenAI Codex');
     vi.advanceTimersByTime(2000);
     expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(1);
+  });
+
+  test('a banner split across chunks and styled still triggers a probe', () => {
+    window.go.main.App.DetectAgentForTerminalJSON.mockResolvedValue(JSON.stringify({ detected: false }));
+    startAgentWatch(1, 'bash');
+    vi.advanceTimersByTime(2600);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(1);
+    noteTerminalOutput(1, '\x1b[1m Welcome to Claude');
+    noteTerminalOutput(1, '\x1b[0m Code v2.0.1');
+    vi.advanceTimersByTime(2000);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(2);
+  });
+
+  test('a backend hint probes the agentless panes of that host only', () => {
+    window.go.main.App.DetectAgentForTerminalJSON.mockResolvedValue(JSON.stringify({ detected: false }));
+    terminals.set([{ id: 1, type: 'bash' }, { id: 2, type: 'ssh' }, { id: 3, type: 'wsl' }, { id: 4, type: 'powershell' }]);
+    for (const id of [1, 2, 3, 4]) stopAgentWatch(id);
+    EventsOn.mockClear();
+    startAgentWatch(1, 'bash');
+    startAgentWatch(2, 'ssh');
+    startAgentWatch(3, 'wsl');
+    startAgentWatch(4, 'powershell');
+    vi.advanceTimersByTime(3000);
+    expect(EventsOn).toHaveBeenCalledWith('agent-detect-hint', expect.any(Function));
+    window.go.main.App.DetectAgentForTerminalJSON.mockClear();
+    agentStates.set({ 4: { kind: 'claude' } });
+    handleDetectHint({ source: 'local', pid: 123 });
+    vi.advanceTimersByTime(10);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(1);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledWith(1, 'bash');
+    handleDetectHint({ source: 'wsl', pid: 456 });
+    vi.advanceTimersByTime(10);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledWith(3, 'wsl');
+    handleDetectHint({ source: 'ssh', pid: 1 });
+    handleDetectHint(null);
+    vi.advanceTimersByTime(10);
+    expect(window.go.main.App.DetectAgentForTerminalJSON).toHaveBeenCalledTimes(2);
+    stopAgentWatch(1); stopAgentWatch(2); stopAgentWatch(3); stopAgentWatch(4);
   });
 
   test('idle terminals are probed once at start-up and never polled', async () => {

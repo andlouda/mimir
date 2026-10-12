@@ -61,7 +61,9 @@ type App struct {
 	// markPromptAnswered.
 	agentAnswered map[int]time.Time
 	agentWatchers map[int]*agentWatcher
-	agentMu       sync.Mutex
+	// agentDetectReasons: last logged "nothing found" reason per pane.
+	agentDetectReasons map[int]string
+	agentMu            sync.Mutex
 	// telemetry / timeline: the agent timeline settings and its store (see
 	// telemetry_settings.go, timeline package).
 	telemetry       TelemetrySettings
@@ -207,6 +209,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// An outdated Claude Code hook misattributes sessions; refresh it.
 	go a.upgradeOutdatedClaudeHooks()
+	go a.scanUnboundHookEvents(ctx)
 	go a.purgeAgentTimeline()
 	a.startTimelineEmitter()
 	a.startTelemetryListener()
@@ -698,6 +701,7 @@ func (a *App) ResizeTerminal(id int, rowsStr string, colsStr string) error {
 }
 
 func (a *App) CloseTerminal(id int) error {
+	a.forgetDetectionOutcome(id)
 	return a.TerminalManager.CloseTerminal(id)
 }
 

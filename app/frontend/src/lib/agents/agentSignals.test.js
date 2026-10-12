@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { outputMentionsAgent, parseAgentTitle } from './agentSignals.js';
+import { outputMentionsAgent, parseAgentTitle, plainOutput } from './agentSignals.js';
 import { extractCodeBlocks, extractSnippets, firstProse, groupTurns, splitMarkdown } from './markdownBlocks.js';
 
 describe('parseAgentTitle', () => {
@@ -22,6 +22,13 @@ describe('outputMentionsAgent', () => {
     expect(outputMentionsAgent('✳ Welcome to Claude Code')).toBe(true);
     expect(outputMentionsAgent('ls -la\n')).toBe(false);
     expect(outputMentionsAgent('')).toBe(false);
+  });
+
+  test('sees through styling and control sequences', () => {
+    expect(outputMentionsAgent('\x1b[1mClaude\x1b[0m \x1b[38;5;208mCode\x1b[0m v2.0.1')).toBe(true);
+    expect(outputMentionsAgent('Claude\x1b]0;title\x07 Code')).toBe(true);
+    expect(plainOutput('a\x1b[2Kb\x1b(Bc\x07d')).toBe('abcd');
+    expect(plainOutput('x'.repeat(200001))).toBe('');
   });
 });
 

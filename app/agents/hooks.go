@@ -566,3 +566,29 @@ func MatchesHookEvent(ev HookEvent, agentPID int, sessionFile, cwd string) bool 
 	}
 	return cwd != "" && ev.Cwd != "" && strings.TrimRight(ev.Cwd, "/\\") == strings.TrimRight(cwd, "/\\")
 }
+
+// HookEventStub is what an event file name alone tells: the hook's parent
+// pid (the agent) and when it was written. Listing stubs opens no file, so
+// it is cheap enough to run for panes nobody has matched yet.
+type HookEventStub struct {
+	Name    string
+	PPID    int
+	ModTime time.Time
+}
+
+// ListHookEventStubs lists the event files of dir by name only, without
+// reading or removing anything. A missing directory yields nothing.
+func ListHookEventStubs(fs FS, dir string) []HookEventStub {
+	entries, err := fs.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var out []HookEventStub
+	for _, e := range entries {
+		if e.IsDir || !strings.HasSuffix(e.Name, ".json") {
+			continue
+		}
+		out = append(out, HookEventStub{Name: e.Name, PPID: hookEventPPID(e.Name), ModTime: e.ModTime})
+	}
+	return out
+}
