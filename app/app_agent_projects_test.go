@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -38,6 +39,22 @@ func TestAnnotationsRoundTrip(t *testing.T) {
 	back := loadAgentAnnotations(path)
 	if back.Sessions["local|/h/.claude/projects/x/a.jsonl"].Name != "Login fix" || !back.Sessions["local|/h/.claude/projects/x/a.jsonl"].Archived || back.Projects["local|/p"].Name != "Mimir" {
 		t.Fatalf("round trip: %+v", back)
+	}
+	// A broken file is moved aside, never overwritten by the next save.
+	if err := os.WriteFile(path, []byte("{not json"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := loadAgentAnnotations(path); len(got.Sessions) != 0 || got.Projects == nil {
+		t.Fatalf("corrupt file must yield empty maps, got %+v", got)
+	}
+	if aside, _ := filepath.Glob(path + ".corrupt-*"); len(aside) != 1 {
+		t.Fatalf("corrupt file must be kept aside, got %v", aside)
+	}
+	if err := saveAgentAnnotations(path, ann); err != nil {
+		t.Fatal(err)
+	}
+	if back := loadAgentAnnotations(path); back.Projects["local|/p"].Name != "Mimir" {
+		t.Fatalf("save after corruption: %+v", back)
 	}
 	for _, bad := range []string{"", "nopipe", "a|b\n", strings.Repeat("x", 2000) + "|y"} {
 		if validAnnotationKey(bad) == nil {

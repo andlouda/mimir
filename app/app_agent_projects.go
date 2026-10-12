@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"mimir/safeio"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,13 +125,15 @@ func agentAnnotationsPath() (string, error) {
 	return filepath.Join(configDir, "mimir", annotationsFile), nil
 }
 
+// loadAgentAnnotations reads the notes; a missing file means none. A file
+// that does not parse is moved aside by LoadJSON and logged, so the next
+// save cannot overwrite the user's notes with an empty set.
 func loadAgentAnnotations(path string) agentAnnotations {
 	out := agentAnnotations{Sessions: map[string]agentSessionNote{}, Projects: map[string]agentProjectNote{}}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return out
+	if err := safeio.LoadJSON(path, &out); err != nil {
+		log.Printf("agent annotations unreadable, starting empty: %v", err)
+		out = agentAnnotations{}
 	}
-	_ = json.Unmarshal(data, &out)
 	if out.Sessions == nil {
 		out.Sessions = map[string]agentSessionNote{}
 	}
@@ -147,11 +151,7 @@ func saveAgentAnnotations(path string, ann agentAnnotations) error {
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return safeio.AtomicWriteFile(path, data, 0600)
 }
 
 func validAnnotationKey(key string) error {
