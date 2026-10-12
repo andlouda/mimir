@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestAnsweredPromptIsNotReoffered(t *testing.T) {
-	a := &App{}
+	a := &Service{}
 	at := time.Now()
 	if a.promptAnswered(1, at) {
 		t.Fatal("nothing answered yet")
@@ -21,14 +21,14 @@ func TestAnsweredPromptIsNotReoffered(t *testing.T) {
 	if a.promptAnswered(1, at.Add(time.Second)) {
 		t.Fatal("a newer prompt must not count as answered")
 	}
-	a.stopAgentWatcher(1)
+	a.StopWatcher(1)
 	if a.promptAnswered(1, at) {
 		t.Fatal("stopping the watcher clears the marker")
 	}
 }
 
 func TestReplacedWatcherReleasesOnlyItself(t *testing.T) {
-	a := &App{agentWatchers: map[int]*agentWatcher{}}
+	a := &Service{agentWatchers: map[int]*agentWatcher{}}
 	_, cancelOld := context.WithCancel(context.Background())
 	_, cancelNew := context.WithCancel(context.Background())
 	old := &agentWatcher{cancel: cancelOld, pid: 1}

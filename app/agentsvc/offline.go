@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"encoding/json"
@@ -99,7 +99,7 @@ func listOfflineClaudeSessions(projects string, limit int) ([]offlineSession, er
 }
 
 // ListOfflineClaudeSessionsJSON lists this machine's Claude Code sessions.
-func (a *App) ListOfflineClaudeSessionsJSON(limit int) (string, error) {
+func (a *Service) ListOfflineClaudeSessionsJSON(limit int) (string, error) {
 	projects, err := claudeProjectsDir()
 	if err != nil {
 		return "", err
@@ -134,7 +134,7 @@ func validateClaudeSessionFile(projects, file string) error {
 }
 
 // DeleteClaudeSession removes a session file (and nothing else).
-func (a *App) DeleteClaudeSession(file string) error {
+func (a *Service) DeleteClaudeSession(file string) error {
 	projects, err := claudeProjectsDir()
 	if err != nil {
 		return err

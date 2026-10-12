@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"mimir/agentsvc"
 	"mimir/executil"
 	"strconv"
 	"strings"
@@ -31,7 +32,7 @@ func tmuxHistoryScript(maxLines int) func(tmuxBin, session string) string {
 	return func(tmuxBin, session string) string {
 		target := executil.ShellQuote(session + ":")
 		return tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on} #{history_size}' 2>/dev/null; ` +
-			`echo ` + agentProbeSeparator + `; ` +
+			`echo ` + agentsvc.ProbeSeparator + `; ` +
 			`if [ "$(` + tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on}' 2>/dev/null)" != 1 ]; then ` +
 			tmuxBin + ` capture-pane -p -e -J -S -` + strconv.Itoa(maxLines) + ` -E -1 -t ` + target + ` 2>/dev/null; fi`
 	}
@@ -40,7 +41,7 @@ func tmuxHistoryScript(maxLines int) func(tmuxBin, session string) string {
 // tmuxRefreshScript asks every client attached to the session to redraw.
 func tmuxRefreshScript(tmuxBin, session string) string {
 	q := executil.ShellQuote(session)
-	return `echo ` + agentProbeSeparator + `; ` +
+	return `echo ` + agentsvc.ProbeSeparator + `; ` +
 		tmuxBin + ` list-clients -t ` + q + ` -F '#{client_name}' 2>/dev/null | while read -r c; do ` +
 		tmuxBin + ` refresh-client -t "$c" 2>/dev/null; done`
 }
@@ -48,7 +49,7 @@ func tmuxRefreshScript(tmuxBin, session string) string {
 // parseTmuxHistory splits the script output into the flags and the lines;
 // trailing blank lines are dropped, inner ones kept.
 func parseTmuxHistory(output string) tmuxHistoryPayload {
-	head, tail, found := strings.Cut(output, agentProbeSeparator)
+	head, tail, found := strings.Cut(output, agentsvc.ProbeSeparator)
 	if !found {
 		return tmuxHistoryPayload{}
 	}
@@ -98,7 +99,7 @@ func stripSGR(s string) string {
 // GetTmuxHistoryJSON returns the pane's scrollback above the visible
 // screen (see the file comment). Alternate-screen panes return no lines.
 func (a *App) GetTmuxHistoryJSON(terminalID int, terminalType string, maxLines int) (string, error) {
-	output, err := a.runPaneScript(terminalID, terminalType, tmuxHistoryScript(maxLines))
+	output, err := a.agents.RunPaneScript(terminalID, terminalType, tmuxHistoryScript(maxLines))
 	if err != nil {
 		return "", err
 	}
@@ -111,6 +112,6 @@ func (a *App) GetTmuxHistoryJSON(terminalID int, terminalType string, maxLines i
 
 // RefreshTmuxClient makes tmux repaint the pane's visible screen.
 func (a *App) RefreshTmuxClient(terminalID int, terminalType string) error {
-	_, err := a.runPaneScript(terminalID, terminalType, tmuxRefreshScript)
+	_, err := a.agents.RunPaneScript(terminalID, terminalType, tmuxRefreshScript)
 	return err
 }

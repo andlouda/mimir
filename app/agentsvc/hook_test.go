@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"os"
@@ -15,10 +15,10 @@ func TestRunAgentHookModeStoresNotification(t *testing.T) {
 	t.Setenv("HOME", cache) // macOS: UserCacheDir is $HOME/Library/Caches
 	t.Setenv("XDG_CACHE_HOME", cache)
 	t.Setenv("LOCALAPPDATA", cache)
-	if !runAgentHookMode([]string{"--agent-hook"}, strings.NewReader(`{"session_id":"s1","transcript_path":"/h/s1.jsonl","cwd":"/p","hook_event_name":"Notification","notification_type":"permission_prompt","message":"needs Bash"}`)) {
+	if !RunHookMode([]string{"--agent-hook"}, strings.NewReader(`{"session_id":"s1","transcript_path":"/h/s1.jsonl","cwd":"/p","hook_event_name":"Notification","notification_type":"permission_prompt","message":"needs Bash"}`)) {
 		t.Fatalf("flag must be handled")
 	}
-	if runAgentHookMode([]string{"--other"}, strings.NewReader("")) {
+	if RunHookMode([]string{"--other"}, strings.NewReader("")) {
 		t.Fatalf("other args must fall through to the app")
 	}
 	dir, err := localHookEventsDir()
@@ -37,7 +37,7 @@ func TestRunAgentHookModeStoresNotification(t *testing.T) {
 		t.Fatalf("event file must be private, got %v", info.Mode())
 	}
 	// Garbage on stdin is dropped, not stored.
-	runAgentHookMode([]string{"--agent-hook"}, strings.NewReader(`{"hook_event_name":"PreToolUse"}`))
+	RunHookMode([]string{"--agent-hook"}, strings.NewReader(`{"hook_event_name":"PreToolUse"}`))
 	entries, _ := os.ReadDir(filepath.Join(dir))
 	if len(entries) != 1 {
 		t.Fatalf("non-notification payloads must not be stored, have %d files", len(entries))
@@ -60,7 +60,7 @@ func TestRunAgentHookModeCompactsLargeToolEvents(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", cache)
 	t.Setenv("LOCALAPPDATA", cache)
 	payload := `{"session_id":"s2","transcript_path":"/h/s2.jsonl","hook_event_name":"PostToolUse","tool_name":"Bash","tool_use_id":"toolu_9","tool_input":{"command":"make test"},"tool_response":{"stdout":"` + strings.Repeat("y", 200*1024) + `"}}`
-	if !runAgentHookMode([]string{"--agent-hook"}, strings.NewReader(payload)) {
+	if !RunHookMode([]string{"--agent-hook"}, strings.NewReader(payload)) {
 		t.Fatal("flag must be handled")
 	}
 	dir, _ := localHookEventsDir()

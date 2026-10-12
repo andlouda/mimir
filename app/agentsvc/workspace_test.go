@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"testing"
@@ -24,7 +24,7 @@ func TestWorkspaceSessionMustComeFromDiscovery(t *testing.T) {
 }
 
 func TestWorkspaceLinkRequiresKnownAgent(t *testing.T) {
-	a := &App{}
+	a := &Service{}
 	if _, err := a.LinkAgentWorkspaceSessionJSON("project", "task", 42, "bash", "/sessions/one"); err == nil {
 		t.Fatal("linked session without a detected agent")
 	}
