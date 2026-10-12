@@ -4,6 +4,8 @@
 // text/uri-list) the paths are pasted into the active terminal, quoted for
 // a POSIX shell, without a newline so nothing runs by itself.
 
+import { shellQuotePathIfSafe } from '../util.js';
+
 export function isFileDrop(dataTransfer) {
   const types = Array.from(dataTransfer?.types || []);
   return types.includes('Files') || types.includes('text/uri-list');
@@ -32,12 +34,6 @@ function uriToPath(uri) {
   }
 }
 
-// Shell-quote for POSIX shells; plain paths stay plain.
-export function shellQuotePath(p) {
-  if (/^[A-Za-z0-9_./:\\-]+$/.test(p)) return p;
-  return `'${p.replace(/'/g, "'\\''")}'`;
-}
-
 // C:/x or C:\x → /mnt/c/x for a WSL pane; other paths unchanged.
 export function toWslPath(p) {
   const m = /^([A-Za-z]):[\\/](.*)$/.exec(p);
@@ -55,9 +51,9 @@ export function quotePathFor(p, terminalType) {
     case 'powershell':
       return /^[A-Za-z0-9_./:\\-]+$/.test(p) ? p : `'${p.replace(/'/g, "''")}'`;
     case 'wsl':
-      return shellQuotePath(toWslPath(p));
+      return shellQuotePathIfSafe(toWslPath(p));
     default:
-      return shellQuotePath(p);
+      return shellQuotePathIfSafe(p);
   }
 }
 

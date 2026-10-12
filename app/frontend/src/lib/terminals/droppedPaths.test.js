@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { droppedPathsText, isFileDrop, pathsFromUriList, quotePathFor, shellQuotePath, toWslPath } from './droppedPaths.js';
+import { droppedPathsText, isFileDrop, pathsFromUriList, quotePathFor, toWslPath } from './droppedPaths.js';
+import { shellQuotePathIfSafe } from '../util.js';
 
 describe('dropped paths', () => {
   test('detects file drops by dataTransfer types', () => {
@@ -15,8 +16,11 @@ describe('dropped paths', () => {
   });
 
   test('quotes paths for the shell and joins them without a newline', () => {
-    expect(shellQuotePath('/plain/path-1.txt')).toBe('/plain/path-1.txt');
-    expect(shellQuotePath("/My Docs/it's.txt")).toBe("'/My Docs/it'\\''s.txt'");
+    expect(shellQuotePathIfSafe('/plain/path-1.txt')).toBe('/plain/path-1.txt');
+    expect(shellQuotePathIfSafe("/My Docs/it's.txt")).toBe("'/My Docs/it'\\''s.txt'");
+    // A backslash is an escape to the shell, so it must not stay bare.
+    expect(shellQuotePathIfSafe('/a\\b')).toBe("'/a\\b'");
+    expect(shellQuotePathIfSafe('')).toBe("''");
     const text = droppedPathsText('file:///a/b.txt\nfile:///c%20d/e.txt');
     expect(text).toBe("/a/b.txt '/c d/e.txt'");
     expect(text.includes('\n')).toBe(false);
