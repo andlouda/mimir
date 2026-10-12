@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 import { errorMessage } from '../stores/uiStore.js';
 import { updateChecking, updateDownloading, updateInfo, updateProgress } from '../stores/updateStore.js';
+import { t } from '../i18n.js';
 
 function app() {
   return window['go']['main']['App'];
@@ -33,12 +34,12 @@ export async function downloadUpdate() {
     const raw = await app()['StartUpdateDownload']();
     const result = JSON.parse(raw);
     if (result.error) {
-      errorMessage.set(`Update failed: ${result.error}`);
+      errorMessage.set(get(t)('appMessages.updateFailed', { error: result.error }));
       updateProgress.set(null);
       updateDownloading.set(false);
     }
   } catch (error) {
-    errorMessage.set(`Update failed: ${error.message || error}`);
+    errorMessage.set(get(t)('appMessages.updateFailed', { error: error.message || error }));
     updateProgress.set(null);
     updateDownloading.set(false);
   }
@@ -48,6 +49,6 @@ export async function restartApp() {
   try {
     await app()['RestartApp']();
   } catch (error) {
-    errorMessage.set(`Restart failed: ${error.message || error}`);
+    errorMessage.set(get(t)('appMessages.restartFailed', { error: error.message || error }));
   }
 }

@@ -7,6 +7,18 @@ export function shellQuotePath(path) {
 }
 
 /**
+ * Like shellQuotePath, but leaves a path bare when it consists only of
+ * characters no POSIX shell interprets (for text the user will see, such
+ * as dropped paths). Backslash is not in the safe set: bare, the shell
+ * would eat it. Mirrors executil.ShellQuoteIfNeeded on the Go side.
+ */
+export function shellQuotePathIfSafe(path) {
+  const p = String(path);
+  if (p !== '' && /^[A-Za-z0-9_./:=@%+,-]+$/.test(p)) return p;
+  return shellQuotePath(p);
+}
+
+/**
  * True when the string contains a C0 control character or DEL. Paths and
  * names that end up as keystrokes in a terminal must never carry these: a CR
  * submits a command early and ESC sequences can trigger readline bindings.

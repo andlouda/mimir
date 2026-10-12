@@ -14,6 +14,7 @@
   import { normalizeTemplates } from './templates/templateHelpers';
   import { containsControlChars, shellQuotePath } from './util';
   import { errorMessage as errorMessageStore } from './stores/uiStore.js';
+  import { t as tr } from './i18n.js';
 
   export let currentPage = 'terminals';
   export let availableTerminalTypes = [];
@@ -220,33 +221,33 @@
         try {
           await DeleteRecording(e.detail);
           recordingList = await ListRecordings();
-        } catch (err) { onError(`Delete recording failed: ${err.message || err}`); }
+        } catch (err) { onError($tr('appMessages.deleteRecordingFailed', { error: err.message || err })); }
       }}
       on:exportscrubbed={async (e) => {
         try {
           const path = await ExportRecordingScrubbed(e.detail);
-          if (path) onError(`Export saved: ${path}`);
-        } catch (err) { onError(`Export scrubbed failed: ${err.message || err}`); }
+          if (path) onError($tr('appMessages.exportSaved', { path }));
+        } catch (err) { onError($tr('appMessages.exportScrubbedFailed', { error: err.message || err })); }
       }}
       on:exportgif={async (e) => {
         const id = typeof e.detail === 'object' ? e.detail.id : e.detail;
         try {
           const path = await ExportRecordingGIF(id);
-          if (path) onError(`GIF export saved: ${path}`);
-        } catch (err) { onError(`GIF export failed: ${err.message || err}`); }
+          if (path) onError($tr('appMessages.gifExportSaved', { path }));
+        } catch (err) { onError($tr('appMessages.gifExportFailed', { error: err.message || err })); }
         finally { e.detail?.done?.(); }
       }}
       on:exporttrimmed={async (e) => {
         try {
           const path = await ExportRecordingTrimmed(e.detail.id, JSON.stringify(e.detail.cuts));
-          if (path) onError(`Trimmed export saved: ${path}`);
-        } catch (err) { onError(`Trimmed export failed: ${err.message || err}`); }
+          if (path) onError($tr('appMessages.trimmedExportSaved', { path }));
+        } catch (err) { onError($tr('appMessages.trimmedExportFailed', { error: err.message || err })); }
       }}
       on:exporttrimmedgif={async (e) => {
         try {
           const path = await ExportRecordingTrimmedGIF(e.detail.id, JSON.stringify(e.detail.cuts));
-          if (path) onError(`Trimmed GIF export saved: ${path}`);
-        } catch (err) { onError(`Trimmed GIF export failed: ${err.message || err}`); }
+          if (path) onError($tr('appMessages.trimmedGifSaved', { path }));
+        } catch (err) { onError($tr('appMessages.trimmedGifFailed', { error: err.message || err })); }
       }}
     />
   {:else if currentPage === "settings"}
@@ -267,7 +268,7 @@
       onManageTemplates={() => { templateToEdit = null; openPage("templateManager"); }}
       onToggleNotes={() => { notesPanelOpen = !notesPanelOpen; openPage("terminals"); setTimeout(handleResize, 50); }}
       onToggleHistory={async () => { const next = !historyTrackingEnabled; await SetHistoryTracking(next); historyTrackingEnabled = next; }}
-      onInstallAgg={async () => { if (aggAvailable) return; try { onAggDownloadInfo(await GetAggDownloadInfo()); } catch (err) { onError(`Failed to get agg info: ${err.message || err}`); } }}
+      onInstallAgg={async () => { if (aggAvailable) return; try { onAggDownloadInfo(await GetAggDownloadInfo()); } catch (err) { onError($tr('appMessages.aggInfoFailed', { error: err.message || err })); } }}
       onCheckUpdates={checkForUpdates}
       onOpenUpdatePage={openUpdatePage}
       onDownloadUpdate={downloadUpdate}

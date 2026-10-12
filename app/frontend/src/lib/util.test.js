@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from 'vitest';
-import { containsControlChars, joinSelectionLines, sanitizeHtml, shellQuotePath } from './util.js';
+import { containsControlChars, joinSelectionLines, sanitizeHtml, shellQuotePath, shellQuotePathIfSafe } from './util.js';
 
 describe('sanitizeHtml', () => {
   test('keeps the Markdown subset', () => {
@@ -67,6 +67,14 @@ describe('shell path helpers', () => {
 
   test('shellQuotePath escapes single quotes', () => {
     expect(shellQuotePath("/tmp/it's")).toBe("'/tmp/it'\\''s'");
+    expect(shellQuotePath('/plain')).toBe("'/plain'");
+  });
+
+  test('shellQuotePathIfSafe keeps plain paths bare and quotes the rest', () => {
+    expect(shellQuotePathIfSafe('/usr/local/bin/x-1.0')).toBe('/usr/local/bin/x-1.0');
+    expect(shellQuotePathIfSafe('/tmp/a b')).toBe("'/tmp/a b'");
+    expect(shellQuotePathIfSafe('/tmp/$HOME')).toBe("'/tmp/$HOME'");
+    expect(shellQuotePathIfSafe('C:\\x')).toBe("'C:\\x'");
   });
 });
 
