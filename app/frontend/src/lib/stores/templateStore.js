@@ -9,6 +9,9 @@ export const showWorkflowPicker = writable(false);
 export const workflowPickerPlaybooks = writable([]);
 export const workflowPickerLoading = writable(false);
 export const templateSearchQuery = writable('');
+// Catalog entries handed to the workflow builder (one, or several at once).
+export const workflowBuilderQueuedEntry = writable(null);
+export const workflowBuilderQueuedEntries = writable([]);
 
 export const filteredTemplates = derived(
   [templates, templateSearchQuery],

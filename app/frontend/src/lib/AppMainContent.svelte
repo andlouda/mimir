@@ -18,14 +18,13 @@
   import { aiSettings } from './stores/aiStore.js';
   import { activeTerminalId, selectedTerminalType, terminals } from './stores/terminalStore.js';
   import { addTerminal } from './actions/terminalActions.js';
+  import { workflowBuilderQueuedEntries, workflowBuilderQueuedEntry } from './stores/templateStore.js';
 
   export let currentPage = 'terminals';
   export let templateToEdit = null;
   export let templates = [];
   export let fileBrowserRemoteTerminalId = 0;
   export let fileBrowserRemoteLabel = '';
-  export let workflowBuilderQueuedEntry = null;
-  export let workflowBuilderQueuedEntries = [];
   export let aiToolFlowConfig = {};
   export let recordingList = [];
   export let aggAvailable = false;
@@ -90,8 +89,8 @@
     />
   {:else if currentPage === "workflowBuilder"}
     <WorkflowBuilder
-      queuedCatalogEntry={workflowBuilderQueuedEntry}
-      queuedCatalogEntries={workflowBuilderQueuedEntries}
+      queuedCatalogEntry={$workflowBuilderQueuedEntry}
+      queuedCatalogEntries={$workflowBuilderQueuedEntries}
       $activeTerminalId={$activeTerminalId}
       activeTerminalType={$terminals.find((terminal) => terminal.id === $activeTerminalId)?.type || $selectedTerminalType}
       activeTerminalName={$terminals.find((terminal) => terminal.id === $activeTerminalId)?.name || ''}
