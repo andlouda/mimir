@@ -18,12 +18,12 @@
   import './styles/template-manager.css';
   import './styles/workflow-builder.css';
   import { terminals, activeTerminalId, layoutTree } from './lib/stores/terminalStore.js';
-  import { loadPromptMode, currentPage, errorMessage, showAIMenu, notesPanelOpen, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState, tmuxIntegrationMode, notesOpenRequest } from './lib/stores/uiStore.js';
-  import { templates, templateToEdit, templatePromptState, showTemplatePicker, showWorkflowPicker, workflowPickerPlaybooks, workflowPickerLoading } from './lib/stores/templateStore.js';
+  import { loadPromptMode, currentPage, errorMessage, showAIMenu, notesPanelOpen, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, tmuxIntegrationMode, notesOpenRequest } from './lib/stores/uiStore.js';
+  import { templates, templateToEdit } from './lib/stores/templateStore.js';
   import { updateDownloading, updateProgress, updateInstalled } from './lib/stores/updateStore.js';
-  import { recordingList, aggAvailable, downloadingAgg, aggDownloadInfo, terminalSessionFoldersOpen, customFolders } from './lib/stores/sessionStore.js';
-  import { sshProfiles, showSSHProfileModal, sshSecretBackend, sshConnecting, hostKeyVerifyState, fileBrowserRemoteTerminalId, fileBrowserRemoteLabel } from './lib/stores/sshStore.js';
-  import { aiPanelState, showFunctionCatalog, functionCatalog, showAISettings, aiProviders, aiSettings, aiToolFlowConfig, aiToolFlowLists } from './lib/stores/aiStore.js';
+  import { recordingList, aggAvailable, terminalSessionFoldersOpen, customFolders } from './lib/stores/sessionStore.js';
+  import { sshProfiles, fileBrowserRemoteTerminalId, fileBrowserRemoteLabel } from './lib/stores/sshStore.js';
+  import { showFunctionCatalog, functionCatalog, aiToolFlowConfig } from './lib/stores/aiStore.js';
   import { loadAgentDetectionSetting, loadAgentAnnotations } from './lib/stores/agentStore.js';
   import { loadAgentWorkspace } from './lib/stores/agentWorkspaceStore.js';
   import { groupedSidebarTerminals } from './lib/terminals/sidebarGroups';
@@ -34,12 +34,10 @@
   import { assignTerminalToFolder as assignTerminalToFolderAction, loadCustomFolders, toggleTerminalFolder } from './lib/actions/folderActions.js';
   import { openPage } from './lib/actions/navigationActions.js';
   import { loadAvailableTerminalTypes } from './lib/actions/terminalTypeActions.js';
-  import { selectedTerminalType } from './lib/stores/terminalStore.js';
-  import { runAggDownload } from './lib/actions/aggActions.js';
-  import { applyAISettingsDefaults, clearAIApiKey, closeAISettings, getAIToolPromptPreview, getEditablePromptIntroPreview, isUsingDefaultPromptIntroPreview, loadAISettingsConfig, openAISettings, saveAISettings, setDevOpsPrePromptExample } from './lib/actions/aiSettingsActions.js';
+  import { getEditablePromptIntroPreview, isUsingDefaultPromptIntroPreview, loadAISettingsConfig, openAISettings } from './lib/actions/aiSettingsActions.js';
   import { createKeydownHandler } from './lib/actions/keyboardShortcuts.js';
   import { closeTerminalSearch, toggleTerminalSearch } from './lib/actions/terminalSearchActions.js';
-  import { applyTemplate, closeTemplatePrompt, handleTemplatePromptFieldChange, loadTemplatesFromBackend, runWorkflowFromPicker, submitTemplatePrompt, toggleWorkflowPicker } from './lib/actions/templateActions.js';
+  import { loadTemplatesFromBackend, toggleWorkflowPicker } from './lib/actions/templateActions.js';
   import { createSSHActions, loadSSHProfiles, openSSHProfilePicker } from './lib/actions/sshActions.js';
   import { addTerminal, toggleMinimize, handleResize, reinitializeTerminals, createTerminalInstance, cleanupTerminalResources } from './lib/actions/terminalActions.js';
   import { persistTerminalState, scheduleSessionSave, loadTranscriptExcerpt, clearSessionSaveTimer, layoutKeyFor, enableLayoutPersistence } from './lib/actions/sessionActions.js';
@@ -47,15 +45,12 @@
   import {} from './lib/actions/agentActions.js';
   import { parseBackground } from './lib/terminals/background.js';
 
-  const isWindowsPlatform = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
   const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
 
   function isAuditPage(page = $currentPage) {
     return ['historyDashboard', 'activityLogs', 'recordings'].includes(page);
   }
 
-  let workflowBuilderQueuedEntry = null;
-  let workflowBuilderQueuedEntries = [];
 
   $: sidebarGroups = groupedSidebarTerminals($terminals, $customFolders);
 
@@ -84,18 +79,6 @@
     $transcriptViewerState = { resumeId: '', label: '' };
   }
 
-  function closeTranscriptViewer() {
-    $transcriptViewerState = null;
-  }
-
-  function closeDotEnvViewer() {
-    $dotEnvViewerState = null;
-  }
-
-  function closeAIPanel() {
-    $aiPanelState = null;
-  }
-
   async function openFunctionCatalog() {
     try {
       const payload = await GetFunctionCatalogJSON();
@@ -106,23 +89,6 @@
     } catch (error) {
       $errorMessage = `Failed to load function catalog: ${error.message || error}`;
     }
-  }
-
-  function getDiscoveryTerminalType() {
-    const activeTerminal = $terminals.find((terminal) => terminal.id === $activeTerminalId);
-    return activeTerminal?.type || $selectedTerminalType || (isWindowsPlatform ? 'powershell' : 'bash');
-  }
-
-  function queueWorkflowFromCatalog(entries) {
-    if (entries.length === 1) {
-      workflowBuilderQueuedEntry = entries[0];
-      workflowBuilderQueuedEntries = [];
-    } else {
-      workflowBuilderQueuedEntries = entries;
-      workflowBuilderQueuedEntry = null;
-    }
-    $showFunctionCatalog = false;
-    openPage("workflowBuilder");
   }
 
   async function insertFileIntoActiveTerminal(event) {
@@ -457,8 +423,6 @@
     bind:templates={$templates}
     bind:fileBrowserRemoteTerminalId={$fileBrowserRemoteTerminalId}
     bind:fileBrowserRemoteLabel={$fileBrowserRemoteLabel}
-    {workflowBuilderQueuedEntry}
-    {workflowBuilderQueuedEntries}
     bind:aiToolFlowConfig={$aiToolFlowConfig}
     bind:recordingList={$recordingList}
     aggAvailable={$aggAvailable}
@@ -482,57 +446,5 @@
     </div>
   {/if}
 
-  <AppModals
-    bind:showTemplatePicker={$showTemplatePicker}
-    templates={$templates}
-    {applyTemplate}
-    bind:showWorkflowPicker={$showWorkflowPicker}
-    workflowPickerPlaybooks={$workflowPickerPlaybooks}
-    workflowPickerLoading={$workflowPickerLoading}
-    {runWorkflowFromPicker}
-    closeWorkflowPicker={() => { $showWorkflowPicker = false; }}
-    bind:templatePromptState={$templatePromptState}
-    {closeTemplatePrompt}
-    {submitTemplatePrompt}
-    {handleTemplatePromptFieldChange}
-    bind:aiPanelState={$aiPanelState}
-    terminals={$terminals}
-    {closeAIPanel}
-    onError={(msg) => { $errorMessage = msg; }}
-    bind:showAISettings={$showAISettings}
-    bind:aiSettings={$aiSettings}
-    bind:aiToolFlowConfig={$aiToolFlowConfig}
-    bind:aiToolFlowLists={$aiToolFlowLists}
-    aiProviders={$aiProviders}
-    promptPreview={getAIToolPromptPreview()}
-    {closeAISettings}
-    {saveAISettings}
-    {applyAISettingsDefaults}
-    {setDevOpsPrePromptExample}
-    {clearAIApiKey}
-    bind:showFunctionCatalog={$showFunctionCatalog}
-    functionCatalog={$functionCatalog}
-    discoveryTerminalType={getDiscoveryTerminalType()}
-    discoveryTerminalId={$activeTerminalId}
-    {queueWorkflowFromCatalog}
-    closeFunctionCatalog={() => { $showFunctionCatalog = false; }}
-    bind:showSSHProfileModal={$showSSHProfileModal}
-    sshProfiles={$sshProfiles}
-    sshSecretBackend={$sshSecretBackend}
-    sshConnecting={$sshConnecting}
-    {connectSSHProfile}
-    closeSSHProfileModal={() => { $showSSHProfileModal = false; }}
-    onProfilesChanged={async (p) => { $sshProfiles = Array.isArray(p) ? p : []; await loadSSHProfiles(); }}
-    hostKeyVerifyState={$hostKeyVerifyState}
-    {acceptHostKey}
-    {rejectHostKey}
-    bind:aggDownloadInfo={$aggDownloadInfo}
-    downloadingAgg={$downloadingAgg}
-    cancelAggDownload={() => { $aggDownloadInfo = null; }}
-    {runAggDownload}
-    bind:transcriptViewerState={$transcriptViewerState}
-    {closeTranscriptViewer}
-    bind:dotEnvViewerState={$dotEnvViewerState}
-    {closeDotEnvViewer}
-  />
+  <AppModals />
 </main>

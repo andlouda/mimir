@@ -4,6 +4,8 @@ import { aggAvailable, aggStatus, recordingList } from '../stores/sessionStore.j
 import { fileBrowserRemoteLabel, fileBrowserRemoteTerminalId } from '../stores/sshStore.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import { currentPage, errorMessage } from '../stores/uiStore.js';
+import { showFunctionCatalog } from '../stores/aiStore.js';
+import { workflowBuilderQueuedEntries, workflowBuilderQueuedEntry } from '../stores/templateStore.js';
 import { focusTerminal } from './keyboardShortcuts.js';
 import { loadTemplatesFromBackend } from './templateActions.js';
 import { reinitializeTerminals } from './terminalActions.js';
@@ -56,4 +58,17 @@ export async function openPage(page) {
     fileBrowserRemoteTerminalId.set(0);
     fileBrowserRemoteLabel.set('');
   }
+}
+
+// Hands catalog entries to the workflow builder and opens it.
+export function queueWorkflowFromCatalog(entries) {
+  if (entries.length === 1) {
+    workflowBuilderQueuedEntry.set(entries[0]);
+    workflowBuilderQueuedEntries.set([]);
+  } else {
+    workflowBuilderQueuedEntries.set(entries);
+    workflowBuilderQueuedEntry.set(null);
+  }
+  showFunctionCatalog.set(false);
+  openPage('workflowBuilder');
 }
