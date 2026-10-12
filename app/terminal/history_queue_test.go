@@ -11,10 +11,19 @@ import (
 type fakeInserter struct {
 	mu      sync.Mutex
 	entries []history.CommandEntry
+	// block, when set, parks Insert until closed; entered reports that the
+	// worker has reached Insert (so a test knows the worker is busy).
 	block   chan struct{}
+	entered chan struct{}
 }
 
 func (f *fakeInserter) Insert(e history.CommandEntry) error {
+	if f.entered != nil {
+		select {
+		case f.entered <- struct{}{}:
+		default:
+		}
+	}
 	if f.block != nil {
 		<-f.block
 	}
@@ -55,13 +64,21 @@ func TestHistoryWorkerWritesQueuedEntriesAndDrainsOnStop(t *testing.T) {
 
 func TestHistoryWorkerDropsWhenQueueIsFull(t *testing.T) {
 	m := NewManager()
-	store := &fakeInserter{block: make(chan struct{})}
+	store := &fakeInserter{block: make(chan struct{}), entered: make(chan struct{}, 1)}
 	m.ptyMutex.Lock()
 	m.startHistoryWorker(store)
 	m.ptyMutex.Unlock()
 
-	// The worker is stuck on the first entry; the queue holds the next
-	// historyQueueSize; everything beyond is dropped without blocking.
+	// Park the worker on the first entry before flooding, otherwise the
+	// count depends on whether it had dequeued yet (seen on macOS CI).
+	m.enqueueHistory(history.CommandEntry{Command: "x"})
+	select {
+	case <-store.entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("worker did not pick up the first entry")
+	}
+	// The queue holds the next historyQueueSize; everything beyond is
+	// dropped without blocking.
 	start := time.Now()
 	for i := 0; i < historyQueueSize+50; i++ {
 		m.enqueueHistory(history.CommandEntry{Command: "x"})
