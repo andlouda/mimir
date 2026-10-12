@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { terminals, layoutTree, activeTerminalId } from '../stores/terminalStore.js';
-import { SaveCurrentSession } from '../../../wailsjs/go/main/App';
+import { optional, SaveCurrentSession, UpdateTerminalState } from '../backend.js';
 import { getTranscriptExcerpt } from '../transcript/transcriptApi.js';
 import { sanitizeTranscriptPreview } from '../util.js';
 import { serializeLayout } from '../terminals/layoutTree.js';
@@ -23,7 +23,7 @@ export function layoutKeyFor(term) {
 }
 
 export function persistLayout() {
-  const update = window['go']?.['main']?.['App']?.['UpdateSessionLayout'];
+  const update = optional('UpdateSessionLayout');
   if (typeof update !== 'function') return;
   const list = get(terminals);
   const saved = serializeLayout(get(layoutTree), (id) => layoutKeyFor(list.find((t) => t.id === id)));
@@ -61,7 +61,7 @@ export function clearSessionSaveTimer() {
 
 export function persistTerminalState(term, overrides = {}) {
   const next = { ...term, ...overrides };
-  window['go']['main']['App']['UpdateTerminalState'](
+  UpdateTerminalState(
     next.id,
     next.type,
     next.name,

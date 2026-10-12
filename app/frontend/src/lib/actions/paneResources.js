@@ -4,6 +4,7 @@
 import { get, writable } from 'svelte/store';
 import { terminals } from '../stores/terminalStore.js';
 import { currentPage, paneResourceOverlay } from '../stores/uiStore.js';
+import { backend } from '../backend.js';
 
 export const INTERVAL_MS = 3000;
 
@@ -15,7 +16,7 @@ export const paneResourceCores = writable(0);
 let timer = null;
 
 function app() {
-  return window['go']?.['main']?.['App'];
+  return backend();
 }
 
 export function startPaneResourceSampling() {

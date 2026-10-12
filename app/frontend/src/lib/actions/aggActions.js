@@ -1,10 +1,6 @@
-import { DownloadAgg, IsAggInstalled } from '../../../wailsjs/go/main/App';
+import { backend as app, DownloadAgg, IsAggInstalled } from '../backend.js';
 import { aggAvailable, aggDownloadInfo, aggStatus, downloadingAgg } from '../stores/sessionStore.js';
 import { errorMessage } from '../stores/uiStore.js';
-
-function app() {
-  return window['go']['main']['App'];
-}
 
 export async function runAggDownload() {
   downloadingAgg.set(true);

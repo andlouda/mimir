@@ -14,7 +14,7 @@ import { clearHoveredLink, createHyperlinkHandler, createLinkProvider } from '..
 import { isGlobalShortcut, closeTopOverlay, focusTerminal } from './keyboardShortcuts.js';
 import { updateTerminalSearchResult } from './terminalSearchActions.js';
 import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
-import { WriteToTerminal, ResizeTerminal, CloseTerminal, InitializeTerminal, ConfirmFrontendReady, StartTerminal, StartSSHTerminal, CloseSSHTerminalFull, KillTmuxSession, StartRecording, StopRecording, RemoveTerminalState, ReconnectSSHTerminal } from '../../../wailsjs/go/main/App';
+import { CloseSSHTerminalFull, CloseTerminal, ConfirmFrontendReady, GetTmuxHistoryJSON, InitializeTerminal, KillTmuxSession, optional, ReconnectSSHTerminal, RefreshTmuxClient, RemoveTerminalState, ResizeTerminal, StartRecording, StartSSHTerminal, StartTerminal, StopRecording, WriteToTerminal } from '../backend.js';
 import { replaceLeaf, removeLeafFromTree, collectLeafIds, appendLeaf } from '../terminals/layoutTree.js';
 import { generateTmuxSessionName } from '../terminals/tmuxLifecycle.js';
 import { createScrollbackRefill } from '../terminals/tmuxScrollback.js';
@@ -36,12 +36,12 @@ activeTerminalId.subscribe((id) => { if (id != null) outputThrottle.flush(id); }
 const scrollbackRefill = createScrollbackRefill({
   fetchHistory: async (id, maxLines) => {
     const term = get(terminals).find((t) => t.id === id);
-    const raw = await window['go']['main']['App']['GetTmuxHistoryJSON'](id, term?.type || '', maxLines);
+    const raw = await GetTmuxHistoryJSON(id, term?.type || '', maxLines);
     return JSON.parse(raw || '{}');
   },
   refreshClient: async (id) => {
     const term = get(terminals).find((t) => t.id === id);
-    await window['go']['main']['App']['RefreshTmuxClient'](id, term?.type || '');
+    await RefreshTmuxClient(id, term?.type || '');
   },
   isEnabled: () => get(tmuxScrollbackRefill),
 });
@@ -96,7 +96,7 @@ export const XTERM_THEME = {
 };
 
 async function startTerminalBackend(type, tmuxSessionName = '') {
-  const startWithOptions = window['go']?.['main']?.['App']?.['StartTerminalWithOptions'];
+  const startWithOptions = optional('StartTerminalWithOptions');
   if (typeof startWithOptions === 'function') {
     return startWithOptions(type, tmuxSessionName);
   }
@@ -104,11 +104,11 @@ async function startTerminalBackend(type, tmuxSessionName = '') {
 }
 
 async function readTmuxStatus(id) {
-  const getStatus = window['go']?.['main']?.['App']?.['GetTerminalTmuxStatus'];
+  const getStatus = optional('GetTerminalTmuxStatus');
   if (typeof getStatus === 'function') {
     return getStatus(id);
   }
-  const getSSHStatus = window['go']?.['main']?.['App']?.['GetSSHTerminalTmuxStatus'];
+  const getSSHStatus = optional('GetSSHTerminalTmuxStatus');
   if (typeof getSSHStatus === 'function') {
     return getSSHStatus(id);
   }

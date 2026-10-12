@@ -6,10 +6,7 @@ import { t } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import { outputMentionsAgent, parseAgentTitle, plainOutput } from '../agents/agentSignals.js';
 import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
-
-function app() {
-  return window['go']['main']['App'];
-}
+import { backend as app } from '../backend.js';
 
 // Detection is event-driven: window titles (Claude Code), startup banners
 // in the output (Codex, Gemini, Aider, OpenCode) and the shell's prompt

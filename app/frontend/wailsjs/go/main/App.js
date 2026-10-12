@@ -6,8 +6,32 @@ export function AcceptSSHHostKey(arg1) {
   return window['go']['main']['App']['AcceptSSHHostKey'](arg1);
 }
 
+export function AnswerAgentPermission(arg1, arg2) {
+  return window['go']['main']['App']['AnswerAgentPermission'](arg1, arg2);
+}
+
+export function AppendTerminalTranscript(arg1, arg2) {
+  return window['go']['main']['App']['AppendTerminalTranscript'](arg1, arg2);
+}
+
 export function ApplyTemplate(arg1, arg2, arg3) {
   return window['go']['main']['App']['ApplyTemplate'](arg1, arg2, arg3);
+}
+
+export function ApplyTemplateWithVariables(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ApplyTemplateWithVariables'](arg1, arg2, arg3, arg4);
+}
+
+export function AskAI(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['AskAI'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ChangeSecretMasterPassword(arg1, arg2) {
+  return window['go']['main']['App']['ChangeSecretMasterPassword'](arg1, arg2);
+}
+
+export function CheckForUpdates() {
+  return window['go']['main']['App']['CheckForUpdates']();
 }
 
 export function CloseSSHTerminalFull(arg1) {
@@ -22,12 +46,24 @@ export function ConfirmFrontendReady(arg1) {
   return window['go']['main']['App']['ConfirmFrontendReady'](arg1);
 }
 
+export function DeleteClaudeSession(arg1) {
+  return window['go']['main']['App']['DeleteClaudeSession'](arg1);
+}
+
 export function DeleteHistoryEntry(arg1) {
   return window['go']['main']['App']['DeleteHistoryEntry'](arg1);
 }
 
 export function DeleteNote(arg1) {
   return window['go']['main']['App']['DeleteNote'](arg1);
+}
+
+export function DeletePlaybook(arg1) {
+  return window['go']['main']['App']['DeletePlaybook'](arg1);
+}
+
+export function DeleteRecording(arg1) {
+  return window['go']['main']['App']['DeleteRecording'](arg1);
 }
 
 export function DeleteSSHProfile(arg1) {
@@ -38,8 +74,160 @@ export function DeleteTemplate(arg1) {
   return window['go']['main']['App']['DeleteTemplate'](arg1);
 }
 
+export function DeleteTerminalBackground(arg1) {
+  return window['go']['main']['App']['DeleteTerminalBackground'](arg1);
+}
+
+export function DeleteTerminalFolder(arg1) {
+  return window['go']['main']['App']['DeleteTerminalFolder'](arg1);
+}
+
+export function DeleteTranscript(arg1) {
+  return window['go']['main']['App']['DeleteTranscript'](arg1);
+}
+
+export function DeleteTranscripts(arg1) {
+  return window['go']['main']['App']['DeleteTranscripts'](arg1);
+}
+
+export function DetectAgentForTerminalJSON(arg1, arg2) {
+  return window['go']['main']['App']['DetectAgentForTerminalJSON'](arg1, arg2);
+}
+
+export function DiscardUnrestoredTerminal(arg1) {
+  return window['go']['main']['App']['DiscardUnrestoredTerminal'](arg1);
+}
+
+export function DownloadAgg() {
+  return window['go']['main']['App']['DownloadAgg']();
+}
+
+export function EnrollFIDO(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['EnrollFIDO'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ExplainFunction(arg1, arg2) {
+  return window['go']['main']['App']['ExplainFunction'](arg1, arg2);
+}
+
+export function ExportRecordingGIF(arg1) {
+  return window['go']['main']['App']['ExportRecordingGIF'](arg1);
+}
+
+export function ExportRecordingScrubbed(arg1) {
+  return window['go']['main']['App']['ExportRecordingScrubbed'](arg1);
+}
+
+export function ExportRecordingTrimmed(arg1, arg2) {
+  return window['go']['main']['App']['ExportRecordingTrimmed'](arg1, arg2);
+}
+
+export function ExportRecordingTrimmedGIF(arg1, arg2) {
+  return window['go']['main']['App']['ExportRecordingTrimmedGIF'](arg1, arg2);
+}
+
+export function FinishSessionRestore(arg1) {
+  return window['go']['main']['App']['FinishSessionRestore'](arg1);
+}
+
+export function GetAIProvidersJSON() {
+  return window['go']['main']['App']['GetAIProvidersJSON']();
+}
+
+export function GetAISettingsJSON() {
+  return window['go']['main']['App']['GetAISettingsJSON']();
+}
+
+export function GetAIToolFlowConfigJSON() {
+  return window['go']['main']['App']['GetAIToolFlowConfigJSON']();
+}
+
+export function GetActivityLogKindsJSON() {
+  return window['go']['main']['App']['GetActivityLogKindsJSON']();
+}
+
+export function GetActivityLogsJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetActivityLogsJSON'](arg1, arg2);
+}
+
+export function GetAgentAnnotationsJSON() {
+  return window['go']['main']['App']['GetAgentAnnotationsJSON']();
+}
+
+export function GetAgentGitStatusJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentGitStatusJSON'](arg1, arg2);
+}
+
+export function GetAgentPaneScreenJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentPaneScreenJSON'](arg1, arg2);
+}
+
+export function GetAgentPaneTextJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetAgentPaneTextJSON'](arg1, arg2, arg3);
+}
+
+export function GetAgentProcessesJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentProcessesJSON'](arg1, arg2);
+}
+
+export function GetAgentProjectJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentProjectJSON'](arg1, arg2);
+}
+
+export function GetAgentTimelineJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetAgentTimelineJSON'](arg1, arg2, arg3);
+}
+
+export function GetAgentTimelinePath(arg1) {
+  return window['go']['main']['App']['GetAgentTimelinePath'](arg1);
+}
+
+export function GetAgentTranscriptJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetAgentTranscriptJSON'](arg1, arg2, arg3);
+}
+
+export function GetAgentWorkspaceJSON() {
+  return window['go']['main']['App']['GetAgentWorkspaceJSON']();
+}
+
+export function GetAggDownloadInfo() {
+  return window['go']['main']['App']['GetAggDownloadInfo']();
+}
+
+export function GetAggStatus() {
+  return window['go']['main']['App']['GetAggStatus']();
+}
+
+export function GetAvailableTerminalTypes() {
+  return window['go']['main']['App']['GetAvailableTerminalTypes']();
+}
+
+export function GetClaudeHookStatusForHostJSON(arg1) {
+  return window['go']['main']['App']['GetClaudeHookStatusForHostJSON'](arg1);
+}
+
+export function GetClaudeHookStatusJSON(arg1) {
+  return window['go']['main']['App']['GetClaudeHookStatusJSON'](arg1);
+}
+
 export function GetCurrentDirectory() {
   return window['go']['main']['App']['GetCurrentDirectory']();
+}
+
+export function GetCurrentVersion() {
+  return window['go']['main']['App']['GetCurrentVersion']();
+}
+
+export function GetFileContent(arg1) {
+  return window['go']['main']['App']['GetFileContent'](arg1);
+}
+
+export function GetFunctionCatalogJSON() {
+  return window['go']['main']['App']['GetFunctionCatalogJSON']();
+}
+
+export function GetGPUPolicy() {
+  return window['go']['main']['App']['GetGPUPolicy']();
 }
 
 export function GetHistoryHostnames() {
@@ -50,32 +238,36 @@ export function GetHistoryStats(arg1) {
   return window['go']['main']['App']['GetHistoryStats'](arg1);
 }
 
-export function GetFileContent(arg1) {
-  return window['go']['main']['App']['GetFileContent'](arg1);
-}
-
-export function GetNote(arg1) {
-  return window['go']['main']['App']['GetNote'](arg1);
+export function GetIMModule() {
+  return window['go']['main']['App']['GetIMModule']();
 }
 
 export function GetLoadedSessionData() {
   return window['go']['main']['App']['GetLoadedSessionData']();
 }
 
-export function GetTerminalFolders() {
-  return window['go']['main']['App']['GetTerminalFolders']();
+export function GetNote(arg1) {
+  return window['go']['main']['App']['GetNote'](arg1);
 }
 
-export function SaveTerminalFolder(arg1) {
-  return window['go']['main']['App']['SaveTerminalFolder'](arg1);
+export function GetPaneResourcesJSON(arg1) {
+  return window['go']['main']['App']['GetPaneResourcesJSON'](arg1);
 }
 
-export function UpdateTerminalFolder(arg1) {
-  return window['go']['main']['App']['UpdateTerminalFolder'](arg1);
+export function GetPendingUpdate() {
+  return window['go']['main']['App']['GetPendingUpdate']();
 }
 
-export function DeleteTerminalFolder(arg1) {
-  return window['go']['main']['App']['DeleteTerminalFolder'](arg1);
+export function GetPlaybooksJSON() {
+  return window['go']['main']['App']['GetPlaybooksJSON']();
+}
+
+export function GetPromptMode() {
+  return window['go']['main']['App']['GetPromptMode']();
+}
+
+export function GetRecording(arg1) {
+  return window['go']['main']['App']['GetRecording'](arg1);
 }
 
 export function GetSSHProfiles() {
@@ -90,8 +282,76 @@ export function GetSSHTerminalLabel(arg1) {
   return window['go']['main']['App']['GetSSHTerminalLabel'](arg1);
 }
 
+export function GetSSHTerminalTmuxStatus(arg1) {
+  return window['go']['main']['App']['GetSSHTerminalTmuxStatus'](arg1);
+}
+
+export function GetTelemetryEnvBlockJSON() {
+  return window['go']['main']['App']['GetTelemetryEnvBlockJSON']();
+}
+
+export function GetTelemetrySettingsJSON() {
+  return window['go']['main']['App']['GetTelemetrySettingsJSON']();
+}
+
+export function GetTelemetryStatusJSON() {
+  return window['go']['main']['App']['GetTelemetryStatusJSON']();
+}
+
+export function GetTemplateToolsJSON() {
+  return window['go']['main']['App']['GetTemplateToolsJSON']();
+}
+
 export function GetTemplates() {
   return window['go']['main']['App']['GetTemplates']();
+}
+
+export function GetTerminalFolders() {
+  return window['go']['main']['App']['GetTerminalFolders']();
+}
+
+export function GetTerminalTmuxStatus(arg1) {
+  return window['go']['main']['App']['GetTerminalTmuxStatus'](arg1);
+}
+
+export function GetTerminalTranscriptContent(arg1, arg2) {
+  return window['go']['main']['App']['GetTerminalTranscriptContent'](arg1, arg2);
+}
+
+export function GetTerminalTranscriptContentScrubbed(arg1, arg2) {
+  return window['go']['main']['App']['GetTerminalTranscriptContentScrubbed'](arg1, arg2);
+}
+
+export function GetTerminalTranscriptExcerpt(arg1, arg2) {
+  return window['go']['main']['App']['GetTerminalTranscriptExcerpt'](arg1, arg2);
+}
+
+export function GetTerminalTranscriptFull(arg1, arg2) {
+  return window['go']['main']['App']['GetTerminalTranscriptFull'](arg1, arg2);
+}
+
+export function GetTmuxHistoryJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetTmuxHistoryJSON'](arg1, arg2, arg3);
+}
+
+export function GetTmuxIntegrationMode() {
+  return window['go']['main']['App']['GetTmuxIntegrationMode']();
+}
+
+export function GetTmuxPasteBufferJSON(arg1, arg2) {
+  return window['go']['main']['App']['GetTmuxPasteBufferJSON'](arg1, arg2);
+}
+
+export function GetTranscriptDiskUsage() {
+  return window['go']['main']['App']['GetTranscriptDiskUsage']();
+}
+
+export function GetWaylandFix() {
+  return window['go']['main']['App']['GetWaylandFix']();
+}
+
+export function IMModuleEffective() {
+  return window['go']['main']['App']['IMModuleEffective']();
 }
 
 export function ImportNoteFromLocal(arg1) {
@@ -102,36 +362,144 @@ export function ImportNoteFromRemote(arg1, arg2) {
   return window['go']['main']['App']['ImportNoteFromRemote'](arg1, arg2);
 }
 
+export function ImportTerminalBackground() {
+  return window['go']['main']['App']['ImportTerminalBackground']();
+}
+
 export function InitializeTerminal(arg1) {
   return window['go']['main']['App']['InitializeTerminal'](arg1);
+}
+
+export function InstallClaudeHook(arg1) {
+  return window['go']['main']['App']['InstallClaudeHook'](arg1);
+}
+
+export function InstallClaudeHookOnHost(arg1) {
+  return window['go']['main']['App']['InstallClaudeHookOnHost'](arg1);
+}
+
+export function IsAgentDetectionEnabled() {
+  return window['go']['main']['App']['IsAgentDetectionEnabled']();
+}
+
+export function IsAggInstalled() {
+  return window['go']['main']['App']['IsAggInstalled']();
+}
+
+export function IsDotEnvViewerEnabled() {
+  return window['go']['main']['App']['IsDotEnvViewerEnabled']();
+}
+
+export function IsHistoryTrackingEnabled() {
+  return window['go']['main']['App']['IsHistoryTrackingEnabled']();
+}
+
+export function IsRecording(arg1) {
+  return window['go']['main']['App']['IsRecording'](arg1);
+}
+
+export function IsWaylandSession() {
+  return window['go']['main']['App']['IsWaylandSession']();
+}
+
+export function KillTmuxSession(arg1) {
+  return window['go']['main']['App']['KillTmuxSession'](arg1);
+}
+
+export function LinkAgentWorkspaceSessionJSON(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['LinkAgentWorkspaceSessionJSON'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ListAgentSessionsJSON(arg1, arg2) {
+  return window['go']['main']['App']['ListAgentSessionsJSON'](arg1, arg2);
+}
+
+export function ListClaudeHookHostsJSON() {
+  return window['go']['main']['App']['ListClaudeHookHostsJSON']();
 }
 
 export function ListDirectory(arg1) {
   return window['go']['main']['App']['ListDirectory'](arg1);
 }
 
+export function ListFIDOChallenges() {
+  return window['go']['main']['App']['ListFIDOChallenges']();
+}
+
 export function ListNotes() {
   return window['go']['main']['App']['ListNotes']();
+}
+
+export function ListOfflineClaudeSessionsJSON(arg1) {
+  return window['go']['main']['App']['ListOfflineClaudeSessionsJSON'](arg1);
+}
+
+export function ListRecordings() {
+  return window['go']['main']['App']['ListRecordings']();
 }
 
 export function ListSSHKeys() {
   return window['go']['main']['App']['ListSSHKeys']();
 }
 
+export function ListTerminalBackgroundsJSON() {
+  return window['go']['main']['App']['ListTerminalBackgroundsJSON']();
+}
+
+export function ListTranscripts() {
+  return window['go']['main']['App']['ListTranscripts']();
+}
+
+export function LockSecrets() {
+  return window['go']['main']['App']['LockSecrets']();
+}
+
+export function NotifyDesktop(arg1, arg2, arg3) {
+  return window['go']['main']['App']['NotifyDesktop'](arg1, arg2, arg3);
+}
+
+export function OpenAgentTimelineFolder() {
+  return window['go']['main']['App']['OpenAgentTimelineFolder']();
+}
+
 export function OpenPathInExplorer(arg1) {
   return window['go']['main']['App']['OpenPathInExplorer'](arg1);
+}
+
+export function OpenUpdatePage(arg1) {
+  return window['go']['main']['App']['OpenUpdatePage'](arg1);
 }
 
 export function PurgeHistoryBefore(arg1) {
   return window['go']['main']['App']['PurgeHistoryBefore'](arg1);
 }
 
+export function ReadDotEnvForTerminalJSON(arg1, arg2) {
+  return window['go']['main']['App']['ReadDotEnvForTerminalJSON'](arg1, arg2);
+}
+
 export function ReconnectSSHTerminal(arg1) {
   return window['go']['main']['App']['ReconnectSSHTerminal'](arg1);
 }
 
+export function RecordInputEnabled() {
+  return window['go']['main']['App']['RecordInputEnabled']();
+}
+
+export function RefreshTmuxClient(arg1, arg2) {
+  return window['go']['main']['App']['RefreshTmuxClient'](arg1, arg2);
+}
+
 export function RejectSSHHostKey(arg1) {
   return window['go']['main']['App']['RejectSSHHostKey'](arg1);
+}
+
+export function RejectWorkflowDraftJSON(arg1, arg2) {
+  return window['go']['main']['App']['RejectWorkflowDraftJSON'](arg1, arg2);
+}
+
+export function ReloadTemplates() {
+  return window['go']['main']['App']['ReloadTemplates']();
 }
 
 export function RemoteGetFileContent(arg1, arg2) {
@@ -146,8 +514,12 @@ export function RemoteListDirectory(arg1, arg2) {
   return window['go']['main']['App']['RemoteListDirectory'](arg1, arg2);
 }
 
-export function ReloadTemplates() {
-  return window['go']['main']['App']['ReloadTemplates']();
+export function RemoveClaudeHook(arg1) {
+  return window['go']['main']['App']['RemoveClaudeHook'](arg1);
+}
+
+export function RemoveClaudeHookOnHost(arg1) {
+  return window['go']['main']['App']['RemoveClaudeHookOnHost'](arg1);
 }
 
 export function RemoveTerminalState(arg1) {
@@ -158,8 +530,48 @@ export function RenameNote(arg1, arg2) {
   return window['go']['main']['App']['RenameNote'](arg1, arg2);
 }
 
+export function RerenderClaudeInPane(arg1, arg2) {
+  return window['go']['main']['App']['RerenderClaudeInPane'](arg1, arg2);
+}
+
 export function ResizeTerminal(arg1, arg2, arg3) {
   return window['go']['main']['App']['ResizeTerminal'](arg1, arg2, arg3);
+}
+
+export function RestartApp() {
+  return window['go']['main']['App']['RestartApp']();
+}
+
+export function ResumeWorkflowDraftJSON(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['ResumeWorkflowDraftJSON'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function RotateTelemetryToken() {
+  return window['go']['main']['App']['RotateTelemetryToken']();
+}
+
+export function RunAITemplateTool(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['RunAITemplateTool'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function RunDiscoveryForTerminalJSON(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['RunDiscoveryForTerminalJSON'](arg1, arg2, arg3, arg4);
+}
+
+export function RunDiscoveryJSON(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RunDiscoveryJSON'](arg1, arg2, arg3);
+}
+
+export function RunWorkflowDraftJSON(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['RunWorkflowDraftJSON'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function SaveAgentWorkspaceProjectJSON(arg1) {
+  return window['go']['main']['App']['SaveAgentWorkspaceProjectJSON'](arg1);
+}
+
+export function SaveAgentWorkspaceTaskJSON(arg1) {
+  return window['go']['main']['App']['SaveAgentWorkspaceTaskJSON'](arg1);
 }
 
 export function SaveCurrentSession() {
@@ -170,8 +582,8 @@ export function SaveNote(arg1, arg2) {
   return window['go']['main']['App']['SaveNote'](arg1, arg2);
 }
 
-export function SearchCommandHistory(arg1) {
-  return window['go']['main']['App']['SearchCommandHistory'](arg1);
+export function SavePlaybookJSON(arg1, arg2) {
+  return window['go']['main']['App']['SavePlaybookJSON'](arg1, arg2);
 }
 
 export function SaveSSHProfile(arg1) {
@@ -182,20 +594,84 @@ export function SaveTemplate(arg1) {
   return window['go']['main']['App']['SaveTemplate'](arg1);
 }
 
+export function SaveTerminalFolder(arg1) {
+  return window['go']['main']['App']['SaveTerminalFolder'](arg1);
+}
+
+export function SaveTranscriptMetadata(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SaveTranscriptMetadata'](arg1, arg2, arg3, arg4);
+}
+
+export function SearchCommandHistory(arg1) {
+  return window['go']['main']['App']['SearchCommandHistory'](arg1);
+}
+
+export function SecretStoreState() {
+  return window['go']['main']['App']['SecretStoreState']();
+}
+
+export function SelectAgentSession(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SelectAgentSession'](arg1, arg2, arg3);
+}
+
+export function SetAgentDetectionEnabled(arg1) {
+  return window['go']['main']['App']['SetAgentDetectionEnabled'](arg1);
+}
+
+export function SetAgentProjectName(arg1, arg2) {
+  return window['go']['main']['App']['SetAgentProjectName'](arg1, arg2);
+}
+
+export function SetAgentSessionAnnotation(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SetAgentSessionAnnotation'](arg1, arg2, arg3, arg4);
+}
+
+export function SetDotEnvViewer(arg1) {
+  return window['go']['main']['App']['SetDotEnvViewer'](arg1);
+}
+
+export function SetGPUPolicy(arg1) {
+  return window['go']['main']['App']['SetGPUPolicy'](arg1);
+}
+
+export function SetHistoryTracking(arg1) {
+  return window['go']['main']['App']['SetHistoryTracking'](arg1);
+}
+
+export function SetIMModule(arg1) {
+  return window['go']['main']['App']['SetIMModule'](arg1);
+}
+
+export function SetPromptMode(arg1) {
+  return window['go']['main']['App']['SetPromptMode'](arg1);
+}
+
+export function SetRecordInput(arg1) {
+  return window['go']['main']['App']['SetRecordInput'](arg1);
+}
+
 export function SetSSHPassword(arg1, arg2) {
   return window['go']['main']['App']['SetSSHPassword'](arg1, arg2);
 }
 
+export function SetTmuxIntegrationMode(arg1) {
+  return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
+}
+
+export function SetWaylandFix(arg1) {
+  return window['go']['main']['App']['SetWaylandFix'](arg1);
+}
+
+export function SetupSecretMasterPassword(arg1) {
+  return window['go']['main']['App']['SetupSecretMasterPassword'](arg1);
+}
+
+export function StartRecording(arg1, arg2) {
+  return window['go']['main']['App']['StartRecording'](arg1, arg2);
+}
+
 export function StartSSHTerminal(arg1) {
   return window['go']['main']['App']['StartSSHTerminal'](arg1);
-}
-
-export function ToggleFavorite(arg1) {
-  return window['go']['main']['App']['ToggleFavorite'](arg1);
-}
-
-export function UpdateTemplate(arg1) {
-  return window['go']['main']['App']['UpdateTemplate'](arg1);
 }
 
 export function StartTerminal(arg1) {
@@ -206,362 +682,66 @@ export function StartTerminalWithOptions(arg1, arg2) {
   return window['go']['main']['App']['StartTerminalWithOptions'](arg1, arg2);
 }
 
-export function GetTerminalTmuxStatus(arg1) {
-  return window['go']['main']['App']['GetTerminalTmuxStatus'](arg1);
-}
-
-export function UpdateSSHProfile(arg1) {
-  return window['go']['main']['App']['UpdateSSHProfile'](arg1);
-}
-
-export function UpdateTerminalState(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
-  return window['go']['main']['App']['UpdateTerminalState'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
-}
-
-export function KillTmuxSession(arg1) {
-  return window['go']['main']['App']['KillTmuxSession'](arg1);
-}
-
-export function WriteToTerminal(arg1, arg2) {
-  return window['go']['main']['App']['WriteToTerminal'](arg1, arg2);
-}
-
-export function StartRecording(arg1, arg2) {
-  return window['go']['main']['App']['StartRecording'](arg1, arg2);
+export function StartUpdateDownload() {
+  return window['go']['main']['App']['StartUpdateDownload']();
 }
 
 export function StopRecording(arg1) {
   return window['go']['main']['App']['StopRecording'](arg1);
 }
 
-export function IsRecording(arg1) {
-  return window['go']['main']['App']['IsRecording'](arg1);
+export function ToggleFavorite(arg1) {
+  return window['go']['main']['App']['ToggleFavorite'](arg1);
 }
 
-export function ListRecordings() {
-  return window['go']['main']['App']['ListRecordings']();
-}
-
-export function GetRecording(arg1) {
-  return window['go']['main']['App']['GetRecording'](arg1);
-}
-
-export function DownloadAgg() {
-  return window['go']['main']['App']['DownloadAgg']();
-}
-
-export function GetAggDownloadInfo() {
-  return window['go']['main']['App']['GetAggDownloadInfo']();
-}
-
-export function DeleteRecording(arg1) {
-  return window['go']['main']['App']['DeleteRecording'](arg1);
-}
-
-export function ExportRecordingScrubbed(arg1) {
-  return window['go']['main']['App']['ExportRecordingScrubbed'](arg1);
-}
-
-export function ExportRecordingGIF(arg1) {
-  return window['go']['main']['App']['ExportRecordingGIF'](arg1);
-}
-
-export function ExportRecordingTrimmed(arg1, arg2) {
-  return window['go']['main']['App']['ExportRecordingTrimmed'](arg1, arg2);
-}
-
-export function ExportRecordingTrimmedGIF(arg1, arg2) {
-  return window['go']['main']['App']['ExportRecordingTrimmedGIF'](arg1, arg2);
-}
-
-export function IsAggInstalled() {
-  return window['go']['main']['App']['IsAggInstalled']();
-}
-
-export function IsHistoryTrackingEnabled() {
-  return window['go']['main']['App']['IsHistoryTrackingEnabled']();
-}
-
-export function SetHistoryTracking(arg1) {
-  return window['go']['main']['App']['SetHistoryTracking'](arg1);
-}
-
-export function SecretStoreState() {
-  return window['go']['main']['App']['SecretStoreState']();
-}
-
-export function SetupSecretMasterPassword(arg1) {
-  return window['go']['main']['App']['SetupSecretMasterPassword'](arg1);
+export function UnlinkAgentWorkspaceSessionJSON(arg1) {
+  return window['go']['main']['App']['UnlinkAgentWorkspaceSessionJSON'](arg1);
 }
 
 export function UnlockSecrets(arg1) {
   return window['go']['main']['App']['UnlockSecrets'](arg1);
 }
 
-export function LockSecrets() {
-  return window['go']['main']['App']['LockSecrets']();
-}
-
-export function ChangeSecretMasterPassword(arg1, arg2) {
-  return window['go']['main']['App']['ChangeSecretMasterPassword'](arg1, arg2);
-}
-
-export function ListFIDOChallenges() {
-  return window['go']['main']['App']['ListFIDOChallenges']();
-}
-
 export function UnlockSecretsFIDO(arg1) {
   return window['go']['main']['App']['UnlockSecretsFIDO'](arg1);
 }
 
-export function EnrollFIDO(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['EnrollFIDO'](arg1, arg2, arg3, arg4, arg5);
+export function UpdateAISettingsJSON(arg1) {
+  return window['go']['main']['App']['UpdateAISettingsJSON'](arg1);
 }
 
-export function SetRecordInput(arg1) {
-  return window['go']['main']['App']['SetRecordInput'](arg1);
+export function UpdateAIToolFlowConfigJSON(arg1) {
+  return window['go']['main']['App']['UpdateAIToolFlowConfigJSON'](arg1);
 }
 
-export function RecordInputEnabled() {
-  return window['go']['main']['App']['RecordInputEnabled']();
-}
-
-export function IsDotEnvViewerEnabled() {
-  return window['go']['main']['App']['IsDotEnvViewerEnabled']();
-}
-
-export function SetDotEnvViewer(arg1) {
-  return window['go']['main']['App']['SetDotEnvViewer'](arg1);
-}
-
-export function ReadDotEnvForTerminalJSON(arg1, arg2) {
-  return window['go']['main']['App']['ReadDotEnvForTerminalJSON'](arg1, arg2);
-}
-
-export function DetectAgentForTerminalJSON(arg1, arg2) {
-  return window['go']['main']['App']['DetectAgentForTerminalJSON'](arg1, arg2);
-}
-
-export function GetAgentTranscriptJSON(arg1, arg2, arg3) {
-  return window['go']['main']['App']['GetAgentTranscriptJSON'](arg1, arg2, arg3);
-}
-
-export function GetAgentPaneTextJSON(arg1, arg2, arg3) {
-  return window['go']['main']['App']['GetAgentPaneTextJSON'](arg1, arg2, arg3);
-}
-
-export function GetAgentGitStatusJSON(arg1, arg2) {
-  return window['go']['main']['App']['GetAgentGitStatusJSON'](arg1, arg2);
-}
-
-export function GetTmuxPasteBufferJSON(arg1, arg2) {
-  return window['go']['main']['App']['GetTmuxPasteBufferJSON'](arg1, arg2);
-}
-
-export function GetTmuxIntegrationMode() {
-  return window['go']['main']['App']['GetTmuxIntegrationMode']();
-}
-
-export function GetGPUPolicy() {
-  return window['go']['main']['App']['GetGPUPolicy']();
-}
-
-export function SetGPUPolicy(arg1) {
-  return window['go']['main']['App']['SetGPUPolicy'](arg1);
-}
-
-export function GetPromptMode() {
-  return window['go']['main']['App']['GetPromptMode']();
-}
-
-export function SetPromptMode(arg1) {
-  return window['go']['main']['App']['SetPromptMode'](arg1);
-}
-
-export function GetIMModule() {
-  return window['go']['main']['App']['GetIMModule']();
-}
-
-export function SetIMModule(arg1) {
-  return window['go']['main']['App']['SetIMModule'](arg1);
-}
-
-export function IMModuleEffective() {
-  return window['go']['main']['App']['IMModuleEffective']();
-}
-
-export function GetWaylandFix() {
-  return window['go']['main']['App']['GetWaylandFix']();
-}
-
-export function SetWaylandFix(arg1) {
-  return window['go']['main']['App']['SetWaylandFix'](arg1);
-}
-
-export function IsWaylandSession() {
-  return window['go']['main']['App']['IsWaylandSession']();
-}
-
-export function ImportTerminalBackground() {
-  return window['go']['main']['App']['ImportTerminalBackground']();
-}
-
-export function ListTerminalBackgroundsJSON() {
-  return window['go']['main']['App']['ListTerminalBackgroundsJSON']();
-}
-
-export function DeleteTerminalBackground(arg1) {
-  return window['go']['main']['App']['DeleteTerminalBackground'](arg1);
-}
-
-export function UpdateTerminalBackground(arg1, arg2) {
-  return window['go']['main']['App']['UpdateTerminalBackground'](arg1, arg2);
-}
-
-export function FinishSessionRestore(arg1) {
-  return window['go']['main']['App']['FinishSessionRestore'](arg1);
-}
-
-export function DiscardUnrestoredTerminal(arg1) {
-  return window['go']['main']['App']['DiscardUnrestoredTerminal'](arg1);
-}
-
-export function GetTmuxHistoryJSON(arg1, arg2, arg3) {
-  return window['go']['main']['App']['GetTmuxHistoryJSON'](arg1, arg2, arg3);
-}
-
-export function RefreshTmuxClient(arg1, arg2) {
-  return window['go']['main']['App']['RefreshTmuxClient'](arg1, arg2);
-}
-
-export function GetAgentPaneScreenJSON(arg1, arg2) {
-  return window['go']['main']['App']['GetAgentPaneScreenJSON'](arg1, arg2);
-}
-
-export function RerenderClaudeInPane(arg1, arg2) {
-  return window['go']['main']['App']['RerenderClaudeInPane'](arg1, arg2);
-}
-
-export function ListOfflineClaudeSessionsJSON(arg1) {
-  return window['go']['main']['App']['ListOfflineClaudeSessionsJSON'](arg1);
-}
-
-export function DeleteClaudeSession(arg1) {
-  return window['go']['main']['App']['DeleteClaudeSession'](arg1);
+export function UpdateSSHProfile(arg1) {
+  return window['go']['main']['App']['UpdateSSHProfile'](arg1);
 }
 
 export function UpdateSessionLayout(arg1) {
   return window['go']['main']['App']['UpdateSessionLayout'](arg1);
 }
 
-export function GetPaneResourcesJSON(arg1) {
-  return window['go']['main']['App']['GetPaneResourcesJSON'](arg1);
-}
-
-export function SetTmuxIntegrationMode(arg1) {
-  return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
-}
-
-export function IsAgentDetectionEnabled() {
-  return window['go']['main']['App']['IsAgentDetectionEnabled']();
-}
-
-export function SetAgentDetectionEnabled(arg1) {
-  return window['go']['main']['App']['SetAgentDetectionEnabled'](arg1);
-}
-
-export function GetClaudeHookStatusJSON(arg1) {
-  return window['go']['main']['App']['GetClaudeHookStatusJSON'](arg1);
-}
-
-export function GetAgentProjectJSON(arg1, arg2) {
-  return window['go']['main']['App']['GetAgentProjectJSON'](arg1, arg2);
-}
-
-export function GetAgentAnnotationsJSON() {
-  return window['go']['main']['App']['GetAgentAnnotationsJSON']();
-}
-
-export function SetAgentSessionAnnotation(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['SetAgentSessionAnnotation'](arg1, arg2, arg3, arg4);
-}
-
-export function SetAgentProjectName(arg1, arg2) {
-  return window['go']['main']['App']['SetAgentProjectName'](arg1, arg2);
-}
-
-export function GetAgentProcessesJSON(arg1, arg2) {
-  return window['go']['main']['App']['GetAgentProcessesJSON'](arg1, arg2);
-}
-
-export function GetAgentTimelineJSON(arg1, arg2, arg3) {
-  return window['go']['main']['App']['GetAgentTimelineJSON'](arg1, arg2, arg3);
-}
-
-export function GetAgentTimelinePath(arg1) {
-  return window['go']['main']['App']['GetAgentTimelinePath'](arg1);
-}
-
-export function OpenAgentTimelineFolder() {
-  return window['go']['main']['App']['OpenAgentTimelineFolder']();
-}
-
-export function GetTelemetrySettingsJSON() {
-  return window['go']['main']['App']['GetTelemetrySettingsJSON']();
-}
-
 export function UpdateTelemetrySettingsJSON(arg1) {
   return window['go']['main']['App']['UpdateTelemetrySettingsJSON'](arg1);
 }
 
-export function RotateTelemetryToken() {
-  return window['go']['main']['App']['RotateTelemetryToken']();
+export function UpdateTemplate(arg1) {
+  return window['go']['main']['App']['UpdateTemplate'](arg1);
 }
 
-export function GetTelemetryStatusJSON() {
-  return window['go']['main']['App']['GetTelemetryStatusJSON']();
+export function UpdateTerminalBackground(arg1, arg2) {
+  return window['go']['main']['App']['UpdateTerminalBackground'](arg1, arg2);
 }
 
-export function GetTelemetryEnvBlockJSON() {
-  return window['go']['main']['App']['GetTelemetryEnvBlockJSON']();
+export function UpdateTerminalFolder(arg1) {
+  return window['go']['main']['App']['UpdateTerminalFolder'](arg1);
 }
 
-export function AnswerAgentPermission(arg1, arg2) {
-  return window['go']['main']['App']['AnswerAgentPermission'](arg1, arg2);
+export function UpdateTerminalState(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
+  return window['go']['main']['App']['UpdateTerminalState'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 }
 
-export function NotifyDesktop(arg1, arg2, arg3) {
-  return window['go']['main']['App']['NotifyDesktop'](arg1, arg2, arg3);
-}
-
-export function ListClaudeHookHostsJSON() {
-  return window['go']['main']['App']['ListClaudeHookHostsJSON']();
-}
-
-export function GetClaudeHookStatusForHostJSON(arg1) {
-  return window['go']['main']['App']['GetClaudeHookStatusForHostJSON'](arg1);
-}
-
-export function InstallClaudeHookOnHost(arg1) {
-  return window['go']['main']['App']['InstallClaudeHookOnHost'](arg1);
-}
-
-export function RemoveClaudeHookOnHost(arg1) {
-  return window['go']['main']['App']['RemoveClaudeHookOnHost'](arg1);
-}
-
-export function InstallClaudeHook(arg1) {
-  return window['go']['main']['App']['InstallClaudeHook'](arg1);
-}
-
-export function RemoveClaudeHook(arg1) {
-  return window['go']['main']['App']['RemoveClaudeHook'](arg1);
-}
-
-export function ListAgentSessionsJSON(arg1, arg2) {
-  return window['go']['main']['App']['ListAgentSessionsJSON'](arg1, arg2);
-}
-
-export function SelectAgentSession(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SelectAgentSession'](arg1, arg2, arg3);
+export function WriteToTerminal(arg1, arg2) {
+  return window['go']['main']['App']['WriteToTerminal'](arg1, arg2);
 }

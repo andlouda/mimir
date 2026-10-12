@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher, tick } from 'svelte';
   import { t } from './i18n.js';
+  import { backend, hasMethod } from './backend.js';
 
   export let SaveTemplate;
   export let UpdateTemplate;
@@ -358,10 +359,10 @@
     try {
       let updatedTemplates;
       if (templateToEdit) {
-        updatedTemplates = await (UpdateTemplate || window['go']['main']['App']['UpdateTemplate'])(JSON.stringify(newTemplate));
+        updatedTemplates = await (UpdateTemplate || backend()['UpdateTemplate'])(JSON.stringify(newTemplate));
         successMessage = 'Template updated successfully!';
       } else {
-        updatedTemplates = await (SaveTemplate || window['go']['main']['App']['SaveTemplate'])(JSON.stringify(newTemplate));
+        updatedTemplates = await (SaveTemplate || backend()['SaveTemplate'])(JSON.stringify(newTemplate));
         successMessage = 'Template saved successfully!';
       }
       resetForm();
@@ -375,7 +376,7 @@
   async function handleDelete(name) {
     if (confirm(`Are you sure you want to delete template "${name}"?`)) {
       try {
-        const updatedTemplates = await (DeleteTemplate || window['go']['main']['App']['DeleteTemplate'])(name);
+        const updatedTemplates = await (DeleteTemplate || backend()['DeleteTemplate'])(name);
         successMessage = `Template "${name}" deleted successfully!`;
         dispatch('templateUpdated', updatedTemplates);
       } catch (error) {
@@ -390,8 +391,8 @@
       let toggleFunc;
       if (typeof ToggleFavorite === 'function') {
         toggleFunc = ToggleFavorite;
-      } else if (window['go'] && window['go']['main'] && window['go']['main']['App'] && window['go']['main']['App']['ToggleFavorite']) {
-        toggleFunc = window['go']['main']['App']['ToggleFavorite'];
+      } else if (hasMethod('ToggleFavorite')) {
+        toggleFunc = backend()['ToggleFavorite'];
       } else {
         throw new Error('ToggleFavorite API not available');
       }

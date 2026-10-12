@@ -11,6 +11,8 @@ import {
 
 vi.mock('../../../wailsjs/go/main/App', () => ({
   SaveCurrentSession: vi.fn(() => Promise.resolve()),
+  // Static binding, like the generated one: resolved on the window at call time.
+  UpdateTerminalState: (...args) => window.go.main.App.UpdateTerminalState(...args),
 }));
 
 vi.mock('../transcript/transcriptApi.js', () => ({

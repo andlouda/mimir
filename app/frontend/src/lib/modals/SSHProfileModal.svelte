@@ -4,7 +4,7 @@
   // and persists via bindings; profile-list changes are reported to the parent
   // (which shares sshProfiles with the sidebar). Connecting and host-key
   // verification stay in the parent (terminal creation). Styles from the global stylesheets (styles/).
-  import { SaveSSHProfile, UpdateSSHProfile, DeleteSSHProfile, SetSSHPassword, ListSSHKeys } from '../../../wailsjs/go/main/App';
+  import { SaveSSHProfile, UpdateSSHProfile, DeleteSSHProfile, SetSSHPassword, ListSSHKeys } from '../backend.js';
   import { t } from '../i18n.js';
 
   export let profiles = [];

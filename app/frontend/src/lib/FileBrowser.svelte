@@ -1,6 +1,6 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
-  import { ListDirectory, GetFileContent, OpenPathInExplorer, GetCurrentDirectory, RemoteListDirectory, RemoteGetFileContent, RemoteGetHomeDir } from '../../wailsjs/go/main/App';
+  import { ListDirectory, GetFileContent, OpenPathInExplorer, GetCurrentDirectory, RemoteListDirectory, RemoteGetFileContent, RemoteGetHomeDir } from './backend.js';
   import { t } from './i18n.js';
   import { modalFocus } from './actions/modalFocus.js';
 

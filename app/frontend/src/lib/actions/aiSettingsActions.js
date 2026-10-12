@@ -10,10 +10,7 @@ import {
   showAISettings,
 } from '../stores/aiStore.js';
 import { errorMessage, showAIMenu } from '../stores/uiStore.js';
-
-function app() {
-  return window['go']['main']['App'];
-}
+import { backend as app } from '../backend.js';
 
 export function syncAIToolFlowListsFromConfig() {
   const config = get(aiToolFlowConfig);

@@ -1,15 +1,6 @@
-// Thin adapter over the Wails transcript bindings. Centralises:
-//   - the dynamic dispatch into window.go.main.App (the project still pulls
-//     binding regeneration into separate PRs; this lets us call new methods
-//     without rebuilding wailsjs/go/main/App.js by hand)
-//   - safe defaults so callers don't have to nullcheck a missing backend
-//     during dev mode / smoke tests
-//
+// Thin adapter over the transcript bindings: safe defaults so callers do
+// not have to null-check a missing backend (dev mode, smoke tests).
 // Anything else in the codebase that talks transcripts should go through here.
-
-function backend() {
-  return typeof window !== 'undefined' ? window?.go?.main?.App : undefined;
-}
 
 /**
  * @returns {Promise<Array<{

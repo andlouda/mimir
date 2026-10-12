@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { getTerminalOutput } from '../terminals/outputTail.js';
-import { ApplyTemplate } from '../../../wailsjs/go/main/App';
+import { ApplyTemplate, backend as app } from '../backend.js';
 import { t as tr } from '../i18n.js';
 import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import {
@@ -13,10 +13,6 @@ import {
 import { errorMessage } from '../stores/uiStore.js';
 import { buildPromptLabel, extractTemplateVariables, normalizeTemplates } from '../templates/templateHelpers';
 import { runDiscovery } from '../templates/discoveryApi.js';
-
-function app() {
-  return window['go']['main']['App'];
-}
 
 export function loadTemplatesFromBackend() {
   return app()['GetTemplates']().then((nextTemplates) => {

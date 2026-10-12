@@ -4,8 +4,8 @@
   // Wails runtime bridge); the parent opens it (sets `state`) and supplies the
   // live terminal output. Shared modal styles come from the global stylesheets (styles/).
   import { t } from '../i18n.js';
+  import { backend as app } from '../backend.js';
 
-  const app = () => window['go']['main']['App'];
 
   export let state;                 // aiPanelState: { mode, terminalId, terminalType, terminalName, goal, result, loading }
   export let terminalOutput = '';   // live output buffer of the active terminal

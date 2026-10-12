@@ -2,6 +2,7 @@ import { derived, writable } from 'svelte/store';
 import { agentStates } from './agentStore.js';
 import { terminals } from './terminalStore.js';
 import { liveWorkspaceSessions, workspaceAttention } from '../agents/workspace.js';
+import { optional } from '../backend.js';
 
 export const agentWorkspace = writable({ version: 1, projects: [], tasks: [], sessions: [] });
 export const workspaceError = writable('');
@@ -14,7 +15,7 @@ let queue = Promise.resolve();
 export function workspaceCall(method, ...args) {
   const result = queue.then(async () => {
     try {
-      const fn = globalThis.window?.go?.main?.App?.[method];
+      const fn = optional(method);
       if (typeof fn !== 'function') throw new Error('Agent workspace backend is unavailable.');
       const data = JSON.parse(await fn(...args));
       if (data.version !== 1 || !Array.isArray(data.projects) || !Array.isArray(data.tasks) || !Array.isArray(data.sessions)) {

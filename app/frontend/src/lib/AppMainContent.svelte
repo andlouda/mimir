@@ -1,6 +1,6 @@
 <script>
   import { getTerminalOutput } from './terminals/outputTail.js';
-  import { SaveTemplate, UpdateTemplate, DeleteTemplate, ToggleFavorite, GetTemplates, WriteToTerminal, GetRecording, DeleteRecording, ExportRecordingScrubbed, ExportRecordingGIF, ExportRecordingTrimmed, ExportRecordingTrimmedGIF, ListRecordings, GetAggDownloadInfo, SetHistoryTracking } from '../../wailsjs/go/main/App';
+  import { SaveTemplate, UpdateTemplate, DeleteTemplate, ToggleFavorite, GetTemplates, WriteToTerminal, GetRecording, DeleteRecording, ExportRecordingScrubbed, ExportRecordingGIF, ExportRecordingTrimmed, ExportRecordingTrimmedGIF, ListRecordings, GetAggDownloadInfo, SetHistoryTracking } from './backend.js';
   import TemplateManager from './TemplateManager.svelte';
   import FileBrowser from './FileBrowser.svelte';
   import WorkflowBuilder from './workflows/WorkflowBuilder.svelte';

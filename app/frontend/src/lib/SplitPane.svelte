@@ -10,7 +10,7 @@
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
   import { tmuxScrollKeys } from './terminals/wheelScroll.js';
-  import { WriteToTerminal } from '../../wailsjs/go/main/App';
+  import { GetTmuxPasteBufferJSON, WriteToTerminal } from './backend.js';
   import { createEventDispatcher, tick, onDestroy } from 'svelte';
   import { t } from './i18n.js';
   import { calculateSplitRatio } from './terminals/splitPaneResize.js';
@@ -172,7 +172,7 @@
   let dragStart = null;
 
   async function fetchTmuxBuffer(term) {
-    const raw = await window['go']['main']['App']['GetTmuxPasteBufferJSON'](term.id, term.type);
+    const raw = await GetTmuxPasteBufferJSON(term.id, term.type);
     return JSON.parse(raw || '{}').text || '';
   }
 
