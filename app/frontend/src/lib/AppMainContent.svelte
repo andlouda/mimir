@@ -1,6 +1,6 @@
 <script>
   import { getTerminalOutput } from './terminals/outputTail.js';
-  import { SaveTemplate, UpdateTemplate, DeleteTemplate, ToggleFavorite, GetTemplates, WriteToTerminal, GetRecording, DeleteRecording, ExportRecordingScrubbed, ExportRecordingGIF, ExportRecordingTrimmed, ExportRecordingTrimmedGIF, ListRecordings, GetAggDownloadInfo, SetHistoryTracking } from './backend.js';
+  import { SaveTemplate, UpdateTemplate, DeleteTemplate, ToggleFavorite, GetTemplates, WriteToTerminal, GetRecording, DeleteRecording, ExportRecordingScrubbed, ExportRecordingGIF, ExportRecordingTrimmed, ExportRecordingTrimmedGIF, ListRecordings } from './backend.js';
   import TemplateManager from './TemplateManager.svelte';
   import FileBrowser from './FileBrowser.svelte';
   import WorkflowBuilder from './workflows/WorkflowBuilder.svelte';
@@ -38,16 +38,6 @@
   export let aiToolFlowConfig = {};
   export let recordingList = [];
   export let aggAvailable = false;
-  export let aggStatus = 'missing';
-  export let showFolderManager = false;
-  export let historyTrackingEnabled = false;
-  export let updateChecking = false;
-  export let updateInfo = null;
-  export let updateDownloading = false;
-  export let updateProgress = null;
-  export let updateInstalled = false;
-  export let customFolders = [];
-  export let newFolderName = '';
 
   // The path comes from the remote SFTP listing, i.e. the remote server picks
   // the bytes. shellQuotePath handles quotes, but control characters would
@@ -94,15 +84,7 @@
   export let isUsingDefaultPromptIntroPreview = () => false;
   export let openFunctionCatalog = () => {};
   export let openAISettings = () => {};
-  export let checkForUpdates = () => {};
-  export let openUpdatePage = () => {};
-  export let downloadUpdate = () => {};
-  export let restartApp = () => {};
-  export let createFolder = () => {};
-  export let renameFolder = () => {};
-  export let deleteFolder = () => {};
   export let onError = () => {};
-  export let onAggDownloadInfo = () => {};
 </script>
 
 <div class="main-content">
@@ -251,32 +233,7 @@
       }}
     />
   {:else if currentPage === "settings"}
-    <SettingsView
-      {notesPanelOpen}
-      bind:showFolderManager
-      {historyTrackingEnabled}
-      {aggAvailable}
-      {aggStatus}
-      {updateChecking}
-      {updateInfo}
-      {updateDownloading}
-      {updateProgress}
-      {updateInstalled}
-      {customFolders}
-      bind:newFolderName
-      onOpenAISettings={openAISettings}
-      onManageTemplates={() => { templateToEdit = null; openPage("templateManager"); }}
-      onToggleNotes={() => { notesPanelOpen = !notesPanelOpen; openPage("terminals"); setTimeout(handleResize, 50); }}
-      onToggleHistory={async () => { const next = !historyTrackingEnabled; await SetHistoryTracking(next); historyTrackingEnabled = next; }}
-      onInstallAgg={async () => { if (aggAvailable) return; try { onAggDownloadInfo(await GetAggDownloadInfo()); } catch (err) { onError($tr('appMessages.aggInfoFailed', { error: err.message || err })); } }}
-      onCheckUpdates={checkForUpdates}
-      onOpenUpdatePage={openUpdatePage}
-      onDownloadUpdate={downloadUpdate}
-      onRestartApp={restartApp}
-      onCreateFolder={createFolder}
-      onRenameFolder={renameFolder}
-      onDeleteFolder={deleteFolder}
-    />
+    <SettingsView />
   {/if}
 
 <!-- The error/result banner belongs to the app, not to the Terminals page: export results and

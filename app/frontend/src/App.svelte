@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { startPaneResourceSampling, stopPaneResourceSampling } from './lib/actions/paneResources.js';
   import { t as tr } from './lib/i18n.js';
-  import { GetAggStatus, GetAvailableTerminalTypes, GetFunctionCatalogJSON, GetLoadedSessionData, GetPendingUpdate, GetSSHTerminalLabel, GetTmuxIntegrationMode, ImportNoteFromLocal, ImportNoteFromRemote, IsAggInstalled, IsHistoryTrackingEnabled, ListRecordings, optional, SetHistoryTracking, StartSSHTerminal, StartTerminal, WriteToTerminal } from './lib/backend.js';
+  import { GetAvailableTerminalTypes, GetFunctionCatalogJSON, GetLoadedSessionData, GetPendingUpdate, GetTmuxIntegrationMode, ImportNoteFromLocal, ImportNoteFromRemote, IsHistoryTrackingEnabled, optional, SetHistoryTracking, StartSSHTerminal, StartTerminal, WriteToTerminal } from './lib/backend.js';
   import { EventsOn } from '../wailsjs/runtime';
   import SecretUnlockGate from './lib/SecretUnlockGate.svelte';
   import Sidebar from './lib/Sidebar.svelte';
@@ -18,10 +18,10 @@
   import './styles/template-manager.css';
   import './styles/workflow-builder.css';
   import { terminals, activeTerminalId, layoutTree, terminalMap, visibleTerminalCount } from './lib/stores/terminalStore.js';
-  import { loadPromptMode, currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, showFolderManager, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState, tmuxIntegrationMode, notesOpenRequest } from './lib/stores/uiStore.js';
+  import { loadPromptMode, currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState, tmuxIntegrationMode, notesOpenRequest } from './lib/stores/uiStore.js';
   import { templates, templateToEdit, templatePromptState, showTemplatePicker, showWorkflowPicker, workflowPickerPlaybooks, workflowPickerLoading } from './lib/stores/templateStore.js';
-  import { updateInfo, updateChecking, updateDownloading, updateProgress, updateInstalled } from './lib/stores/updateStore.js';
-  import { recordingList, aggAvailable, aggStatus, downloadingAgg, aggDownloadInfo, terminalSessionFoldersOpen, customFolders, newFolderName } from './lib/stores/sessionStore.js';
+  import { updateDownloading, updateProgress, updateInstalled } from './lib/stores/updateStore.js';
+  import { recordingList, aggAvailable, downloadingAgg, aggDownloadInfo, terminalSessionFoldersOpen, customFolders } from './lib/stores/sessionStore.js';
   import { sshProfiles, showSSHProfileModal, sshSecretBackend, sshConnecting, hostKeyVerifyState, fileBrowserRemoteTerminalId, fileBrowserRemoteLabel } from './lib/stores/sshStore.js';
   import { aiPanelState, showFunctionCatalog, functionCatalog, showAISettings, aiProviders, aiSettings, aiToolFlowConfig, aiToolFlowLists } from './lib/stores/aiStore.js';
   import { loadAgentDetectionSetting, loadAgentAnnotations } from './lib/stores/agentStore.js';
@@ -31,12 +31,12 @@
   import { droppedPathsText, isFileDrop } from './lib/terminals/droppedPaths.js';
   import { appendLeaf, rebuildLayout, collectLeafIds } from './lib/terminals/layoutTree.js';
   import { generateTmuxSessionName } from './lib/terminals/tmuxLifecycle';
-  import { checkForUpdates, downloadUpdate, openUpdatePage, restartApp } from './lib/actions/updateActions.js';
-  import { assignTerminalToFolder as assignTerminalToFolderAction, createFolder, deleteFolder as deleteFolderAction, loadCustomFolders, renameFolder, toggleTerminalFolder } from './lib/actions/folderActions.js';
+  import { assignTerminalToFolder as assignTerminalToFolderAction, loadCustomFolders, toggleTerminalFolder } from './lib/actions/folderActions.js';
+  import { openPage } from './lib/actions/navigationActions.js';
   import { runAggDownload } from './lib/actions/aggActions.js';
   import { applyAISettingsDefaults, clearAIApiKey, closeAISettings, getAIToolPromptPreview, getEditablePromptIntroPreview, isUsingDefaultPromptIntroPreview, loadAISettingsConfig, openAISettings, saveAISettings, setDevOpsPrePromptExample, toggleAIMenu } from './lib/actions/aiSettingsActions.js';
   import { createDragDropHandlers } from './lib/actions/dragDrop.js';
-  import { createKeydownHandler, focusTerminal } from './lib/actions/keyboardShortcuts.js';
+  import { createKeydownHandler } from './lib/actions/keyboardShortcuts.js';
   import { closeTerminalSearch, dismissRestoreSummary, terminalSearchNext, terminalSearchPrev, toggleTerminalSearch, updateTerminalSearchQuery } from './lib/actions/terminalSearchActions.js';
   import { applyTemplate, closeTemplatePrompt, handleTemplatePromptFieldChange, loadTemplatesFromBackend, runWorkflowFromPicker, submitTemplatePrompt, toggleWorkflowPicker } from './lib/actions/templateActions.js';
   import { createSSHActions, loadSSHProfiles, openSSHProfilePicker } from './lib/actions/sshActions.js';
@@ -116,10 +116,6 @@
 
   function assignTerminalToFolder(terminalId, folderId) {
     assignTerminalToFolderAction(terminalId, folderId, persistTerminalState);
-  }
-
-  function deleteFolder(folderId) {
-    return deleteFolderAction(folderId, persistTerminalState);
   }
 
   function selectSidebarTerminal(term) {
@@ -309,55 +305,6 @@
     addTerminal: () => doAddTerminal(),
     toggleMinimize,
   });
-
-  async function openPage(page) {
-    $currentPage = page;
-
-    if (page === "terminals") {
-      await reinitializeTerminals();
-      focusTerminal($activeTerminalId);
-      return;
-    }
-
-    if (page === "recordings" || page === "settings") {
-      $aggAvailable = await IsAggInstalled().catch(() => false);
-      $aggStatus = await GetAggStatus().catch(() => 'missing');
-    }
-
-    if (page === "recordings") {
-      try {
-        $recordingList = await ListRecordings();
-      } catch (e) {
-        console.error('Failed to load recordings:', e);
-      }
-    }
-
-    if (page === "templateManager") {
-      try {
-        await loadTemplatesFromBackend();
-      } catch (error) {
-        $errorMessage = `Failed to load templates: ${error.message || error}`;
-      }
-    }
-
-    if (page === "fileBrowser") {
-      const activeTerm = $terminals.find(t => t.id === $activeTerminalId);
-      if (activeTerm && activeTerm.type === 'ssh' && !activeTerm.disconnected) {
-        try {
-          const label = await GetSSHTerminalLabel(activeTerm.id);
-          if (label) {
-            $fileBrowserRemoteTerminalId = activeTerm.id;
-            $fileBrowserRemoteLabel = label;
-            return;
-          }
-        } catch (e) {
-          // Fall through to local mode
-        }
-      }
-      $fileBrowserRemoteTerminalId = 0;
-      $fileBrowserRemoteLabel = '';
-    }
-  }
 
   // Retries a restore step when the backend's start cap answers with a
   // rate-limit error (a large saved session starts many terminals at once).
@@ -656,16 +603,6 @@
     bind:aiToolFlowConfig={$aiToolFlowConfig}
     bind:recordingList={$recordingList}
     aggAvailable={$aggAvailable}
-    aggStatus={$aggStatus}
-    bind:showFolderManager={$showFolderManager}
-    bind:historyTrackingEnabled={$historyTrackingEnabled}
-    updateChecking={$updateChecking}
-    updateInfo={$updateInfo}
-    updateDownloading={$updateDownloading}
-    updateProgress={$updateProgress}
-    updateInstalled={$updateInstalled}
-    customFolders={$customFolders}
-    bind:newFolderName={$newFolderName}
     {persistDefaultTerminalType}
     addTerminal={doAddTerminal}
     {toggleAIMenu}
@@ -698,15 +635,7 @@
     {isUsingDefaultPromptIntroPreview}
     {openFunctionCatalog}
     {openAISettings}
-    {checkForUpdates}
-    {openUpdatePage}
-    {downloadUpdate}
-    {restartApp}
-    {createFolder}
-    {renameFolder}
-    {deleteFolder}
     onError={(msg) => { $errorMessage = msg; }}
-    onAggDownloadInfo={(info) => { $aggDownloadInfo = info; }}
   />
 
   {#if !$historyTrackingEnabled && !$historyConsentDismissed}
