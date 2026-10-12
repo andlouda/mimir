@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"mimir/safeio"
 	"mimir/ssh"
 	"os"
 	"path/filepath"
@@ -54,10 +55,7 @@ func (a *App) SetTmuxIntegrationMode(mode string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return "", fmt.Errorf("tmux mode config dir: %w", err)
-	}
-	if err := os.WriteFile(path, []byte(mode+"\n"), 0600); err != nil {
+	if err := safeio.AtomicWriteFile(path, []byte(mode+"\n"), 0600); err != nil {
 		return "", fmt.Errorf("save tmux mode: %w", err)
 	}
 	a.TerminalManager.SetTmuxIntegrationMode(mode)

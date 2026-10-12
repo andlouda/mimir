@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"mimir/safeio"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,10 +66,7 @@ func (a *App) SetGPUPolicy(policy string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return "", fmt.Errorf("gpu policy config dir: %w", err)
-	}
-	if err := os.WriteFile(path, []byte(policy+"\n"), 0600); err != nil {
+	if err := safeio.AtomicWriteFile(path, []byte(policy+"\n"), 0600); err != nil {
 		return "", fmt.Errorf("save gpu policy: %w", err)
 	}
 	return policy, nil
@@ -131,10 +129,7 @@ func (a *App) SetWaylandFix(mode string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return "", fmt.Errorf("wayland fix config dir: %w", err)
-	}
-	if err := os.WriteFile(path, []byte(mode+"\n"), 0600); err != nil {
+	if err := safeio.AtomicWriteFile(path, []byte(mode+"\n"), 0600); err != nil {
 		return "", fmt.Errorf("save wayland fix: %w", err)
 	}
 	return mode, nil

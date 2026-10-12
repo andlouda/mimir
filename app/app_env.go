@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mimir/executil"
+	"mimir/safeio"
 	"mimir/ssh"
 	"os"
 	"os/exec"
@@ -57,10 +58,7 @@ func (a *App) SetDotEnvViewer(enabled bool) error {
 		return err
 	}
 	if enabled {
-		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-			return fmt.Errorf("dotenv viewer consent dir: %w", err)
-		}
-		if err := os.WriteFile(path, []byte("enabled\n"), 0600); err != nil {
+		if err := safeio.AtomicWriteFile(path, []byte("enabled\n"), 0600); err != nil {
 			return err
 		}
 		logDotEnvEvent("dotenv_viewer_enabled", "user opted in")

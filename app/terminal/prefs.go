@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"mimir/safeio"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,10 +58,7 @@ func WritePref(name, value string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(value+"\n"), 0600)
+	return safeio.AtomicWriteFile(path, []byte(value+"\n"), 0600)
 }
 
 func NormalizePromptMode(v string) string {
