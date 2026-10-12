@@ -144,16 +144,11 @@ func loadTelemetrySettings() TelemetrySettings {
 	if err != nil {
 		return normalizeTelemetrySettings(defaultTelemetrySettings())
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			log.Printf("telemetry settings unreadable, using defaults: %v", err)
-		}
-		return normalizeTelemetrySettings(defaultTelemetrySettings())
-	}
 	s := defaultTelemetrySettings()
-	if err := json.Unmarshal(raw, &s); err != nil {
-		log.Printf("telemetry settings invalid, using defaults: %v", err)
+	if err := safeio.LoadJSON(path, &s); err != nil {
+		// A broken file has been moved aside; the defaults are saved on
+		// the next change and the old file stays for a look.
+		log.Printf("telemetry settings unreadable, using defaults: %v", err)
 		return normalizeTelemetrySettings(defaultTelemetrySettings())
 	}
 	return normalizeTelemetrySettings(s)

@@ -244,7 +244,11 @@ func LoadAISettings(store *mimirssh.SecretStore) (AISettings, error) {
 			withoutSecret := settings
 			withoutSecret.APIKey = ""
 			if payload, err := json.MarshalIndent(withoutSecret, "", "  "); err == nil {
-				_ = safeio.AtomicWriteFile(filePath, payload, 0600)
+				if err := safeio.AtomicWriteFile(filePath, payload, 0600); err != nil {
+					// The key is in the secret store now but also still in
+					// the settings file; say so rather than leave it silent.
+					log.Printf("ai settings: API key moved to the secret store, but the plaintext copy in %s could not be rewritten: %v", filePath, err)
+				}
 			}
 		}
 	}

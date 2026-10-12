@@ -68,13 +68,18 @@ func backgroundsDir() (string, error) {
 	return dir, nil
 }
 
+// readBackgroundIndex loads the index; a missing or unparseable file
+// yields an empty index. The unparseable one is moved aside by LoadJSON
+// (logged here), so the next save starts a fresh file next to it.
 func readBackgroundIndex(dir string) map[string]BackgroundImage {
 	index := map[string]BackgroundImage{}
-	data, err := os.ReadFile(filepath.Join(dir, backgroundIndexName))
-	if err != nil {
-		return index
+	if err := safeio.LoadJSON(filepath.Join(dir, backgroundIndexName), &index); err != nil {
+		log.Printf("backgrounds: index unreadable, starting empty: %v", err)
+		return map[string]BackgroundImage{}
 	}
-	_ = json.Unmarshal(data, &index)
+	if index == nil {
+		index = map[string]BackgroundImage{}
+	}
 	return index
 }
 
