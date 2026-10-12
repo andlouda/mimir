@@ -1,6 +1,19 @@
-import { backend as app, DownloadAgg, IsAggInstalled } from '../backend.js';
+import { get } from 'svelte/store';
+import { backend as app, DownloadAgg, GetAggDownloadInfo, IsAggInstalled } from '../backend.js';
+import { t } from '../i18n.js';
 import { aggAvailable, aggDownloadInfo, aggStatus, downloadingAgg } from '../stores/sessionStore.js';
 import { errorMessage } from '../stores/uiStore.js';
+
+// Fetches what the install dialog shows (release asset, checksum); a no-op
+// while agg is already installed.
+export async function loadAggDownloadInfo() {
+  if (get(aggAvailable)) return;
+  try {
+    aggDownloadInfo.set(await GetAggDownloadInfo());
+  } catch (err) {
+    errorMessage.set(get(t)('appMessages.aggInfoFailed', { error: err.message || err }));
+  }
+}
 
 export async function runAggDownload() {
   downloadingAgg.set(true);

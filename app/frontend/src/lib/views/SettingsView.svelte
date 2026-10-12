@@ -1,11 +1,21 @@
 <script>
-  // Settings landing view (presentational). Card actions and folder/update
-  // logic stay in the parent and are passed as callbacks. Strings via i18n;
-  // shared styles come from the global stylesheets (styles/).
+  // Settings landing view. It reads the stores it shows and calls the
+  // actions directly; nothing is threaded through App.svelte. Strings via
+  // i18n; shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
   import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, claudeRerenderOnWiden, inactivePaneThrottle, inactivePaneInterval, INACTIVE_PANE_INTERVALS, paneResourceOverlay, paneResourceScale, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
-  import { refreshTmuxStatuses } from '../actions/terminalActions.js';
+  import { handleResize, refreshTmuxStatuses } from '../actions/terminalActions.js';
+  import { aggAvailable, aggStatus, customFolders, newFolderName } from '../stores/sessionStore.js';
+  import { historyTrackingEnabled, notesPanelOpen, showFolderManager } from '../stores/uiStore.js';
+  import { updateChecking, updateDownloading, updateInfo, updateInstalled, updateProgress } from '../stores/updateStore.js';
+  import { templateToEdit } from '../stores/templateStore.js';
+  import { checkForUpdates, downloadUpdate, openUpdatePage, restartApp } from '../actions/updateActions.js';
+  import { createFolder, deleteFolder, renameFolder } from '../actions/folderActions.js';
+  import { openAISettings } from '../actions/aiSettingsActions.js';
+  import { loadAggDownloadInfo } from '../actions/aggActions.js';
+  import { toggleHistoryTracking } from '../actions/historyActions.js';
+  import { openPage } from '../actions/navigationActions.js';
   import { loadTelemetrySettings, updateTelemetrySettings, loadTelemetryStatus, loadTelemetryEnvBlock, rotateTelemetryToken } from '../actions/agentActions.js';
   import { ClipboardSetText } from '../../../wailsjs/runtime';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
@@ -131,30 +141,15 @@
     }
   }
 
-  export let notesPanelOpen = false;
-  export let showFolderManager = false;     // bind
-  export let historyTrackingEnabled = false;
-  export let aggAvailable = false;
-  export let aggStatus = 'missing';
-  export let updateChecking = false;
-  export let updateInfo = null;
-  export let customFolders = [];
-  export let newFolderName = '';            // bind
-  export let onOpenAISettings = () => {};
-  export let onManageTemplates = () => {};
-  export let onToggleNotes = () => {};
-  export let onToggleHistory = () => {};
-  export let onInstallAgg = () => {};
-  export let onCheckUpdates = () => {};
-  export let onOpenUpdatePage = () => {};
-  export let onDownloadUpdate = () => {};
-  export let updateDownloading = false;
-  export let updateProgress = null;
-  export let updateInstalled = false;
-  export let onRestartApp = () => {};
-  export let onCreateFolder = () => {};
-  export let onRenameFolder = () => {};
-  export let onDeleteFolder = () => {};
+  function manageTemplates() {
+    templateToEdit.set(null);
+    openPage('templateManager');
+  }
+  function toggleNotes() {
+    notesPanelOpen.update((open) => !open);
+    openPage('terminals');
+    setTimeout(handleResize, 50);
+  }
 </script>
 
 <div class="ai-hub">
@@ -458,7 +453,7 @@
     <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x269B;</span>
-        <button type="button" class="ai-hub-link" on:click={onOpenAISettings}>{$t('settings.actions.configure')}</button>
+        <button type="button" class="ai-hub-link" on:click={openAISettings}>{$t('settings.actions.configure')}</button>
       </div>
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('aiSettings')} on:click|preventDefault|stopPropagation={() => toggleCard('aiSettings')}><strong>{$t('settings.cards.aiSettings.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('aiSettings') ? '▾' : '▸'}</span></button>
       {#if openCards.has('aiSettings')}
@@ -469,7 +464,7 @@
     <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#9998;</span>
-        <button type="button" class="ai-hub-link" on:click={onManageTemplates}>{$t('settings.actions.manage')}</button>
+        <button type="button" class="ai-hub-link" on:click={manageTemplates}>{$t('settings.actions.manage')}</button>
       </div>
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('templates')} on:click|preventDefault|stopPropagation={() => toggleCard('templates')}><strong>{$t('settings.cards.templates.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('templates') ? '▾' : '▸'}</span></button>
       {#if openCards.has('templates')}
@@ -480,7 +475,7 @@
     <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x270E;</span>
-        <button type="button" class="ai-hub-link" on:click={onToggleNotes}>{notesPanelOpen ? $t('settings.actions.close') : $t('settings.actions.open')}</button>
+        <button type="button" class="ai-hub-link" on:click={toggleNotes}>{$notesPanelOpen ? $t('settings.actions.close') : $t('settings.actions.open')}</button>
       </div>
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('notes')} on:click|preventDefault|stopPropagation={() => toggleCard('notes')}><strong>{$t('settings.cards.notes.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('notes') ? '▾' : '▸'}</span></button>
       {#if openCards.has('notes')}
@@ -491,7 +486,7 @@
     <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2302;</span>
-        <button type="button" class="ai-hub-link" on:click={() => { showFolderManager = !showFolderManager; }}>{showFolderManager ? $t('settings.actions.close') : $t('settings.actions.manage')}</button>
+        <button type="button" class="ai-hub-link" on:click={() => { $showFolderManager = !$showFolderManager; }}>{$showFolderManager ? $t('settings.actions.close') : $t('settings.actions.manage')}</button>
       </div>
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('folders')} on:click|preventDefault|stopPropagation={() => toggleCard('folders')}><strong>{$t('settings.cards.folders.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('folders') ? '▾' : '▸'}</span></button>
       {#if openCards.has('folders')}
@@ -502,22 +497,22 @@
     <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x2261;</span>
-        <button type="button" class="ai-hub-link" on:click={onToggleHistory}>{historyTrackingEnabled ? $t('settings.actions.enabled') : $t('settings.actions.disabled')}</button>
+        <button type="button" class="ai-hub-link" on:click={toggleHistoryTracking}>{$historyTrackingEnabled ? $t('settings.actions.enabled') : $t('settings.actions.disabled')}</button>
       </div>
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('history')} on:click|preventDefault|stopPropagation={() => toggleCard('history')}><strong>{$t('settings.cards.history.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('history') ? '▾' : '▸'}</span></button>
       {#if openCards.has('history')}
-      <p>{historyTrackingEnabled ? $t('settings.cards.history.enabledDesc') : $t('settings.cards.history.disabledDesc')}</p>
+      <p>{$historyTrackingEnabled ? $t('settings.cards.history.enabledDesc') : $t('settings.cards.history.disabledDesc')}</p>
       {/if}
     </div>
 
     <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x25B8;</span>
-        <button type="button" class="ai-hub-link" on:click={onInstallAgg} disabled={aggAvailable}>{aggAvailable ? $t('settings.actions.installed') : $t('settings.actions.install')}</button>
+        <button type="button" class="ai-hub-link" on:click={loadAggDownloadInfo} disabled={$aggAvailable}>{$aggAvailable ? $t('settings.actions.installed') : $t('settings.actions.install')}</button>
       </div>
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('agg')} on:click|preventDefault|stopPropagation={() => toggleCard('agg')}><strong>{$t('settings.cards.agg.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('agg') ? '▾' : '▸'}</span></button>
       {#if openCards.has('agg')}
-      <p>{#if aggAvailable}{$t('settings.cards.agg.installedDesc')}{:else if aggStatus === 'incompatible'}{$t('settings.cards.agg.incompatibleDesc')}{:else}{$t('settings.cards.agg.missingDesc')}{/if}</p>
+      <p>{#if $aggAvailable}{$t('settings.cards.agg.installedDesc')}{:else if $aggStatus === 'incompatible'}{$t('settings.cards.agg.incompatibleDesc')}{:else}{$t('settings.cards.agg.missingDesc')}{/if}</p>
       {/if}
     </div>
 
@@ -545,19 +540,19 @@
     <div class="ai-hub-card">
       <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x21E7;</span>
-        <button type="button" class="ai-hub-link" on:click={onCheckUpdates} disabled={updateChecking}>{updateChecking ? $t('settings.actions.checking') : (updateInfo?.updateAvailable ? $t('settings.actions.available') : $t('settings.actions.check'))}</button>
+        <button type="button" class="ai-hub-link" on:click={checkForUpdates} disabled={$updateChecking}>{$updateChecking ? $t('settings.actions.checking') : ($updateInfo?.updateAvailable ? $t('settings.actions.available') : $t('settings.actions.check'))}</button>
       </div>
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('updates')} on:click|preventDefault|stopPropagation={() => toggleCard('updates')}><strong>{$t('settings.cards.updates.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('updates') ? '▾' : '▸'}</span></button>
       {#if openCards.has('updates')}
       <p>
-        {#if updateInfo?.error}
-          {updateInfo.error}
-        {:else if updateInstalled}
-          {$t('settings.cards.updates.pendingDesc', { version: updateInfo?.latestVersion || '?' })}
-        {:else if updateInfo?.updateAvailable}
-          {$t('settings.cards.updates.availableDesc', { version: updateInfo.latestVersion })}
-        {:else if updateInfo}
-          {$t('settings.cards.updates.currentDesc', { version: updateInfo.currentVersion })}
+        {#if $updateInfo?.error}
+          {$updateInfo.error}
+        {:else if $updateInstalled}
+          {$t('settings.cards.updates.pendingDesc', { version: $updateInfo?.latestVersion || '?' })}
+        {:else if $updateInfo?.updateAvailable}
+          {$t('settings.cards.updates.availableDesc', { version: $updateInfo.latestVersion })}
+        {:else if $updateInfo}
+          {$t('settings.cards.updates.currentDesc', { version: $updateInfo.currentVersion })}
         {:else}
           {$t('settings.cards.updates.defaultDesc')}
         {/if}
@@ -588,20 +583,20 @@
     </div>
   </div>
 
-  {#if showFolderManager}
+  {#if $showFolderManager}
     <div class="folder-manager">
       <h3>{$t('settings.folderManager.title')}</h3>
       <ul class="folder-manager-list">
-        {#each customFolders as f (f.id)}
+        {#each $customFolders as f (f.id)}
           <li class="folder-manager-item">
             <input
               type="text"
               class="folder-manager-input"
               value={f.name}
-              on:blur={(e) => onRenameFolder(f, e.target.value)}
+              on:blur={(e) => renameFolder(f, e.target.value)}
               on:keydown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             />
-            <button type="button" class="folder-manager-delete" on:click={() => onDeleteFolder(f.id)} title={$t('settings.folderManager.delete')}>&#x2715;</button>
+            <button type="button" class="folder-manager-delete" on:click={() => deleteFolder(f.id)} title={$t('settings.folderManager.delete')}>&#x2715;</button>
           </li>
         {/each}
       </ul>
@@ -610,58 +605,58 @@
           type="text"
           class="folder-manager-input"
           placeholder={$t('settings.folderManager.newPlaceholder')}
-          bind:value={newFolderName}
-          on:keydown={(e) => { if (e.key === 'Enter') onCreateFolder(); }}
+          bind:value={$newFolderName}
+          on:keydown={(e) => { if (e.key === 'Enter') createFolder(); }}
         />
-        <button type="button" class="folder-manager-add-btn" on:click={onCreateFolder} disabled={!newFolderName.trim()}>+</button>
+        <button type="button" class="folder-manager-add-btn" on:click={createFolder} disabled={!$newFolderName.trim()}>+</button>
       </div>
     </div>
   {/if}
 
-  {#if updateInfo}
+  {#if $updateInfo}
     <div class="settings-inline-panel">
       <div>
         <strong>{$t('settings.updatePanel.status')}</strong>
         <p>
-          {$t('settings.updatePanel.current')}: {updateInfo.currentVersion || 'unknown'}
-          {#if updateInfo.latestVersion}
-            · {$t('settings.updatePanel.latest')}: {updateInfo.latestVersion}
+          {$t('settings.updatePanel.current')}: {$updateInfo.currentVersion || 'unknown'}
+          {#if $updateInfo.latestVersion}
+            · {$t('settings.updatePanel.latest')}: {$updateInfo.latestVersion}
           {/if}
-          {#if updateInfo.platform}
-            · {updateInfo.platform}
+          {#if $updateInfo.platform}
+            · {$updateInfo.platform}
           {/if}
         </p>
-        {#if updateInfo.platformAsset}
-          <p>{$t('settings.updatePanel.asset')}: {updateInfo.platformAsset.name}</p>
+        {#if $updateInfo.platformAsset}
+          <p>{$t('settings.updatePanel.asset')}: {$updateInfo.platformAsset.name}</p>
         {/if}
-        {#if updateInfo.expectedSHA256}
-          <p>SHA256: <code class="sha256-hash">{updateInfo.expectedSHA256}</code></p>
-        {:else if updateInfo.checksumAsset}
-          <p>{$t('settings.updatePanel.checksums')}: {updateInfo.checksumAsset.name}</p>
+        {#if $updateInfo.expectedSHA256}
+          <p>SHA256: <code class="sha256-hash">{$updateInfo.expectedSHA256}</code></p>
+        {:else if $updateInfo.checksumAsset}
+          <p>{$t('settings.updatePanel.checksums')}: {$updateInfo.checksumAsset.name}</p>
         {/if}
-        {#if updateInfo.executablePath}
-          <p>{$t('settings.updatePanel.executable')}: <code>{updateInfo.executablePath}</code></p>
+        {#if $updateInfo.executablePath}
+          <p>{$t('settings.updatePanel.executable')}: <code>{$updateInfo.executablePath}</code></p>
         {/if}
-        {#if !updateInfo.configured}
+        {#if !$updateInfo.configured}
           <p>{$t('settings.updatePanel.notConfigured')}</p>
         {/if}
       </div>
       <div class="settings-inline-actions">
-        <button type="button" class="modal-secondary-button" on:click={onCheckUpdates} disabled={updateChecking || updateDownloading}>{$t('settings.updatePanel.refresh')}</button>
-        {#if updateInstalled}
+        <button type="button" class="modal-secondary-button" on:click={checkForUpdates} disabled={$updateChecking || $updateDownloading}>{$t('settings.updatePanel.refresh')}</button>
+        {#if $updateInstalled}
           <span class="update-staged-msg">{$t('settings.updatePanel.restartRequired')}</span>
-          <button type="button" class="modal-primary-button" on:click={onRestartApp}>{$t('settings.updatePanel.restartNow')}</button>
-        {:else if updateDownloading}
+          <button type="button" class="modal-primary-button" on:click={restartApp}>{$t('settings.updatePanel.restartNow')}</button>
+        {:else if $updateDownloading}
           <div class="update-progress-inline">
-            <span class="update-progress-label">{$t(`settings.updatePanel.stage_${updateProgress?.stage || 'downloading'}`)}</span>
-            {#if updateProgress?.percent >= 0}
-              <progress value={updateProgress.percent} max="100"></progress>
+            <span class="update-progress-label">{$t(`settings.updatePanel.stage_${$updateProgress?.stage || 'downloading'}`)}</span>
+            {#if $updateProgress?.percent >= 0}
+              <progress value={$updateProgress.percent} max="100"></progress>
             {/if}
           </div>
-        {:else if updateInfo?.updateAvailable && !updateInfo?.manualUpdateOnly}
-          <button type="button" class="modal-primary-button" on:click={onDownloadUpdate}>{$t('settings.updatePanel.downloadInstall')}</button>
+        {:else if $updateInfo?.updateAvailable && !$updateInfo?.manualUpdateOnly}
+          <button type="button" class="modal-primary-button" on:click={downloadUpdate}>{$t('settings.updatePanel.downloadInstall')}</button>
         {/if}
-        <button type="button" class="modal-secondary-button" on:click={onOpenUpdatePage} disabled={!updateInfo.configured}>{$t('settings.updatePanel.openRelease')}</button>
+        <button type="button" class="modal-secondary-button" on:click={openUpdatePage} disabled={!$updateInfo.configured}>{$t('settings.updatePanel.openRelease')}</button>
       </div>
     </div>
   {/if}

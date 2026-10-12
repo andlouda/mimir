@@ -3,6 +3,7 @@ import { DeleteTerminalFolder, GetTerminalFolders, SaveTerminalFolder, UpdateTer
 import { customFolders, newFolderName, terminalSessionFoldersOpen } from '../stores/sessionStore.js';
 import { terminals } from '../stores/terminalStore.js';
 import { errorMessage } from '../stores/uiStore.js';
+import { persistTerminalState as persistTerminalStateDefault } from './sessionActions.js';
 
 export function toggleTerminalFolder(groupID) {
   const current = get(terminalSessionFoldersOpen);
@@ -42,7 +43,7 @@ export async function renameFolder(folder, newName) {
   }
 }
 
-export async function deleteFolder(folderId, persistTerminalState) {
+export async function deleteFolder(folderId, persistTerminalState = persistTerminalStateDefault) {
   try {
     customFolders.set(await DeleteTerminalFolder(folderId));
     const currentTerminals = get(terminals);
@@ -56,7 +57,7 @@ export async function deleteFolder(folderId, persistTerminalState) {
   }
 }
 
-export function assignTerminalToFolder(terminalId, folderId, persistTerminalState) {
+export function assignTerminalToFolder(terminalId, folderId, persistTerminalState = persistTerminalStateDefault) {
   terminals.update((currentTerminals) => currentTerminals.map((terminal) => (terminal.id === terminalId ? { ...terminal, folderId } : terminal)));
   const term = get(terminals).find((terminal) => terminal.id === terminalId);
   if (term) persistTerminalState?.(term);
