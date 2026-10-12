@@ -1,212 +1,35 @@
-//go:build windows
-// +build windows
-
 package terminal
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
-	"mimir/executil"
 	"os"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 
+	"mimir/executil"
 	"mimir/history"
 	"mimir/recording"
 
-	"github.com/UserExistsError/conpty"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	ssh "golang.org/x/crypto/ssh"
 )
 
-const conptyBashRcBase = "source ~/.bashrc 2>/dev/null || true\n"
+// The session bookkeeping, the output pump and everything the app calls
+// on a running terminal live here for every platform. The platform files
+// (terminal_unix.go, terminal_windows.go) only know how to launch a local
+// shell: the session type that wraps the PTY/ConPTY and
+// StartTerminalWithOptions.
 
-// conptyBashHistoryHook emits OSC 7337 on every prompt. A new command carries
-// its command line; an unchanged prompt still reports the current cwd (an
-// empty-command beacon) so cwd-dependent features work before any command runs.
-const conptyBashHistoryHook = `__mimir_last_cmd=""
-__mimir_precmd() {
-  local exit_code=$?
-  local cmd; cmd=$(HISTTIMEFORMAT= history 1 2>/dev/null | sed 's/^ *[0-9]* *//')
-  local b64=""
-  if [ -n "$cmd" ] && [ "$cmd" != "$__mimir_last_cmd" ]; then
-    __mimir_last_cmd="$cmd"
-    b64=$(printf '%s' "$cmd" | base64 2>/dev/null | tr -d '\n')
-  fi
-  printf '\033]7337;cmd=%s;exit=%s;cwd=%s;host=%s;user=%s;shell=bash;ts=%s\007' \
-    "$b64" "$exit_code" "$PWD" "$(hostname -s 2>/dev/null || echo unknown)" "$(whoami)" "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)"
-}
-PROMPT_COMMAND="__mimir_precmd;${PROMPT_COMMAND}"
-`
-
-// conptyPowerShellHistoryHook emits OSC 7337 on every prompt. A new command
-// carries its command line; an unchanged prompt still reports the current cwd
-// (an empty-command beacon) so cwd-dependent features work before any command
-// has been run.
-const conptyPowerShellHistoryHook = `$global:__mimir_last_cmd = ''
-$global:__mimir_prev_prompt = $function:global:prompt
-function global:prompt {
-  $success = $?
-  $nativeExit = $global:LASTEXITCODE
-  $cmd = ''
-  $historyItem = Get-History -Count 1 -ErrorAction SilentlyContinue
-  if ($historyItem -and $historyItem.CommandLine) {
-    $candidate = [string]$historyItem.CommandLine
-    if ($candidate -and $candidate -ne $global:__mimir_last_cmd) {
-      $global:__mimir_last_cmd = $candidate
-      $cmd = $candidate
-    }
-  }
-  $exitCode = if ($null -ne $nativeExit) { [string]$nativeExit } elseif ($success) { '0' } else { '1' }
-  $b64 = if ($cmd) { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($cmd)) } else { '' }
-  $cwd = (Get-Location).Path
-  $hostName = $env:COMPUTERNAME
-  if (-not $hostName) { $hostName = 'unknown' }
-  $userName = $env:USERNAME
-  if (-not $userName) { $userName = 'unknown' }
-  $ts = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-  [Console]::Write("$([char]27)]7337;cmd=$b64;exit=$exitCode;cwd=$cwd;host=$hostName;user=$userName;shell=powershell;ts=$ts$([char]7)")
-  return __MIMIR_PROMPT__
-}
-`
-
-// conptyPowerShellPromptOnly keeps Mimir's short prompt when the beacon
-// profile is not installed (history off, no consent).
-const conptyPowerShellPromptOnly = `function global:prompt { "$env:USERNAME ❯ " }
-`
-
-// powerShellProfileContent renders the profile for the current prompt mode:
-// the beacon prompt returns Mimir's short prompt or PowerShell's default
-// text, so the beacon is never replaced by a prompt typed from the frontend.
-func powerShellProfileContent(withBeacon bool) string {
-	mimir := PromptMode() == PromptModeMimir
-	if !withBeacon {
-		if mimir {
-			return conptyPowerShellPromptOnly
-		}
-		return ""
-	}
-	// Shell mode: the beacon runs, then whatever prompt the user's own
-	// $PROFILE defined (oh-my-posh, Starship, ...) draws the line.
-	text := `(& $global:__mimir_prev_prompt)`
-	if mimir {
-		text = `"$env:USERNAME ❯ "`
-	}
-	return strings.Replace(conptyPowerShellHistoryHook, "__MIMIR_PROMPT__", text, 1)
+// pidSession is implemented by local sessions that own a process.
+type pidSession interface {
+	Pid() int
 }
 
-func isHistoryEnabled() bool {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return false
-	}
-	_, err = os.Stat(filepath.Join(configDir, "mimir", "history_enabled"))
-	return err == nil
-}
-
-var tmuxNamePattern = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
-
-// sanitizeTmuxName strips characters that are unsafe in a tmux session name
-// (and in the shell command line it is interpolated into).
-func sanitizeTmuxName(name string) string {
-	name = tmuxNamePattern.ReplaceAllString(name, "")
-	if len(name) > 64 {
-		name = name[:64]
-	}
-	return name
-}
-
-func conptyBashRcBase64(wsl bool) string {
-	rcContent := conptyBashRcBase
-	// Same rule as the unix path: Mimir's short prompt only in "mimir" mode.
-	if PromptMode() == PromptModeMimir {
-		rcContent += "PS1='\\W \\$ '\n"
-	}
-	if isHistoryEnabled() || shellHookConsent() {
-		rcContent += conptyBashHistoryHook
-	}
-	// Extra env (agent telemetry) travels inside the rc file: for WSL that
-	// is the only way across the Windows/Linux boundary.
-	rcContent += launchEnvExports(wsl)
-	return base64.StdEncoding.EncodeToString([]byte(rcContent))
-}
-
-func mimirShellStateDir() string {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil || cacheDir == "" {
-		cacheDir = os.TempDir()
-	}
-	return filepath.Join(cacheDir, "mimir", "shell")
-}
-
-func writeMimirShellFile(name string, content string) (string, error) {
-	dir := mimirShellStateDir()
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return "", err
-	}
-	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
-		return "", err
-	}
-	return path, nil
-}
-
-func conptyPowerShellCommand() string {
-	content := powerShellProfileContent(isHistoryEnabled() || shellHookConsent())
-	if content == "" {
-		return "powershell.exe"
-	}
-	profilePath, err := writeMimirShellFile("mimir-profile.ps1", content)
-	if err != nil {
-		log.Printf("history: failed to write PowerShell hook profile: %v", err)
-		return "powershell.exe"
-	}
-	// Plain double quotes: strconv.Quote would double every backslash.
-	return fmt.Sprintf("powershell.exe -NoLogo -NoExit -ExecutionPolicy Bypass -File \"%s\"", profilePath)
-}
-
-// conptySession wraps a Windows ConPTY and implements TerminalSession.
-type conptySession struct {
-	cpty   *conpty.ConPty
-	closed bool
-	mu     sync.Mutex
-}
-
-func (s *conptySession) Read(p []byte) (int, error) {
-	return s.cpty.Read(p)
-}
-
-func (s *conptySession) Write(p []byte) (int, error) {
-	return s.cpty.Write(p)
-}
-
-func (s *conptySession) Resize(rows, cols uint16) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return nil
-	}
-	return s.cpty.Resize(int(cols), int(rows))
-}
-
-func (s *conptySession) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return nil
-	}
-	s.closed = true
-	return s.cpty.Close()
-}
-
-// Manager manages PTY sessions.
+// Manager manages terminal sessions: local PTYs and SSH sessions.
 type Manager struct {
 	ctx          context.Context
 	sessions     map[int]TerminalSession
@@ -231,8 +54,8 @@ type Manager struct {
 
 // SessionMeta holds metadata about a terminal session for history recording.
 type SessionMeta struct {
-	SessionType string
-	SSHProfile  string
+	SessionType string // "bash", "zsh", "ssh", etc.
+	SSHProfile  string // SSH profile ID (empty for local)
 }
 
 // TerminalRuntimeMeta holds runtime metadata for frontend session indicators.
@@ -266,22 +89,18 @@ func (m *Manager) SetHistoryStore(store *history.Store) {
 	m.historyStore = store
 }
 
-// SetSessionMeta records the session type and SSH profile for a terminal.
-// SessionPID returns the pid of the process at the root of a local
-// terminal's process tree (the ConPTY child), or 0 for SSH sessions.
+// SessionPID returns the pid at the root of a local terminal's process
+// tree (the shell, tmux client or ConPTY child), or 0 for SSH sessions.
 func (m *Manager) SessionPID(id int) int {
 	m.ptyMutex.Lock()
-	session, ok := m.sessions[id]
-	m.ptyMutex.Unlock()
-	if !ok {
-		return 0
-	}
-	if cs, ok := session.(*conptySession); ok && cs.cpty != nil {
-		return cs.cpty.Pid()
+	defer m.ptyMutex.Unlock()
+	if ps, ok := m.sessions[id].(pidSession); ok {
+		return ps.Pid()
 	}
 	return 0
 }
 
+// SetSessionMeta records the session type and SSH profile for a terminal.
 func (m *Manager) SetSessionMeta(id int, sessionType string, sshProfile string) {
 	m.ptyMutex.Lock()
 	defer m.ptyMutex.Unlock()
@@ -293,95 +112,48 @@ func (m *Manager) SetContext(ctx context.Context) {
 	m.ctx = ctx
 }
 
-// StartTerminal starts a new terminal session.
-func (m *Manager) StartTerminal(terminalType string) (int, error) {
-	return m.StartTerminalWithOptions(terminalType, "")
+func mimirShellStateDir() string {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil || cacheDir == "" {
+		cacheDir = os.TempDir()
+	}
+	return filepath.Join(cacheDir, "mimir", "shell")
 }
 
-// StartTerminalWithOptions starts a new terminal session. Windows ignores local tmux options.
-func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName string) (int, error) {
-	tmuxMode := m.TmuxIntegrationMode()
-	if tmuxMode == TmuxModeOff {
-		tmuxSessionName = ""
+func writeMimirShellFile(name string, content string) (string, error) {
+	dir := mimirShellStateDir()
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", err
 	}
-	m.ptyMutex.Lock()
-	defer m.ptyMutex.Unlock()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		return "", err
+	}
+	return path, nil
+}
 
-	var (
-		cmdString string
-		usingTmux bool
-		tmuxName  string
-	)
-	switch terminalType {
-	case "cmd":
-		if runtime.GOOS == "windows" {
-			cmdString = "cmd.exe"
-		} else {
-			return 0, fmt.Errorf("cmd.exe is only available on Windows")
-		}
-	case "powershell":
-		if runtime.GOOS == "windows" {
-			cmdString = conptyPowerShellCommand()
-		} else {
-			return 0, fmt.Errorf("powershell.exe is only available on Windows")
-		}
-	case "wsl":
-		if runtime.GOOS == "windows" {
-			inner := `mkdir -p ~/.cache/mimir/shell; printf ` + conptyBashRcBase64(true) + ` | base64 -d > ~/.cache/mimir/shell/bashrc; `
-			if name := sanitizeTmuxName(tmuxSessionName); name != "" {
-				// Run the shell inside a tmux session (attach-or-create) so the
-				// session — and anything running in it, e.g. claude — survives
-				// closing and reopening the app. Falls back to a plain shell
-				// when tmux is not installed in the WSL distro.
-				// set-clipboard on + Ms override: copy tmux mouse selections and
-				// OSC 52 writes from the pane (nested tmux, vim) to the clipboard.
-				// The unbinds drop tmux's right-click menu
-				// (Mimir draws its own); the wheel bindings soften scroll steps.
-				inner += `if command -v tmux >/dev/null 2>&1; then exec tmux -L ` + executil.TmuxSocket + ` new-session -A -s ` + name +
-					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i'` + TmuxOptionScript(tmuxMode) + `; ` +
-					`else exec bash --rcfile ~/.cache/mimir/shell/bashrc -i; fi`
-				usingTmux = true
-				tmuxName = name
-			} else {
-				inner += `exec bash --rcfile ~/.cache/mimir/shell/bashrc -i`
-			}
-			cmdString = `wsl.exe -- bash -lc "` + inner + `"`
-		} else {
-			cmdString = "bash"
-		}
-	case "bash":
-		cmdString = `bash -lc "mkdir -p ~/.cache/mimir/shell; printf ` + conptyBashRcBase64(false) + ` | base64 -d > ~/.cache/mimir/shell/bashrc; exec bash --rcfile ~/.cache/mimir/shell/bashrc -i"`
-	case "zsh":
-		cmdString = `zsh -lc "export PROMPT='%1~ %# '; exec zsh -f -i"`
-	default:
-		return 0, fmt.Errorf("unsupported terminal type: %s", terminalType)
-	}
-
-	var opts []conpty.ConPtyOption
-	if extra := launchEnv(); len(extra) > 0 {
-		opts = append(opts, conpty.ConPtyEnv(append(os.Environ(), extra...)))
-	}
-	c, err := conpty.Start(cmdString, opts...)
+// isHistoryEnabled checks if the user has opted in to command history tracking.
+func isHistoryEnabled() bool {
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return 0, fmt.Errorf("failed to start pty for %s: %w", terminalType, err)
+		return false
 	}
+	_, err = os.Stat(filepath.Join(configDir, "mimir", "history_enabled"))
+	return err == nil
+}
 
-	m.ptyLastID++
-	id := m.ptyLastID
-	m.sessions[id] = &conptySession{cpty: c}
-	m.readySignals[id] = make(chan struct{})
-
-	meta := TerminalRuntimeMeta{}
-	if usingTmux {
-		meta.TmuxActive = true
-		meta.TmuxSessionName = tmuxName
-		meta.TmuxMouse = TmuxMouseEnabled(tmuxMode)
-		meta.TmuxMode = "auto"
-		meta.TmuxStatus = "active"
+func (m *Manager) removeTerminal(id int) {
+	if rec, ok := m.recorders[id]; ok {
+		_ = rec.Close()
+		delete(m.recorders, id)
 	}
-	m.runtimeMeta[id] = meta
-
-	return id, nil
+	delete(m.readySignals, id)
+	delete(m.sessions, id)
+	delete(m.sshMeta, id)
+	delete(m.oscBuffers, id)
+	delete(m.sessionMeta, id)
+	delete(m.runtimeMeta, id)
+	delete(m.lastCwd, id)
 }
 
 // GetTerminalRuntimeMeta returns runtime metadata for a local terminal.
@@ -389,19 +161,6 @@ func (m *Manager) GetTerminalRuntimeMeta(id int) TerminalRuntimeMeta {
 	m.ptyMutex.Lock()
 	defer m.ptyMutex.Unlock()
 	return m.runtimeMeta[id]
-}
-
-// RegisterSession registers an externally-created session (e.g. SSH) and returns its ID.
-func (m *Manager) RegisterSession(session TerminalSession) int {
-	m.ptyMutex.Lock()
-	defer m.ptyMutex.Unlock()
-
-	m.ptyLastID++
-	id := m.ptyLastID
-	m.sessions[id] = session
-	m.readySignals[id] = make(chan struct{})
-
-	return id
 }
 
 // RegisterSSHSession registers an SSH session with metadata for reconnection.
@@ -414,6 +173,28 @@ func (m *Manager) RegisterSSHSession(session TerminalSession, meta *SSHMeta) int
 	m.sessions[id] = session
 	m.readySignals[id] = make(chan struct{})
 	m.sshMeta[id] = meta
+
+	return id
+}
+
+// StartTerminal starts a new terminal session.
+func (m *Manager) StartTerminal(terminalType string) (int, error) {
+	return m.StartTerminalWithOptions(terminalType, "")
+}
+
+func localTmuxEligible(terminalType string) bool {
+	return executil.LocalTmuxShell(terminalType)
+}
+
+// RegisterSession registers an externally-created session (e.g. SSH) and returns its ID.
+func (m *Manager) RegisterSession(session TerminalSession) int {
+	m.ptyMutex.Lock()
+	defer m.ptyMutex.Unlock()
+
+	m.ptyLastID++
+	id := m.ptyLastID
+	m.sessions[id] = session
+	m.readySignals[id] = make(chan struct{})
 
 	return id
 }
@@ -453,10 +234,8 @@ func (m *Manager) InitializeTerminal(id int) error {
 		return fmt.Errorf("readiness channel not found for terminal %d", id)
 	}
 
-	// Wait for frontend to be ready before starting output reading
 	<-signalChan
 
-	// Start goroutine to continuously read terminal output and emit events
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -466,21 +245,15 @@ func (m *Manager) InitializeTerminal(id int) error {
 
 			m.ptyMutex.Lock()
 			delete(m.oscBuffers, id)
-			if rec, ok := m.recorders[id]; ok {
-				_ = rec.Close()
-				delete(m.recorders, id)
-			}
 			_, isSSH := m.sshMeta[id]
 			if isSSH {
+				// SSH: keep session entry and sshMeta, only remove readySignals.
+				// The terminal stays visible with a "disconnected" overlay.
 				delete(m.readySignals, id)
 				m.ptyMutex.Unlock()
 				wailsruntime.EventsEmit(m.ctx, fmt.Sprintf("terminal-disconnected-%d", id), nil)
 			} else {
-				delete(m.readySignals, id)
-				delete(m.sessions, id)
-				delete(m.sessionMeta, id)
-				delete(m.runtimeMeta, id)
-				delete(m.lastCwd, id)
+				m.removeTerminal(id)
 				m.ptyMutex.Unlock()
 				wailsruntime.EventsEmit(m.ctx, fmt.Sprintf("terminal-closed-%d", id), nil)
 			}
@@ -650,6 +423,7 @@ func (m *Manager) StartRecording(id int, title string) (string, error) {
 		meta.SSHHost = sshM.Config.Host
 	}
 
+	// Default size; actual size comes from frontend resize events
 	rec, err := recording.NewRecorder(80, 24, title, meta)
 	if err != nil {
 		return "", err
@@ -696,14 +470,15 @@ func (m *Manager) CloseTerminal(id int) error {
 func (m *Manager) GetPty(id int) (io.Writer, bool) {
 	m.ptyMutex.Lock()
 	defer m.ptyMutex.Unlock()
+
 	session, ok := m.sessions[id]
 	if !ok {
 		return nil, false
 	}
-	return session, ok
+
+	return session, true
 }
 
-// GetSSHClient returns the SSH client for a given terminal ID, or nil if not an SSH session.
 // SSHHostFor returns the configured host of an SSH terminal ("" for local
 // terminals); used as the host part of persistent agent annotations.
 func (m *Manager) SSHHostFor(id int) string {
@@ -715,6 +490,7 @@ func (m *Manager) SSHHostFor(id int) string {
 	return ""
 }
 
+// GetSSHClient returns the SSH client for a given terminal ID, or nil if not an SSH session.
 func (m *Manager) GetSSHClient(id int) *ssh.Client {
 	m.ptyMutex.Lock()
 	defer m.ptyMutex.Unlock()
@@ -754,6 +530,7 @@ func (m *Manager) ReconnectSSH(id int) error {
 	}
 
 	m.ptyMutex.Lock()
+	// Close old session if still present (ignore errors).
 	if old, exists := m.sessions[id]; exists {
 		_ = old.Close()
 	}
@@ -765,6 +542,7 @@ func (m *Manager) ReconnectSSH(id int) error {
 }
 
 // CloseAll closes every terminal session and stops all active recorders.
+// Called during app shutdown to ensure resources are released cleanly.
 func (m *Manager) CloseAll() {
 	m.ptyMutex.Lock()
 	ids := make([]int, 0, len(m.sessions))
@@ -776,7 +554,7 @@ func (m *Manager) CloseAll() {
 	for _, id := range ids {
 		m.ptyMutex.Lock()
 		if rec, ok := m.recorders[id]; ok {
-			_ = rec.Close()
+			rec.Close()
 			delete(m.recorders, id)
 		}
 		session, ok := m.sessions[id]
@@ -795,15 +573,5 @@ func (m *Manager) CloseSSHTerminal(id int) {
 	if session, ok := m.sessions[id]; ok {
 		_ = session.Close()
 	}
-	if rec, ok := m.recorders[id]; ok {
-		_ = rec.Close()
-		delete(m.recorders, id)
-	}
-	delete(m.readySignals, id)
-	delete(m.sessions, id)
-	delete(m.sshMeta, id)
-	delete(m.oscBuffers, id)
-	delete(m.sessionMeta, id)
-	delete(m.runtimeMeta, id)
-	delete(m.lastCwd, id)
+	m.removeTerminal(id)
 }
