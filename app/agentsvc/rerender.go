@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"errors"
@@ -71,7 +71,7 @@ func claudeSessionID(state agentTerminalState) string {
 // resolveClaudeSessionFile picks the session file for a pane the hook has
 // not bound: the sole candidate for its directory, or the candidate the
 // pane text verifies.
-func (a *App) resolveClaudeSessionFile(terminalID int, terminalType string, state agentTerminalState) (string, error) {
+func (a *Service) resolveClaudeSessionFile(terminalID int, terminalType string, state agentTerminalState) (string, error) {
 	paneText, _ := a.capturePane(terminalID, terminalType)
 	transcript, err := a.readAgentTranscriptFile(terminalID, state, agents.ReadOptions{Limit: 4, PaneText: paneText})
 	if err != nil {
@@ -87,16 +87,16 @@ func (a *App) resolveClaudeSessionFile(terminalID int, terminalType string, stat
 }
 
 // agentCommandLine returns the agent process's own command line.
-func (a *App) agentCommandLine(terminalID int, terminalType string, state agentTerminalState) (string, error) {
+func (a *Service) agentCommandLine(terminalID int, terminalType string, state agentTerminalState) (string, error) {
 	var (
 		procs []agents.Process
 		err   error
 	)
-	if state.source != "ssh" && !a.TerminalManager.GetTerminalRuntimeMeta(terminalID).TmuxActive {
+	if state.source != "ssh" && !a.terminals.GetTerminalRuntimeMeta(terminalID).TmuxActive {
 		procs, err = listLocalProcessesDetailed()
 	} else {
 		var out string
-		out, err = a.runPaneScript(terminalID, terminalType, agentProcessScript)
+		out, err = a.RunPaneScript(terminalID, terminalType, agentProcessScript)
 		if err == nil {
 			procs = agents.ParsePSDetailed(out)
 		}
@@ -112,7 +112,7 @@ func (a *App) agentCommandLine(terminalID int, terminalType string, state agentT
 	return "", errors.New("agent process not found")
 }
 
-func (a *App) agentProcessAlive(terminalID int, terminalType string, state agentTerminalState) bool {
+func (a *Service) agentProcessAlive(terminalID int, terminalType string, state agentTerminalState) bool {
 	_, err := a.agentCommandLine(terminalID, terminalType, state)
 	return err == nil
 }
@@ -120,7 +120,7 @@ func (a *App) agentProcessAlive(terminalID int, terminalType string, state agent
 // RerenderClaudeInPane restarts Claude Code in the pane with --resume so
 // its output is printed again at the current width. Returns the command
 // that was typed.
-func (a *App) RerenderClaudeInPane(terminalID int, terminalType string) (string, error) {
+func (a *Service) RerenderClaudeInPane(terminalID int, terminalType string) (string, error) {
 	state, ok := a.rememberedAgent(terminalID)
 	if !ok || state.kind != agents.KindClaude || state.pid <= 0 {
 		return "", errors.New("no Claude Code process known in this pane")
@@ -149,7 +149,7 @@ func (a *App) RerenderClaudeInPane(terminalID int, terminalType string) (string,
 	}
 	// Leave Claude through its own command; nothing else is typed until the
 	// process is gone, so a late keystroke cannot land in a prompt.
-	if err := a.TerminalManager.WriteToTerminal(terminalID, "/exit\r"); err != nil {
+	if err := a.terminals.WriteToTerminal(terminalID, "/exit\r"); err != nil {
 		return "", err
 	}
 	deadline := time.Now().Add(rerenderExitTimeout)
@@ -160,10 +160,10 @@ func (a *App) RerenderClaudeInPane(terminalID int, terminalType string) (string,
 		time.Sleep(rerenderPoll)
 	}
 	time.Sleep(rerenderShellSettle)
-	if err := a.TerminalManager.WriteToTerminal(terminalID, command+"\r"); err != nil {
+	if err := a.terminals.WriteToTerminal(terminalID, command+"\r"); err != nil {
 		return "", err
 	}
-	a.stopAgentWatcher(terminalID) // the new process gets its own watcher on the next detection
+	a.StopWatcher(terminalID) // the new process gets its own watcher on the next detection
 	log.Printf("agent rerender: terminal %d: %s", terminalID, command)
 	logAgentEvent("agent_rerender", fmt.Sprintf("terminal %d: %s", terminalID, command))
 	return command, nil

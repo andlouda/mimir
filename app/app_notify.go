@@ -58,7 +58,7 @@ func (a *App) NotifyDesktop(terminalID int, title, body string) error {
 	}
 	executil.HideConsoleWindow(cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("notification failed: %s", firstOutputLine(strings.TrimSpace(string(out))))
+		return fmt.Errorf("notification failed: %s", executil.FirstLine(strings.TrimSpace(string(out))))
 	}
 	return nil
 }

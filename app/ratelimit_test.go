@@ -1,6 +1,7 @@
 package main
 
 import (
+	"mimir/executil"
 	"testing"
 	"time"
 )
@@ -53,14 +54,14 @@ func TestRateLimiterSeparateKeys(t *testing.T) {
 func TestIsValidTmuxSessionName(t *testing.T) {
 	valid := []string{"mimir-ssh-abc-1", "test_session", "ABC123"}
 	for _, name := range valid {
-		if !isValidTmuxSessionName(name) {
+		if !executil.ValidTmuxSessionName(name) {
 			t.Errorf("%q should be valid", name)
 		}
 	}
 
 	invalid := []string{"", "foo bar", "a;b", "../evil", "x\x00y", "a/b"}
 	for _, name := range invalid {
-		if isValidTmuxSessionName(name) {
+		if executil.ValidTmuxSessionName(name) {
 			t.Errorf("%q should be invalid", name)
 		}
 	}

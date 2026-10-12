@@ -1,4 +1,4 @@
-package main
+package agentsvc
 
 import (
 	"encoding/json"
@@ -30,7 +30,7 @@ type agentPaneScreen struct {
 func agentScreenScript(tmuxBin, session string) string {
 	target := executil.ShellQuote(session + ":")
 	return tmuxBin + ` display-message -p -t ` + target + ` '#{pane_width} #{pane_height} #{alternate_on}' 2>/dev/null; ` +
-		`echo ` + agentProbeSeparator + `; ` +
+		`echo ` + ProbeSeparator + `; ` +
 		`if [ "$(` + tmuxBin + ` display-message -p -t ` + target + ` '#{alternate_on}' 2>/dev/null)" = 1 ]; then ` +
 		tmuxBin + ` capture-pane -p -e -t ` + target + ` 2>/dev/null; else ` +
 		tmuxBin + ` capture-pane -p -e -S -` + strconv.Itoa(screenHistoryLines) + ` -t ` + target + ` 2>/dev/null; fi`
@@ -39,7 +39,7 @@ func agentScreenScript(tmuxBin, session string) string {
 // parseAgentScreen keeps the text as tmux printed it (escapes included);
 // only trailing blank rows are dropped.
 func parseAgentScreen(output string) agentPaneScreen {
-	head, tail, found := strings.Cut(output, agentProbeSeparator)
+	head, tail, found := strings.Cut(output, ProbeSeparator)
 	if !found {
 		return agentPaneScreen{}
 	}
@@ -68,8 +68,8 @@ func parseAgentScreen(output string) agentPaneScreen {
 // GetAgentPaneScreenJSON returns the pane's rows with colours for the
 // Screen tab's terminal mirror (history included unless the pane runs a
 // full-screen program).
-func (a *App) GetAgentPaneScreenJSON(terminalID int, terminalType string) (string, error) {
-	output, err := a.runPaneScript(terminalID, terminalType, agentScreenScript)
+func (a *Service) GetAgentPaneScreenJSON(terminalID int, terminalType string) (string, error) {
+	output, err := a.RunPaneScript(terminalID, terminalType, agentScreenScript)
 	if err != nil {
 		return "", err
 	}
