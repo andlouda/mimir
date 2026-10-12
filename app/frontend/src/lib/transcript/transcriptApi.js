@@ -2,6 +2,8 @@
 // not have to null-check a missing backend (dev mode, smoke tests).
 // Anything else in the codebase that talks transcripts should go through here.
 
+import { backend } from '../backend.js';
+
 /**
  * @returns {Promise<Array<{
  *   resumeId: string,
