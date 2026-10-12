@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { startPaneResourceSampling, stopPaneResourceSampling } from './lib/actions/paneResources.js';
   import { t as tr } from './lib/i18n.js';
-  import { GetAvailableTerminalTypes, GetFunctionCatalogJSON, GetLoadedSessionData, GetPendingUpdate, GetTmuxIntegrationMode, ImportNoteFromLocal, ImportNoteFromRemote, IsHistoryTrackingEnabled, optional, SetHistoryTracking, StartSSHTerminal, StartTerminal, WriteToTerminal } from './lib/backend.js';
+  import { GetFunctionCatalogJSON, GetLoadedSessionData, GetPendingUpdate, GetTmuxIntegrationMode, ImportNoteFromLocal, ImportNoteFromRemote, IsHistoryTrackingEnabled, optional, SetHistoryTracking, StartSSHTerminal, StartTerminal, WriteToTerminal } from './lib/backend.js';
   import { EventsOn } from '../wailsjs/runtime';
   import SecretUnlockGate from './lib/SecretUnlockGate.svelte';
   import Sidebar from './lib/Sidebar.svelte';
@@ -17,8 +17,8 @@
   import './styles/recording-player.css';
   import './styles/template-manager.css';
   import './styles/workflow-builder.css';
-  import { terminals, activeTerminalId, layoutTree, terminalMap, visibleTerminalCount } from './lib/stores/terminalStore.js';
-  import { loadPromptMode, currentPage, errorMessage, showAIMenu, notesPanelOpen, notesPanelWidth, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState, tmuxIntegrationMode, notesOpenRequest } from './lib/stores/uiStore.js';
+  import { terminals, activeTerminalId, layoutTree } from './lib/stores/terminalStore.js';
+  import { loadPromptMode, currentPage, errorMessage, showAIMenu, notesPanelOpen, historyTrackingEnabled, historyConsentDismissed, transcriptViewerState, dotEnvViewerState, tmuxIntegrationMode, notesOpenRequest } from './lib/stores/uiStore.js';
   import { templates, templateToEdit, templatePromptState, showTemplatePicker, showWorkflowPicker, workflowPickerPlaybooks, workflowPickerLoading } from './lib/stores/templateStore.js';
   import { updateDownloading, updateProgress, updateInstalled } from './lib/stores/updateStore.js';
   import { recordingList, aggAvailable, downloadingAgg, aggDownloadInfo, terminalSessionFoldersOpen, customFolders } from './lib/stores/sessionStore.js';
@@ -33,14 +33,15 @@
   import { generateTmuxSessionName } from './lib/terminals/tmuxLifecycle';
   import { assignTerminalToFolder as assignTerminalToFolderAction, loadCustomFolders, toggleTerminalFolder } from './lib/actions/folderActions.js';
   import { openPage } from './lib/actions/navigationActions.js';
+  import { loadAvailableTerminalTypes } from './lib/actions/terminalTypeActions.js';
+  import { selectedTerminalType } from './lib/stores/terminalStore.js';
   import { runAggDownload } from './lib/actions/aggActions.js';
-  import { applyAISettingsDefaults, clearAIApiKey, closeAISettings, getAIToolPromptPreview, getEditablePromptIntroPreview, isUsingDefaultPromptIntroPreview, loadAISettingsConfig, openAISettings, saveAISettings, setDevOpsPrePromptExample, toggleAIMenu } from './lib/actions/aiSettingsActions.js';
-  import { createDragDropHandlers } from './lib/actions/dragDrop.js';
+  import { applyAISettingsDefaults, clearAIApiKey, closeAISettings, getAIToolPromptPreview, getEditablePromptIntroPreview, isUsingDefaultPromptIntroPreview, loadAISettingsConfig, openAISettings, saveAISettings, setDevOpsPrePromptExample } from './lib/actions/aiSettingsActions.js';
   import { createKeydownHandler } from './lib/actions/keyboardShortcuts.js';
-  import { closeTerminalSearch, dismissRestoreSummary, terminalSearchNext, terminalSearchPrev, toggleTerminalSearch, updateTerminalSearchQuery } from './lib/actions/terminalSearchActions.js';
+  import { closeTerminalSearch, toggleTerminalSearch } from './lib/actions/terminalSearchActions.js';
   import { applyTemplate, closeTemplatePrompt, handleTemplatePromptFieldChange, loadTemplatesFromBackend, runWorkflowFromPicker, submitTemplatePrompt, toggleWorkflowPicker } from './lib/actions/templateActions.js';
   import { createSSHActions, loadSSHProfiles, openSSHProfilePicker } from './lib/actions/sshActions.js';
-  import { addTerminal, splitTerminal, removeTerminal, toggleRecording, reconnectSSH, toggleMinimize, startEditingName, saveTerminalName, handleResize, reinitializeTerminals, createTerminalInstance, cleanupTerminalResources } from './lib/actions/terminalActions.js';
+  import { addTerminal, toggleMinimize, handleResize, reinitializeTerminals, createTerminalInstance, cleanupTerminalResources } from './lib/actions/terminalActions.js';
   import { persistTerminalState, scheduleSessionSave, loadTranscriptExcerpt, clearSessionSaveTimer, layoutKeyFor, enableLayoutPersistence } from './lib/actions/sessionActions.js';
   import { applyTerminalBackground } from './lib/actions/backgroundActions.js';
   import {} from './lib/actions/agentActions.js';
@@ -48,69 +49,13 @@
 
   const isWindowsPlatform = typeof navigator !== 'undefined' && navigator.userAgent.includes('Windows');
   const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
-  const defaultTerminalTypeStorageKey = 'mimir-default-terminal-type';
-
-  function readDefaultTerminalType() {
-    try {
-      const saved = localStorage.getItem(defaultTerminalTypeStorageKey);
-      if (saved) return saved;
-    } catch (error) {
-      console.error('Failed to read default terminal type:', error);
-    }
-    return preferredTerminalType()?.value || (isWindowsPlatform ? 'wsl' : 'bash');
-  }
-
-  function preferredTerminalType(options = availableTerminalTypes) {
-    const order = isWindowsPlatform ? ['wsl', 'bash', 'powershell', 'cmd'] : ['bash', 'zsh'];
-    return order.map((value) => options.find((option) => option.value === value)).find(Boolean) || options[0];
-  }
-
-  function persistDefaultTerminalType() {
-    try {
-      localStorage.setItem(defaultTerminalTypeStorageKey, selectedTerminalType);
-    } catch (error) {
-      console.error('Failed to save default terminal type:', error);
-    }
-  }
 
   function isAuditPage(page = $currentPage) {
     return ['historyDashboard', 'activityLogs', 'recordings'].includes(page);
   }
 
-  let availableTerminalTypes = isWindowsPlatform
-    ? [
-        { value: 'cmd', label: 'CMD' },
-        { value: 'powershell', label: 'PowerShell' },
-        { value: 'wsl', label: 'WSL' },
-        { value: 'bash', label: 'Bash' },
-        { value: 'zsh', label: 'Zsh' },
-        { value: 'ssh', label: 'SSH' }
-      ]
-    : [
-        { value: 'bash', label: 'Bash' },
-        { value: 'zsh', label: 'Zsh' },
-        { value: 'ssh', label: 'SSH' }
-      ];
-
-  let selectedTerminalType = readDefaultTerminalType();
   let workflowBuilderQueuedEntry = null;
   let workflowBuilderQueuedEntries = [];
-
-  async function loadAvailableTerminalTypes() {
-    try {
-      const detected = await GetAvailableTerminalTypes();
-      if (Array.isArray(detected) && detected.length > 0) {
-        availableTerminalTypes = detected;
-        if (!availableTerminalTypes.some((option) => option.value === selectedTerminalType)) {
-          const preferred = preferredTerminalType(availableTerminalTypes);
-          selectedTerminalType = preferred.value;
-          persistDefaultTerminalType();
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load terminal types:', error);
-    }
-  }
 
   $: sidebarGroups = groupedSidebarTerminals($terminals, $customFolders);
 
@@ -133,23 +78,7 @@
     openPage('terminals');
   }
 
-  function doAddTerminal(terminalTypeParam, nameParam, minimized = false, initialPath = '', runCommand = '') {
-    return addTerminal(terminalTypeParam, nameParam, minimized, initialPath, {
-      selectedTerminalType,
-      openSSHProfilePicker,
-      runCommand,
-    });
-  }
 
-
-
-  function openTranscriptViewer(id) {
-    const term = $terminals.find((t) => t.id === id);
-    $transcriptViewerState = {
-      resumeId: term?.resumeId || '',
-      label: term?.name || '',
-    };
-  }
 
   function openTranscriptBrowser() {
     $transcriptViewerState = { resumeId: '', label: '' };
@@ -159,39 +88,8 @@
     $transcriptViewerState = null;
   }
 
-  function openDotEnvViewer(detail) {
-    const term = $terminals.find((t) => t.id === detail.id);
-    $dotEnvViewerState = {
-      terminalId: detail.id,
-      terminalType: detail.type || term?.type || '',
-      label: term?.name || '',
-    };
-  }
-
   function closeDotEnvViewer() {
     $dotEnvViewerState = null;
-  }
-
-  function openAIPanel(mode) {
-    if ($activeTerminalId === null) {
-      $errorMessage = 'Please select a terminal first.';
-      return;
-    }
-    const activeTerminal = $terminals.find(t => t.id === $activeTerminalId);
-    if (!activeTerminal) {
-      $errorMessage = 'Active terminal not found.';
-      return;
-    }
-    $aiPanelState = {
-      mode,
-      terminalId: activeTerminal.id,
-      terminalType: activeTerminal.type,
-      terminalName: activeTerminal.name,
-      goal: '',
-      result: '',
-      loading: false,
-    };
-    $showAIMenu = false;
   }
 
   function closeAIPanel() {
@@ -212,7 +110,7 @@
 
   function getDiscoveryTerminalType() {
     const activeTerminal = $terminals.find((terminal) => terminal.id === $activeTerminalId);
-    return activeTerminal?.type || selectedTerminalType || (isWindowsPlatform ? 'powershell' : 'bash');
+    return activeTerminal?.type || $selectedTerminalType || (isWindowsPlatform ? 'powershell' : 'bash');
   }
 
   function queueWorkflowFromCatalog(entries) {
@@ -260,33 +158,6 @@
     }
   }
 
-  function startNotesDrag(e) {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = $notesPanelWidth;
-    const onMove = (ev) => {
-      $notesPanelWidth = Math.max(250, Math.min(800, window.innerWidth - 560, startWidth + (startX - ev.clientX)));
-    };
-    const onUp = () => {
-      // Listeners first: a storage failure must not leave the panel
-      // following the pointer.
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      try { localStorage.setItem('mimir-notes-width', String($notesPanelWidth)); } catch { /* storage unavailable */ }
-      handleResize();
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }
-
-  const {
-    handleDragStart,
-    handleDragOver,
-    handleDragLeave,
-    handleDrop,
-    handleDragEnd,
-  } = createDragDropHandlers({ reinitializeTerminals });
-
   const {
     connectSSHProfile,
     acceptHostKey,
@@ -302,7 +173,7 @@
     toggleTerminalSearch,
     toggleWorkflowPicker,
     closeTerminalSearch,
-    addTerminal: () => doAddTerminal(),
+    addTerminal: () => addTerminal(),
     toggleMinimize,
   });
 
@@ -514,12 +385,12 @@
       if (restored.length) await reinitializeTerminals();
       enableLayoutPersistence();
       if (notRestored.length) $errorMessage = `${$tr('appTerminals.restoreFailed')}\n${notRestored.join('\n')}\n${$tr('appTerminals.restoreRetryHint')}`;
-      if ($terminals.length === 0) doAddTerminal();
+      if ($terminals.length === 0) addTerminal();
       else scheduleSessionSave(50);
       enableLayoutPersistence();
     } catch (error) {
       $errorMessage = `${$tr('appTerminals.restoreCrashed')} ${error.message || error}`;
-      if ($terminals.length === 0) doAddTerminal();
+      if ($terminals.length === 0) addTerminal();
     }
   });
 
@@ -582,18 +453,6 @@
   <AppMainContent
     selectTerminal={selectSidebarTerminal}
     bind:currentPage={$currentPage}
-    {availableTerminalTypes}
-    bind:selectedTerminalType
-    bind:aiSettings={$aiSettings}
-    visibleTerminalCount={$visibleTerminalCount}
-    errorMessage={$errorMessage}
-    bind:layoutTree={$layoutTree}
-    terminalMap={$terminalMap}
-    bind:activeTerminalId={$activeTerminalId}
-    bind:notesPanelOpen={$notesPanelOpen}
-    notesPanelWidth={$notesPanelWidth}
-    bind:terminals={$terminals}
-    showAIMenu={$showAIMenu}
     bind:templateToEdit={$templateToEdit}
     bind:templates={$templates}
     bind:fileBrowserRemoteTerminalId={$fileBrowserRemoteTerminalId}
@@ -603,31 +462,6 @@
     bind:aiToolFlowConfig={$aiToolFlowConfig}
     bind:recordingList={$recordingList}
     aggAvailable={$aggAvailable}
-    {persistDefaultTerminalType}
-    addTerminal={doAddTerminal}
-    {toggleAIMenu}
-    {openAIPanel}
-    {splitTerminal}
-    {toggleMinimize}
-    {removeTerminal}
-    {reconnectSSH}
-    {startEditingName}
-    {saveTerminalName}
-    {handleResize}
-    {handleDragStart}
-    {handleDragOver}
-    {handleDragLeave}
-    {handleDrop}
-    {handleDragEnd}
-    {updateTerminalSearchQuery}
-    {terminalSearchNext}
-    {terminalSearchPrev}
-    {closeTerminalSearch}
-    {dismissRestoreSummary}
-    {toggleRecording}
-    {openTranscriptViewer}
-    {openDotEnvViewer}
-    {startNotesDrag}
     {openPage}
     {insertFileIntoActiveTerminal}
     {handleOpenInNotes}

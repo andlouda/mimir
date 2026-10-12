@@ -1,9 +1,14 @@
 import { derived, writable } from 'svelte/store';
 import { collectLeafIds } from '../terminals/layoutTree.js';
+import { defaultTerminalTypeOptions, readDefaultTerminalType } from '../terminals/terminalTypes.js';
 
 export const terminals = writable([]);
 export const activeTerminalId = writable(null);
 export const layoutTree = writable(null);
+
+// The "+ New" picker: offered shells and the remembered default type.
+export const availableTerminalTypes = writable(defaultTerminalTypeOptions());
+export const selectedTerminalType = writable(readDefaultTerminalType(defaultTerminalTypeOptions()));
 
 // ID of the terminal currently being dragged, or null. Shared so every pane can
 // show drop zones while a drag is in progress (each pane is a separate SplitPane

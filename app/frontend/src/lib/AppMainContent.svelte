@@ -15,20 +15,11 @@
   import { containsControlChars, shellQuotePath } from './util';
   import { errorMessage as errorMessageStore } from './stores/uiStore.js';
   import { t as tr } from './i18n.js';
+  import { aiSettings } from './stores/aiStore.js';
+  import { activeTerminalId, selectedTerminalType, terminals } from './stores/terminalStore.js';
+  import { addTerminal } from './actions/terminalActions.js';
 
   export let currentPage = 'terminals';
-  export let availableTerminalTypes = [];
-  export let selectedTerminalType = '';
-  export let aiSettings = {};
-  export let visibleTerminalCount = 0;
-  export let errorMessage = '';
-  export let layoutTree = null;
-  export let terminalMap = new Map();
-  export let activeTerminalId = null;
-  export let notesPanelOpen = false;
-  export let notesPanelWidth = 380;
-  export let terminals = [];
-  export let showAIMenu = false;
   export let templateToEdit = null;
   export let templates = [];
   export let fileBrowserRemoteTerminalId = 0;
@@ -51,31 +42,6 @@
     WriteToTerminal(terminalId, `cd ${shellQuotePath(path)}\r`);
   }
 
-  export let persistDefaultTerminalType = () => {};
-  export let addTerminal = () => {};
-  export let toggleAIMenu = () => {};
-  export let openAIPanel = () => {};
-  export let splitTerminal = () => {};
-  export let toggleMinimize = () => {};
-  export let removeTerminal = () => {};
-  export let reconnectSSH = () => {};
-  export let startEditingName = () => {};
-  export let saveTerminalName = () => {};
-  export let handleResize = () => {};
-  export let handleDragStart = () => {};
-  export let handleDragOver = () => {};
-  export let handleDragLeave = () => {};
-  export let handleDrop = () => {};
-  export let handleDragEnd = () => {};
-  export let updateTerminalSearchQuery = () => {};
-  export let terminalSearchNext = () => {};
-  export let terminalSearchPrev = () => {};
-  export let closeTerminalSearch = () => {};
-  export let dismissRestoreSummary = () => {};
-  export let toggleRecording = () => {};
-  export let openTranscriptViewer = () => {};
-  export let openDotEnvViewer = () => {};
-  export let startNotesDrag = () => {};
   export let openPage = () => {};
   export let selectTerminal = () => {};
   export let insertFileIntoActiveTerminal = () => {};
@@ -89,49 +55,7 @@
 
 <div class="main-content">
   {#if currentPage === "terminals"}
-    <TerminalsPage
-      {availableTerminalTypes}
-      bind:selectedTerminalType
-      {aiSettings}
-      {visibleTerminalCount}
-      {errorMessage}
-      {layoutTree}
-      {terminalMap}
-      {activeTerminalId}
-      {notesPanelOpen}
-      {notesPanelWidth}
-      {terminals}
-      {showAIMenu}
-      {persistDefaultTerminalType}
-      {addTerminal}
-      {toggleAIMenu}
-      {openAIPanel}
-      dismissError={() => onError('')}
-      setActiveTerminalId={(id) => { activeTerminalId = id; }}
-      {splitTerminal}
-      {toggleMinimize}
-      {removeTerminal}
-      {reconnectSSH}
-      {startEditingName}
-      {saveTerminalName}
-      {handleResize}
-      touchLayoutTree={() => { layoutTree = layoutTree; }}
-      {handleDragStart}
-      {handleDragOver}
-      {handleDragLeave}
-      {handleDrop}
-      {handleDragEnd}
-      {updateTerminalSearchQuery}
-      {terminalSearchNext}
-      {terminalSearchPrev}
-      {closeTerminalSearch}
-      {dismissRestoreSummary}
-      {toggleRecording}
-      {openTranscriptViewer}
-      {openDotEnvViewer}
-      {startNotesDrag}
-      closeNotesPanel={() => { notesPanelOpen = false; setTimeout(handleResize, 50); }}
-    />
+    <TerminalsPage />
   {:else if currentPage === "agentWorkspace"}
     <AgentWorkspaceView {selectTerminal} />
   {:else if currentPage === "templateManager"}
@@ -158,7 +82,7 @@
     <FileBrowser
       remoteTerminalId={fileBrowserRemoteTerminalId}
       remoteLabel={fileBrowserRemoteLabel}
-      on:openTerminalHere={(e) => addTerminal(selectedTerminalType, `Terminal in ${e.detail}`, false, e.detail)}
+      on:openTerminalHere={(e) => addTerminal($selectedTerminalType, `Terminal in ${e.detail}`, false, e.detail)}
       on:insertIntoTerminal={insertFileIntoActiveTerminal}
       on:openInNotes={handleOpenInNotes}
       on:switchToLocal={() => { fileBrowserRemoteTerminalId = 0; fileBrowserRemoteLabel = ''; }}
@@ -168,15 +92,15 @@
     <WorkflowBuilder
       queuedCatalogEntry={workflowBuilderQueuedEntry}
       queuedCatalogEntries={workflowBuilderQueuedEntries}
-      activeTerminalId={activeTerminalId}
-      activeTerminalType={terminals.find((terminal) => terminal.id === activeTerminalId)?.type || selectedTerminalType}
-      activeTerminalName={terminals.find((terminal) => terminal.id === activeTerminalId)?.name || ''}
-      activeTerminalOutput={getTerminalOutput(activeTerminalId)}
+      $activeTerminalId={$activeTerminalId}
+      activeTerminalType={$terminals.find((terminal) => terminal.id === $activeTerminalId)?.type || $selectedTerminalType}
+      activeTerminalName={$terminals.find((terminal) => terminal.id === $activeTerminalId)?.name || ''}
+      activeTerminalOutput={getTerminalOutput($activeTerminalId)}
       on:backToTerminals={() => { openPage("terminals"); }}
     />
   {:else if currentPage === "aiHub"}
     <AIHubView
-      settings={aiSettings}
+      settings={$aiSettings}
       flow={aiToolFlowConfig}
       promptIntroPreview={getEditablePromptIntroPreview()}
       usingDefaultIntro={isUsingDefaultPromptIntroPreview()}
@@ -186,7 +110,7 @@
     />
   {:else if currentPage === "historyDashboard"}
     <HistoryDashboard
-      activeTerminalId={activeTerminalId}
+      $activeTerminalId={$activeTerminalId}
       on:backToTerminals={() => { openPage("terminals"); }}
       on:runcommand={(e) => { WriteToTerminal(e.detail.terminalId, e.detail.command + '\r'); openPage("terminals"); }}
     />
@@ -238,10 +162,10 @@
 
 <!-- The error/result banner belongs to the app, not to the Terminals page: export results and
      failures used to be invisible on the Recordings and Settings pages. -->
-{#if errorMessage}
+{#if $errorMessageStore}
   <div class="error-message">
     <span class="error-icon">!</span>
-    <span class="error-text">{errorMessage}</span>
+    <span class="error-text">{$errorMessageStore}</span>
     <button class="error-dismiss" on:click={() => onError('')}>×</button>
   </div>
 {/if}
