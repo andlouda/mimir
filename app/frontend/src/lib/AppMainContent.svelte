@@ -91,7 +91,7 @@
     <WorkflowBuilder
       queuedCatalogEntry={$workflowBuilderQueuedEntry}
       queuedCatalogEntries={$workflowBuilderQueuedEntries}
-      $activeTerminalId={$activeTerminalId}
+      activeTerminalId={$activeTerminalId}
       activeTerminalType={$terminals.find((terminal) => terminal.id === $activeTerminalId)?.type || $selectedTerminalType}
       activeTerminalName={$terminals.find((terminal) => terminal.id === $activeTerminalId)?.name || ''}
       activeTerminalOutput={getTerminalOutput($activeTerminalId)}
@@ -109,7 +109,7 @@
     />
   {:else if currentPage === "historyDashboard"}
     <HistoryDashboard
-      $activeTerminalId={$activeTerminalId}
+      activeTerminalId={$activeTerminalId}
       on:backToTerminals={() => { openPage("terminals"); }}
       on:runcommand={(e) => { WriteToTerminal(e.detail.terminalId, e.detail.command + '\r'); openPage("terminals"); }}
     />
