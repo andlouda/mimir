@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 import { tick } from 'svelte';
-import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
+import { terminals, activeTerminalId, layoutTree, selectedTerminalType } from '../stores/terminalStore.js';
+import { openSSHProfilePicker } from './sshActions.js';
 import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill, inactivePaneThrottle, inactivePaneInterval } from '../stores/uiStore.js';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
@@ -507,11 +508,11 @@ export function handleResize() {
   });
 }
 
-export async function addTerminal(terminalTypeParam, nameParam, minimized = false, initialPath = '', { selectedTerminalType, openSSHProfilePicker, runCommand = '' } = {}) {
-  const type = typeof terminalTypeParam === 'string' ? terminalTypeParam : selectedTerminalType;
+export async function addTerminal(terminalTypeParam, nameParam, minimized = false, initialPath = '', { selectedTerminalType: defaultType = get(selectedTerminalType), openSSHProfilePicker: openPicker = openSSHProfilePicker, runCommand = '' } = {}) {
+  const type = typeof terminalTypeParam === 'string' ? terminalTypeParam : defaultType;
 
   if (type === 'ssh') {
-    openSSHProfilePicker();
+    openPicker();
     return;
   }
 

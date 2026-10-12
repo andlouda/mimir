@@ -3,66 +3,39 @@
   import SplitPane from '../SplitPane.svelte';
   import MarkdownNotes from '../MarkdownNotes.svelte';
   import AgentTranscriptPanel from '../AgentTranscriptPanel.svelte';
-  // Agent panel state lives in a store (not threaded through props) because
-  // it is opened from deep inside the recursive SplitPane tree.
+  // Everything this page shows lives in stores and everything it does is an
+  // action, so nothing is threaded through App.svelte and AppMainContent.
   import { agentPanelTerminalId } from '../stores/agentStore.js';
+  import { aiSettings } from '../stores/aiStore.js';
+  import { activeTerminalId, availableTerminalTypes, layoutTree, selectedTerminalType, terminalMap, terminals, visibleTerminalCount } from '../stores/terminalStore.js';
+  import { errorMessage, notesPanelOpen, notesPanelWidth, showAIMenu } from '../stores/uiStore.js';
   import { toggleAgentPanel } from '../actions/agentActions.js';
+  import { openAIPanel, toggleAIMenu } from '../actions/aiSettingsActions.js';
+  import { createDragDropHandlers } from '../actions/dragDrop.js';
+  import { closeNotesPanel, startNotesDrag } from '../actions/notesPanelActions.js';
+  import { addTerminal, handleResize, reconnectSSH, reinitializeTerminals, removeTerminal, saveTerminalName, splitTerminal, startEditingName, toggleMinimize, toggleRecording } from '../actions/terminalActions.js';
+  import { closeTerminalSearch, dismissRestoreSummary, terminalSearchNext, terminalSearchPrev, updateTerminalSearchQuery } from '../actions/terminalSearchActions.js';
+  import { persistDefaultTerminalType } from '../actions/terminalTypeActions.js';
+  import { openDotEnvViewer, openTranscriptViewer } from '../actions/viewerActions.js';
 
-  export let availableTerminalTypes = [];
-  export let selectedTerminalType = '';
-  export let aiSettings = {};
-  export let visibleTerminalCount = 0;
-  export let errorMessage = '';
-  export let layoutTree = null;
-  export let terminalMap = new Map();
-  export let activeTerminalId = null;
-  export let notesPanelOpen = false;
-  export let notesPanelWidth = 380;
-  export let terminals = [];
-  export let showAIMenu = false;
-
-  export let persistDefaultTerminalType = () => {};
-  export let addTerminal = () => {};
-  export let toggleAIMenu = () => {};
-  export let openAIPanel = () => {};
-  export let dismissError = () => {};
-  export let setActiveTerminalId = () => {};
-  export let splitTerminal = () => {};
-  export let toggleMinimize = () => {};
-  export let removeTerminal = () => {};
-  export let reconnectSSH = () => {};
-  export let startEditingName = () => {};
-  export let saveTerminalName = () => {};
-  export let handleResize = () => {};
-  export let touchLayoutTree = () => {};
-  export let handleDragStart = () => {};
-  export let handleDragOver = () => {};
-  export let handleDragLeave = () => {};
-  export let handleDrop = () => {};
-  export let handleDragEnd = () => {};
-  export let updateTerminalSearchQuery = () => {};
-  export let terminalSearchNext = () => {};
-  export let terminalSearchPrev = () => {};
-  export let closeTerminalSearch = () => {};
-  export let dismissRestoreSummary = () => {};
-  export let toggleRecording = () => {};
-  export let openTranscriptViewer = () => {};
-  export let openDotEnvViewer = () => {};
-  export let startNotesDrag = () => {};
-  export let closeNotesPanel = () => {};
+  const { handleDragStart, handleDragOver, handleDragLeave, handleDrop, handleDragEnd } = createDragDropHandlers({ reinitializeTerminals });
+  const dismissError = () => errorMessage.set('');
+  const setActiveTerminalId = (id) => activeTerminalId.set(id);
+  // A split ratio change mutates the tree in place; nudge the subscribers.
+  const touchLayoutTree = () => layoutTree.update((tree) => tree);
 </script>
 
 <div class="terminal-controls">
   <div class="controls-left">
-    <select bind:value={selectedTerminalType} on:change={persistDefaultTerminalType} title={$tr('appTerminals.defaultTerminalType')}>
-      {#each availableTerminalTypes as terminalTypeOption (terminalTypeOption.value)}
+    <select bind:value={$selectedTerminalType} on:change={persistDefaultTerminalType} title={$tr('appTerminals.defaultTerminalType')}>
+      {#each $availableTerminalTypes as terminalTypeOption (terminalTypeOption.value)}
         <option value={terminalTypeOption.value}>{terminalTypeOption.label}</option>
       {/each}
     </select>
     <button on:click={addTerminal} class="add-btn">{$tr('appTerminals.newTerminal')}</button>
     <div class="ai-menu-wrap">
       <button type="button" on:click={toggleAIMenu} class="ai-btn">AI</button>
-      {#if showAIMenu}
+      {#if $showAIMenu}
         <div class="ai-menu">
           <button type="button" on:click={() => openAIPanel('explain_output')} class="ai-menu-item" title={$tr('appTerminals.aiExplainTitle')}>
             <span>{$tr('appTerminals.aiExplain')}</span>
@@ -85,19 +58,19 @@
     </div>
   </div>
   <div class="controls-right">
-    <span class="terminal-count">AI: {aiSettings.provider === 'ollama' ? 'Ollama' : 'OpenAI'}</span>
-    <span class="terminal-count">{$tr('appTerminals.active', { n: visibleTerminalCount })}</span>
+    <span class="terminal-count">AI: {$aiSettings.provider === 'ollama' ? 'Ollama' : 'OpenAI'}</span>
+    <span class="terminal-count">{$tr('appTerminals.active', { n: $visibleTerminalCount })}</span>
   </div>
 </div>
 
 
 <div class="terminal-and-notes">
   <div class="terminal-area">
-    {#if layoutTree}
+    {#if $layoutTree}
       <SplitPane
-        node={layoutTree}
-        {terminalMap}
-        {activeTerminalId}
+        node={$layoutTree}
+        terminalMap={$terminalMap}
+        activeTerminalId={$activeTerminalId}
         on:activate={(e) => setActiveTerminalId(e.detail)}
         on:split={(e) => splitTerminal(e.detail.id, e.detail.direction)}
         on:minimize={(e) => toggleMinimize(e.detail)}
@@ -133,16 +106,16 @@
       <AgentTranscriptPanel terminalId={$agentPanelTerminalId} />
     </div>
   {/if}
-  {#if notesPanelOpen}
+  {#if $notesPanelOpen}
     <button
       type="button"
       class="notes-divider"
       aria-label="Resize notes panel"
       on:mousedown={startNotesDrag}
     ></button>
-    <div class="notes-panel" style="width:min({notesPanelWidth}px, calc(100vw - 560px))">
+    <div class="notes-panel" style="width:min({$notesPanelWidth}px, calc(100vw - 560px))">
       <MarkdownNotes
-        sshTerminals={terminals.filter(t => t.type === 'ssh' && !t.minimized)}
+        sshTerminals={$terminals.filter(t => t.type === 'ssh' && !t.minimized)}
         on:close={closeNotesPanel}
       />
     </div>

@@ -10,6 +10,8 @@ import {
   showAISettings,
 } from '../stores/aiStore.js';
 import { errorMessage, showAIMenu } from '../stores/uiStore.js';
+import { aiPanelState } from '../stores/aiStore.js';
+import { activeTerminalId, terminals } from '../stores/terminalStore.js';
 import { backend as app } from '../backend.js';
 
 export function syncAIToolFlowListsFromConfig() {
@@ -164,4 +166,28 @@ export async function saveAISettings() {
   } catch (error) {
     errorMessage.set(`Failed to save AI settings: ${error.message || error}`);
   }
+}
+
+// Opens the AI action panel for the active terminal in the given mode.
+export function openAIPanel(mode) {
+  const id = get(activeTerminalId);
+  if (id === null) {
+    errorMessage.set('Please select a terminal first.');
+    return;
+  }
+  const activeTerminal = get(terminals).find((t) => t.id === id);
+  if (!activeTerminal) {
+    errorMessage.set('Active terminal not found.');
+    return;
+  }
+  aiPanelState.set({
+    mode,
+    terminalId: activeTerminal.id,
+    terminalType: activeTerminal.type,
+    terminalName: activeTerminal.name,
+    goal: '',
+    result: '',
+    loading: false,
+  });
+  showAIMenu.set(false);
 }
