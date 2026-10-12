@@ -5,6 +5,7 @@
   // emitted to the parent. Styles come from the global stylesheets (styles/).
   import { t } from '../i18n.js';
   import { runDiscovery } from '../templates/discoveryApi.js';
+  import { ExplainFunction } from '../backend.js';
 
   export let catalog = [];                 // function catalog entries (loaded by parent)
   export let discoveryTerminalType = '';   // computed by parent for discovery runs
@@ -88,7 +89,7 @@
     functionExplanationLoading = true;
     functionExplanation = '';
     try {
-      functionExplanation = await window['go']['main']['App']['ExplainFunction'](
+      functionExplanation = await ExplainFunction(
         selectedFunction.id,
         functionQuestion
       );

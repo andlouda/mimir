@@ -7,7 +7,7 @@
     SetupSecretMasterPassword,
     UnlockSecrets,
     ListFIDOChallenges,
-  } from '../../wailsjs/go/main/App';
+  } from './backend.js';
 
   // Called once the credential store is usable (keyring, unlocked, or N/A).
   let { onresolved = () => {} } = $props();

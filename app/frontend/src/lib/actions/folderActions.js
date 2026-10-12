@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { DeleteTerminalFolder, GetTerminalFolders, SaveTerminalFolder, UpdateTerminalFolder } from '../../../wailsjs/go/main/App';
+import { DeleteTerminalFolder, GetTerminalFolders, SaveTerminalFolder, UpdateTerminalFolder } from '../backend.js';
 import { customFolders, newFolderName, terminalSessionFoldersOpen } from '../stores/sessionStore.js';
 import { terminals } from '../stores/terminalStore.js';
 import { errorMessage } from '../stores/uiStore.js';

@@ -5,6 +5,7 @@
   import { notesOpenRequest } from './stores/uiStore.js';
   import { sanitizeHtml } from './util.js';
   import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
+  import { DeleteNote, GetNote, ImportNoteFromLocal, ImportNoteFromRemote, ListNotes, RenameNote, SaveNote } from './backend.js';
   let editorEl = null;
   let showSendMenu = false;
   // The selection in the editor, else the whole note.
@@ -27,13 +28,6 @@
   const dispatch = createEventDispatcher();
 
   // Wails bindings accessed via window to avoid import-time errors
-  const ListNotes = (...args) => window['go']['main']['App']['ListNotes'](...args);
-  const GetNote = (...args) => window['go']['main']['App']['GetNote'](...args);
-  const SaveNote = (...args) => window['go']['main']['App']['SaveNote'](...args);
-  const DeleteNote = (...args) => window['go']['main']['App']['DeleteNote'](...args);
-  const RenameNote = (...args) => window['go']['main']['App']['RenameNote'](...args);
-  const ImportNoteFromLocal = (...args) => window['go']['main']['App']['ImportNoteFromLocal'](...args);
-  const ImportNoteFromRemote = (...args) => window['go']['main']['App']['ImportNoteFromRemote'](...args);
 
   export let sshTerminals = [];
 

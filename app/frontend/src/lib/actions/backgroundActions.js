@@ -6,13 +6,14 @@ import { XTERM_THEME } from './terminalActions.js';
 import { terminalRenderer } from '../stores/uiStore.js';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { disableWebgl, enableWebgl } from '../terminals/xtermLifecycle.js';
+import { optional } from '../backend.js';
 
 // Transparent xterm background so the image layer behind it shows through;
 // everything else keeps the shared theme.
 const TRANSPARENT_THEME = { ...XTERM_THEME, background: 'rgba(12, 14, 20, 0)' };
 
 function callBackend(name, ...args) {
-  const fn = window['go']?.['main']?.['App']?.[name];
+  const fn = optional(name);
   if (typeof fn !== 'function') return Promise.resolve(undefined);
   return Promise.resolve(fn(...args));
 }

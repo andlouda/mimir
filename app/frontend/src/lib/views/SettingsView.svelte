@@ -11,6 +11,7 @@
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onDestroy, onMount } from 'svelte';
   import { perfStats, startDiagnostics, stopDiagnostics } from '../perf/diagnostics.js';
+  import { GetGPUPolicy, GetIMModule, GetWaylandFix, IMModuleEffective, IsWaylandSession, SetGPUPolicy, SetIMModule, SetPromptMode, SetTmuxIntegrationMode, SetWaylandFix } from '../backend.js';
 
   // One row per host the hook can live on: this machine and, on Windows,
   // the WSL distro (Claude Code there reads its own settings.json).
@@ -25,10 +26,10 @@
       isLinux = env?.platform === 'linux';
       isWindows = env?.platform === 'windows';
     } catch { isLinux = false; }
-    try { gpuPolicy = gpuSaved = await window['go']['main']['App']['GetGPUPolicy'](); } catch { gpuPolicy = gpuSaved = 'never'; }
-    try { waylandFix = waylandSaved = await window['go']['main']['App']['GetWaylandFix'](); } catch { waylandFix = waylandSaved = 'auto'; }
-    try { isWayland = !!(await window['go']['main']['App']['IsWaylandSession']()); } catch { isWayland = false; }
-    try { imModule = imSaved = await window['go']['main']['App']['GetIMModule'](); imEffective = !!(await window['go']['main']['App']['IMModuleEffective']()); } catch { imModule = imSaved = 'auto'; }
+    try { gpuPolicy = gpuSaved = await GetGPUPolicy(); } catch { gpuPolicy = gpuSaved = 'never'; }
+    try { waylandFix = waylandSaved = await GetWaylandFix(); } catch { waylandFix = waylandSaved = 'auto'; }
+    try { isWayland = !!(await IsWaylandSession()); } catch { isWayland = false; }
+    try { imModule = imSaved = await GetIMModule(); imEffective = !!(await IMModuleEffective()); } catch { imModule = imSaved = 'auto'; }
     try { telemetry = await loadTelemetrySettings(); } catch { telemetry = null; }
   });
   // Agent timeline (backend-backed: the Go side installs hooks and keeps
@@ -67,24 +68,24 @@
   let imSaved = '';
   let imEffective = false;
   async function changePromptMode(event) {
-    try { promptMode.set(await window['go']['main']['App']['SetPromptMode'](event.target.value)); } catch (error) { console.error('Could not save prompt mode:', error); }
+    try { promptMode.set(await SetPromptMode(event.target.value)); } catch (error) { console.error('Could not save prompt mode:', error); }
   }
   async function changeIMModule(event) {
     try {
-      imModule = await window['go']['main']['App']['SetIMModule'](event.target.value);
-      imEffective = !!(await window['go']['main']['App']['IMModuleEffective']());
+      imModule = await SetIMModule(event.target.value);
+      imEffective = !!(await IMModuleEffective());
     } catch (error) { console.error('Could not save input-method setting:', error); }
   }
   async function changeWaylandFix(event) {
     try {
-      waylandFix = await window['go']['main']['App']['SetWaylandFix'](event.target.value);
+      waylandFix = await SetWaylandFix(event.target.value);
     } catch (error) {
       console.error('Could not save Wayland setting:', error);
     }
   }
   async function changeGPUPolicy(event) {
     try {
-      gpuPolicy = await window['go']['main']['App']['SetGPUPolicy'](event.target.value);
+      gpuPolicy = await SetGPUPolicy(event.target.value);
     } catch (error) {
       console.error('Could not save GPU policy:', error);
     }
@@ -121,7 +122,7 @@
   async function changeTmuxMode(event) {
     const mode = event.target.value;
     try {
-      const saved = await window['go']['main']['App']['SetTmuxIntegrationMode'](mode);
+      const saved = await SetTmuxIntegrationMode(mode);
       tmuxIntegrationMode.set(saved || mode);
       // The backend switched running sessions live; pick up their new state.
       await refreshTmuxStatuses();

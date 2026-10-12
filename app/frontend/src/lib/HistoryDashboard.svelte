@@ -1,7 +1,7 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
   import { t } from './i18n.js';
-  import { SearchCommandHistory, GetHistoryStats, GetHistoryHostnames, DeleteHistoryEntry, PurgeHistoryBefore } from '../../wailsjs/go/main/App';
+  import { SearchCommandHistory, GetHistoryStats, GetHistoryHostnames, DeleteHistoryEntry, PurgeHistoryBefore } from './backend.js';
 
   const dispatch = createEventDispatcher();
 

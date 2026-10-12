@@ -18,5 +18,6 @@
     "copyright": "Copyright © 2026 mimir-contributors",
     "comments": "Open-source terminal and SSH session manager (https://github.com/andlouda/mimir)"
   },
-  "assetdir": "./templates"
+  "assetdir": "./templates",
+  "wailsjsdir": "./frontend"
 }

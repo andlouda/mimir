@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { startPaneResourceSampling, stopPaneResourceSampling } from './lib/actions/paneResources.js';
   import { t as tr } from './lib/i18n.js';
-  import { GetLoadedSessionData, GetSSHTerminalLabel, ListRecordings, IsAggInstalled, IsHistoryTrackingEnabled, SetHistoryTracking, WriteToTerminal } from '../wailsjs/go/main/App';
+  import { GetAggStatus, GetAvailableTerminalTypes, GetFunctionCatalogJSON, GetLoadedSessionData, GetPendingUpdate, GetSSHTerminalLabel, GetTmuxIntegrationMode, ImportNoteFromLocal, ImportNoteFromRemote, IsAggInstalled, IsHistoryTrackingEnabled, ListRecordings, optional, SetHistoryTracking, StartSSHTerminal, StartTerminal, WriteToTerminal } from './lib/backend.js';
   import { EventsOn } from '../wailsjs/runtime';
   import SecretUnlockGate from './lib/SecretUnlockGate.svelte';
   import Sidebar from './lib/Sidebar.svelte';
@@ -98,7 +98,7 @@
 
   async function loadAvailableTerminalTypes() {
     try {
-      const detected = await window['go']['main']['App']['GetAvailableTerminalTypes']();
+      const detected = await GetAvailableTerminalTypes();
       if (Array.isArray(detected) && detected.length > 0) {
         availableTerminalTypes = detected;
         if (!availableTerminalTypes.some((option) => option.value === selectedTerminalType)) {
@@ -204,7 +204,7 @@
 
   async function openFunctionCatalog() {
     try {
-      const payload = await window['go']['main']['App']['GetFunctionCatalogJSON']();
+      const payload = await GetFunctionCatalogJSON();
       $functionCatalog = JSON.parse(payload);
       $showFunctionCatalog = true;
       $showAIMenu = false;
@@ -249,9 +249,9 @@
     try {
       let imported = '';
       if (remote && terminalId) {
-        imported = await window['go']['main']['App']['ImportNoteFromRemote'](terminalId, path);
+        imported = await ImportNoteFromRemote(terminalId, path);
       } else {
-        imported = await window['go']['main']['App']['ImportNoteFromLocal'](path);
+        imported = await ImportNoteFromLocal(path);
       }
       if (imported) $notesOpenRequest = imported;
       $notesPanelOpen = true;
@@ -321,7 +321,7 @@
 
     if (page === "recordings" || page === "settings") {
       $aggAvailable = await IsAggInstalled().catch(() => false);
-      $aggStatus = await window['go']['main']['App']['GetAggStatus']().catch(() => 'missing');
+      $aggStatus = await GetAggStatus().catch(() => 'missing');
     }
 
     if (page === "recordings") {
@@ -377,10 +377,10 @@
     const tmuxSessionName = tmuxCapableTerminalTypes.has(saved.type)
       ? (saved.tmuxSessionName || generateTmuxSessionName('mimir'))
       : '';
-    const startWithOptions = window['go']?.['main']?.['App']?.['StartTerminalWithOptions'];
+    const startWithOptions = optional('StartTerminalWithOptions');
     const id = typeof startWithOptions === 'function'
       ? await startWithOptions(saved.type, tmuxSessionName)
-      : await window['go']['main']['App']['StartTerminal'](saved.type);
+      : await StartTerminal(saved.type);
     if (!id) return null;
     // The layout is rebuilt once after every terminal is back (see onMount).
     const restoreClass = ['bash', 'zsh', 'wsl'].includes(saved.type) ? 'rehydrated' : 'transcript-restored';
@@ -399,7 +399,7 @@
 
   async function restoreSSHTerminal(profile, saved) {
     {
-      const startSSH = window['go']['main']['App']['StartSSHTerminal'];
+      const startSSH = StartSSHTerminal;
       const id = await startSSH(profile.id);
       if (!id) return null;
       const name = saved.name || `SSH: ${profile.name}`;
@@ -489,10 +489,10 @@
       ['agent detection', loadAgentDetectionSetting],
       ['agent annotations', loadAgentAnnotations],
       ['prompt mode', loadPromptMode],
-      ['tmux mode', async () => { $tmuxIntegrationMode = await window['go']['main']['App']['GetTmuxIntegrationMode'](); }, { quiet: true }],
+      ['tmux mode', async () => { $tmuxIntegrationMode = await GetTmuxIntegrationMode(); }, { quiet: true }],
       ['AI settings', loadAISettingsConfig],
       ['pending update', async () => {
-        const pendingRaw = await window['go']['main']['App']['GetPendingUpdate']();
+        const pendingRaw = await GetPendingUpdate();
         const pending = pendingRaw ? JSON.parse(pendingRaw) : null;
         if (pending?.version) $updateInstalled = true;
       }],
@@ -541,7 +541,7 @@
       // Tell the backend which entries did not come back: they stay in the
       // session file and are tried again next time instead of vanishing.
       try {
-        const finish = window['go']?.['main']?.['App']?.['FinishSessionRestore'];
+        const finish = optional('FinishSessionRestore');
         if (typeof finish === 'function') await finish(JSON.stringify(unrestored));
       } catch (error) {
         console.warn('Could not report the restore outcome:', error);

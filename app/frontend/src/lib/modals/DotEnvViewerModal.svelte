@@ -8,7 +8,7 @@
   import { onDestroy } from 'svelte';
   import { t } from '../i18n.js';
   import { ClipboardSetText } from '../../../wailsjs/runtime';
-  import { IsDotEnvViewerEnabled, SetDotEnvViewer, ReadDotEnvForTerminalJSON } from '../../../wailsjs/go/main/App';
+  import { IsDotEnvViewerEnabled, SetDotEnvViewer, ReadDotEnvForTerminalJSON } from '../backend.js';
 
   export let terminalId;
   export let terminalType = '';

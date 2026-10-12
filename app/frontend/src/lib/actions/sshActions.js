@@ -5,7 +5,7 @@ import {
   GetSSHSecretBackend,
   RejectSSHHostKey,
   StartSSHTerminal,
-} from '../../../wailsjs/go/main/App';
+} from '../backend.js';
 import { activeTerminalId, layoutTree } from '../stores/terminalStore.js';
 import { appendLeaf } from '../terminals/layoutTree.js';
 import {

@@ -23,6 +23,7 @@
   import AgentTimeline from './AgentTimeline.svelte';
   import { answerAgentPermission, closeAgentPanel, elapsedSince, loadAgentGitStatus, loadAgentPaneScreen, loadAgentProcesses, loadAgentSessions, loadAgentTranscript, loadClaudeHookStatus, projectFolderName, projectKey, rerenderClaudeNow, selectAgentSession, sessionKey, setClaudeHookInstalled, setProjectName, setSessionAnnotation, loadOfflineSessions, deleteOfflineSession, resumeCommand, lastUsedText } from './actions/agentActions.js';
   import { addTerminal } from './actions/terminalActions.js';
+  import { backend, SaveNote } from './backend.js';
 
   export let terminalId;
 
@@ -413,7 +414,7 @@
     const filename = `agent-${agent?.kind || 'session'}-state-${stamp}.md`;
     const body = `# ${meta?.title || agent?.label || 'Agent'} · ${$t('agentPanel.contextSummary')}\n\n${text}\n`;
     try {
-      await window['go']['main']['App']['SaveNote'](filename, body);
+      await SaveNote(filename, body);
       notesPanelOpen.set(true);
       flash($t('agentPanel.savedToNotes', { filename }));
     } catch (e) {
@@ -426,7 +427,7 @@
     const filename = `agent-${agent?.kind || 'snippet'}-${stamp}.md`;
     const body = '```' + lang + '\n' + code + '\n```\n';
     try {
-      await window['go']['main']['App']['SaveNote'](filename, body);
+      await SaveNote(filename, body);
       notesPanelOpen.set(true);
       flash($t('agentPanel.savedToNotes', { filename }));
     } catch (e) {
@@ -436,7 +437,7 @@
 
   async function openFileInNotes(path) {
     try {
-      const app = window['go']['main']['App'];
+      const app = backend();
       if (agent?.source === 'ssh') await app['ImportNoteFromRemote'](terminalId, path);
       else await app['ImportNoteFromLocal'](path);
       notesPanelOpen.set(true);

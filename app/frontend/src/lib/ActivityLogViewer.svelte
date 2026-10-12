@@ -2,6 +2,7 @@
   import { ClipboardSetText } from '../../wailsjs/runtime';
   import { createEventDispatcher, onMount } from 'svelte';
   import { t } from './i18n.js';
+  import { GetActivityLogKindsJSON, GetActivityLogsJSON } from './backend.js';
 
   const dispatch = createEventDispatcher();
 
@@ -135,7 +136,7 @@
 
   async function loadKinds() {
     try {
-      const payload = await window['go']['main']['App']['GetActivityLogKindsJSON']();
+      const payload = await GetActivityLogKindsJSON();
       const parsed = JSON.parse(payload);
       kinds = Array.isArray(parsed) && parsed.length > 0 ? parsed : fallbackKinds;
     } catch (error) {
@@ -147,7 +148,7 @@
   async function loadLogs() {
     loading = true;
     try {
-      const payload = await window['go']['main']['App']['GetActivityLogsJSON'](selectedKind, Number(limit) || 200);
+      const payload = await GetActivityLogsJSON(selectedKind, Number(limit) || 200);
       logs = JSON.parse(payload);
       if (!selectedEntry || !logs.find((entry) => entry.timestamp === selectedEntry.timestamp && entry.kind === selectedEntry.kind && entry.title === selectedEntry.title)) {
         selectedEntry = logs[0] || null;

@@ -2,10 +2,7 @@ import { get } from 'svelte/store';
 import { errorMessage } from '../stores/uiStore.js';
 import { updateChecking, updateDownloading, updateInfo, updateProgress } from '../stores/updateStore.js';
 import { t } from '../i18n.js';
-
-function app() {
-  return window['go']['main']['App'];
-}
+import { backend as app } from '../backend.js';
 
 export async function checkForUpdates() {
   updateChecking.set(true);

@@ -6,6 +6,7 @@
   import WorkflowPlaybooksPane from './WorkflowPlaybooksPane.svelte';
   import WorkflowRunSummary from './WorkflowRunSummary.svelte';
   import { runDiscovery } from '../templates/discoveryApi.js';
+  import { DeletePlaybook, GetFunctionCatalogJSON, GetPlaybooksJSON, RejectWorkflowDraftJSON, ResumeWorkflowDraftJSON, RunWorkflowDraftJSON, SavePlaybookJSON } from '../backend.js';
 
   export let queuedCatalogEntry = null;
   export let queuedCatalogEntries = [];
@@ -205,7 +206,7 @@
 
   async function loadFunctionCatalog() {
     try {
-      const payload = await window['go']['main']['App']['GetFunctionCatalogJSON']();
+      const payload = await GetFunctionCatalogJSON();
       functionCatalog = JSON.parse(payload).map(normalizeCatalogEntry);
       errorMessage = '';
     } catch (error) {
@@ -215,7 +216,7 @@
 
   async function loadPlaybooks() {
     try {
-      const payload = await window['go']['main']['App']['GetPlaybooksJSON']();
+      const payload = await GetPlaybooksJSON();
       playbooks = JSON.parse(payload).map(normalizePlaybook);
       errorMessage = '';
     } catch (error) {
@@ -307,7 +308,7 @@
         definition.id = `${definition.id}-copy`;
       }
 
-      const payload = await window['go']['main']['App']['SavePlaybookJSON'](
+      const payload = await SavePlaybookJSON(
         JSON.stringify(definition, null, 2),
         previousID
       );
@@ -333,7 +334,7 @@
     }
 
     try {
-      await window['go']['main']['App']['DeletePlaybook'](loadedPlaybookId);
+      await DeletePlaybook(loadedPlaybookId);
       const deletedName = workflowName || loadedPlaybookId;
       resetWorkflow();
       await loadPlaybooks();
@@ -435,7 +436,7 @@
         mode: playbook.mode || 'assist',
         steps: playbook.steps || [],
       });
-      const payload = await window['go']['main']['App']['RunWorkflowDraftJSON'](
+      const payload = await RunWorkflowDraftJSON(
         definition,
         Number(activeTerminalId || 0),
         activeTerminalType || '',
@@ -461,7 +462,7 @@
   async function runWorkflowDraft() {
     runLoading = true;
     try {
-      const payload = await window['go']['main']['App']['RunWorkflowDraftJSON'](
+      const payload = await RunWorkflowDraftJSON(
         exportWorkflowJSON(),
         Number(activeTerminalId || 0),
         activeTerminalType || '',
@@ -489,7 +490,7 @@
 
     approvalLoading = true;
     try {
-      const payload = await window['go']['main']['App']['ResumeWorkflowDraftJSON'](
+      const payload = await ResumeWorkflowDraftJSON(
         exportWorkflowJSON(),
         JSON.stringify(lastRunState),
         Number(activeTerminalId || 0),
@@ -519,7 +520,7 @@
 
     approvalLoading = true;
     try {
-      const payload = await window['go']['main']['App']['RejectWorkflowDraftJSON'](
+      const payload = await RejectWorkflowDraftJSON(
         JSON.stringify(lastRunState),
         'approval denied by user'
       );
