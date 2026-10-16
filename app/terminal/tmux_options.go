@@ -67,6 +67,12 @@ func TmuxOptionCommands(mode string) [][]string {
 		// denied in the frontend provider.
 		{"set", "-s", "set-clipboard", "on"},
 		{"set", "-ga", "terminal-overrides", msOverride},
+		// A tmux server outlives the desktop session that started it. New
+		// sessions refresh DISPLAY from the client by default but not the
+		// Wayland socket, and programs that read the clipboard themselves
+		// (wl-paste for an image pasted into Claude Code) then talk to a
+		// dead compositor. Keep both current.
+		{"set", "-ga", "update-environment", "WAYLAND_DISPLAY"},
 		// Mimir draws its own context menu.
 		{"unbind-key", "-n", "MouseDown3Pane"},
 		{"unbind-key", "-n", "M-MouseDown3Pane"},
