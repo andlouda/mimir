@@ -56,6 +56,7 @@ setResizedListener((id, prevCols, cols) => {
 });
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { quotePathFor } from '../terminals/droppedPaths.js';
+import { CTRL_V, pasteAction } from '../terminals/clipboardImage.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch, claudeRerenderOnResized } from './agentActions.js';
 import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl, setResizedListener } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
@@ -439,11 +440,17 @@ export function wireTerminalDom(term) {
 
   const xtermElement = term.terminal.element;
   const handlePaste = (event) => {
-    const pasteData = event.clipboardData?.getData('text');
-    if (pasteData) {
+    const action = pasteAction(event.clipboardData);
+    if (action.kind === 'text') {
       // Route through xterm so bracketed paste applies; otherwise multiline
       // clipboard content executes line by line the moment it is pasted.
-      term.terminal.paste(pasteData);
+      term.terminal.paste(action.text);
+    } else if (action.kind === 'image') {
+      // Ctrl+Shift+V / Cmd+V with an image on the clipboard: xterm only
+      // forwards plain Ctrl+V as a keystroke, so hand the program the same
+      // Ctrl+V here and let it read the image from the clipboard itself
+      // (Claude Code, OpenCode); the webview cannot type an image.
+      term.terminal.input(CTRL_V, true);
     }
     event.preventDefault();
   };
