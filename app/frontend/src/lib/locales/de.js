@@ -867,6 +867,7 @@ export default {
   },
   appMessages: {
     imagePasteFailed: 'Bild einfügen fehlgeschlagen: {error}',
+    imagePasteNoFile: 'Aus der Zwischenablage ließ sich kein Bild lesen (angebotene Formate: {types}). Screenshot als Datei speichern und in die Pane ziehen.',
     deleteRecordingFailed: 'Aufnahme löschen fehlgeschlagen: {error}',
     exportSaved: 'Export gespeichert: {path}',
     exportScrubbedFailed: 'Bereinigter Export fehlgeschlagen: {error}',
