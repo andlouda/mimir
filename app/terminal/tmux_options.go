@@ -73,6 +73,14 @@ func TmuxOptionCommands(mode string) [][]string {
 		// (wl-paste for an image pasted into Claude Code) then talk to a
 		// dead compositor. Keep both current.
 		{"set", "-ga", "update-environment", "WAYLAND_DISPLAY"},
+		// The window follows the client that was used last. tmux before 3.1
+		// (Ubuntu 20.04's 3.0a in a WSL distro, for example) defaulted to
+		// "smallest": a second, narrower client attached to the session kept
+		// the window at its width for good, the pane showed tmux's dotted
+		// filler on the right and programs wrapped at the old width. With
+		// "latest" every resize of the Mimir pane, and every key typed into
+		// it, sizes the window to the pane again.
+		{"set", "-g", "window-size", "latest"},
 		// Mimir draws its own context menu.
 		{"unbind-key", "-n", "MouseDown3Pane"},
 		{"unbind-key", "-n", "M-MouseDown3Pane"},
