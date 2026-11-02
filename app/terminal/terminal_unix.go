@@ -255,7 +255,11 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 			cmdPath = tmuxPath
 			cmdArgs = append([]string{
 				"-L", executil.TmuxSocket,
-				"new-session", "-A", "-s", tmuxSessionName, launch.tmuxCommand,
+				// -D detaches every other client of the session: a client left by
+				// a crashed Mimir or a dropped SSH link would otherwise pin the
+				// window to its old size (tmux before 3.1 defaults to the smallest
+				// client) and the pane shows tmux's dotted filler.
+				"new-session", "-A", "-D", "-s", tmuxSessionName, launch.tmuxCommand,
 			}, TmuxOptionArgs(tmuxMode)...)
 			meta.TmuxActive = true
 			meta.TmuxSessionName = tmuxSessionName

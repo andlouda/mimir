@@ -38,6 +38,18 @@
   // session-file watcher and does not belong to any single page.
   import { agentStates } from './stores/agentStore.js';
 
+  // SSH panes are probed for agents only when their profile marks the host
+  // as an agent host; without that an agent on the host stays invisible and
+  // nothing says why. Name the profiles that have an open pane but not the
+  // flag.
+  $: sshProfilesWithoutAgentHost = [...new Set(
+    (terminals || [])
+      .filter((term) => term.type === 'ssh' && term.sshProfileId)
+      .map((term) => (sshProfiles || []).find((p) => p.id === term.sshProfileId))
+      .filter((p) => p && !p.agentHost)
+      .map((p) => p.name || p.host || p.id)
+  )];
+
   export let currentPage = 'terminals';
   export let terminals = [];
   export let sshProfiles = [];
@@ -321,6 +333,9 @@
         </div>
         {#if agentsNavOpen && allAgentRows.length === 0}
           <p class="sidebar-empty">{$t('sidebar.noAgents')}</p>
+        {/if}
+        {#if agentsNavOpen && sshProfilesWithoutAgentHost.length > 0}
+          <p class="sidebar-empty">{$t('sidebar.sshAgentHostHint', { profiles: sshProfilesWithoutAgentHost.join(', ') })}</p>
         {/if}
         {#if agentsNavOpen && allAgentRows.length > 0}
         <ul class="sidebar-list">

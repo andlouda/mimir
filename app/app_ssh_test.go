@@ -65,7 +65,7 @@ func TestSSHTmuxBootstrapCommand(t *testing.T) {
 
 	required := []string{
 		"command -v tmux",
-		"tmux new-session -A -s",
+		"tmux new-session -A -D -s",
 		"mimir-ssh-prod-01",
 		"set status off",
 		"set mouse on",

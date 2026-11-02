@@ -207,7 +207,7 @@ func (m *Manager) StartTerminalWithOptions(terminalType string, tmuxSessionName 
 				// OSC 52 writes from the pane (nested tmux, vim) to the clipboard.
 				// The unbinds drop tmux's right-click menu
 				// (Mimir draws its own); the wheel bindings soften scroll steps.
-				inner += `if command -v tmux >/dev/null 2>&1; then exec tmux -L ` + executil.TmuxSocket + ` new-session -A -s ` + name +
+				inner += `if command -v tmux >/dev/null 2>&1; then exec tmux -L ` + executil.TmuxSocket + ` new-session -A -D -s ` + name +
 					` 'bash --rcfile ~/.cache/mimir/shell/bashrc -i'` + TmuxOptionScript(tmuxMode) + `; ` +
 					`else exec bash --rcfile ~/.cache/mimir/shell/bashrc -i; fi`
 				usingTmux = true

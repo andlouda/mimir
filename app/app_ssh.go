@@ -47,7 +47,7 @@ func sshTmuxBootstrapCommand(sessionName string, shellCommand string, tmuxMode s
 	}
 	// The option chain (mouse handling, clipboard, key bindings) is shared with
 	// the local launch paths; see terminal.TmuxOptionCommands.
-	script := `if command -v tmux >/dev/null 2>&1; then exec tmux new-session -A -s ` + executil.ShellQuote(sessionName) + tmuxShell +
+	script := `if command -v tmux >/dev/null 2>&1; then exec tmux new-session -A -D -s ` + executil.ShellQuote(sessionName) + tmuxShell +
 		terminal.TmuxOptionScript(tmuxMode) + `; else ` + fallback + `; fi`
 	return "sh -lc " + executil.ShellQuote(script)
 }
