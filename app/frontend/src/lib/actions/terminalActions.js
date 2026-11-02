@@ -56,7 +56,7 @@ setResizedListener((id, prevCols, cols) => {
 });
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { quotePathFor } from '../terminals/droppedPaths.js';
-import { CTRL_V, imagePasteMode, pasteAction } from '../terminals/clipboardImage.js';
+import { CTRL_V, imagePasteMode, isPlainPasteKey, pasteAction } from '../terminals/clipboardImage.js';
 import { pasteImageAsFile } from './imagePasteActions.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch, claudeRerenderOnResized } from './agentActions.js';
 import { windowsPtyOptions } from '../terminals/windowsPty.js';
@@ -165,6 +165,10 @@ function finalizeTerminalRemoval(id) {
   scheduleSessionSave();
 }
 
+function findTerminal(id) {
+  return get(terminals).find((t) => t.id === id);
+}
+
 export async function createTerminalInstance(id, type, name, minimized, sshProfileId = '', restoring = false, existingTmuxSessionName = '', existingResumeId = '', initialRestoreClass = 'fresh') {
   // ConPTY heuristics for local panes on Windows; see terminals/windowsPty.js.
   const windowsPty = await windowsPtyOptions(type);
@@ -235,6 +239,13 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
         if (text) ClipboardSetText(text).catch((error) => console.error('Copy failed:', error));
       }
       event.preventDefault?.();
+      return false;
+    }
+    if (isPlainPasteKey(event) && imagePasteMode(findTerminal(id), get(imagePasteSetting)) === 'file') {
+      // A pane that takes images as a file (SSH, or the setting): the
+      // browser's own paste runs and raises the paste event, which uploads
+      // an image or pastes text. As a keystroke, 0x16 would only make the
+      // program on the host look for a clipboard it cannot see.
       return false;
     }
     if (!isGlobalShortcut(event)) return true;

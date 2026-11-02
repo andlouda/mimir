@@ -54,3 +54,12 @@ export async function blobToBase64(blob) {
   }
   return btoa(binary);
 }
+
+// Plain Ctrl+V, the key that makes a local program read the clipboard.
+// In a pane that takes images as a file it must not reach the program as
+// a keystroke: xterm would send 0x16 and a Claude Code on an SSH host
+// answers "no image over SSH". Letting the browser's default run instead
+// raises the paste event, where text and image are handled.
+export function isPlainPasteKey(event) {
+  return Boolean(event?.ctrlKey) && !event.shiftKey && !event.altKey && !event.metaKey && (event.key === 'v' || event.key === 'V');
+}

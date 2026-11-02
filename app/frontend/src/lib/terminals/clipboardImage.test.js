@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { blobToBase64, clipboardHasImage, clipboardImageFile, imagePasteMode, pasteAction } from './clipboardImage.js';
+import { blobToBase64, clipboardHasImage, clipboardImageFile, imagePasteMode, isPlainPasteKey, pasteAction } from './clipboardImage.js';
 
 const data = ({ text = '', types = [], items = [], files = [] } = {}) => ({ getData: (t) => (t === 'text' ? text : ''), types, items, files });
 
@@ -35,5 +35,17 @@ describe('clipboard image paste', () => {
     expect(pasteAction(data())).toEqual({ kind: 'none' });
     expect(pasteAction(null)).toEqual({ kind: 'none' });
     expect(clipboardHasImage(data({ items: [{ kind: 'string', type: 'text/html' }] }))).toBe(false);
+  });
+});
+
+describe('isPlainPasteKey', () => {
+  test('matches Ctrl+V only, without other modifiers', () => {
+    expect(isPlainPasteKey({ ctrlKey: true, key: 'v' })).toBe(true);
+    expect(isPlainPasteKey({ ctrlKey: true, key: 'V' })).toBe(true);
+    expect(isPlainPasteKey({ ctrlKey: true, shiftKey: true, key: 'V' })).toBe(false);
+    expect(isPlainPasteKey({ ctrlKey: true, altKey: true, key: 'v' })).toBe(false);
+    expect(isPlainPasteKey({ metaKey: true, key: 'v' })).toBe(false);
+    expect(isPlainPasteKey({ ctrlKey: true, key: 'c' })).toBe(false);
+    expect(isPlainPasteKey(null)).toBe(false);
   });
 });
