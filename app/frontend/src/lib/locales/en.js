@@ -867,6 +867,7 @@ export default {
   },
   appMessages: {
     imagePasteFailed: 'Image paste failed: {error}',
+    imagePasteNoFile: 'No image could be read from the clipboard (formats offered: {types}). Save the screenshot as a file and drop it into the pane.',
     deleteRecordingFailed: 'Delete recording failed: {error}',
     exportSaved: 'Export saved: {path}',
     exportScrubbedFailed: 'Export scrubbed failed: {error}',

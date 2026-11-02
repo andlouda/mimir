@@ -462,11 +462,13 @@ export function wireTerminalDom(term) {
       // clipboard content executes line by line the moment it is pasted.
       term.terminal.paste(action.text);
     } else if (action.kind === 'image') {
-      if (imagePasteMode(term, get(imagePasteSetting)) === 'file' && action.file) {
+      if (imagePasteMode(term, get(imagePasteSetting)) === 'file') {
         // SSH pane, or the setting asks for it: the program cannot (or
         // should not) read this machine's clipboard. Store the image where
-        // the program runs and paste its path instead.
-        pasteImageAsFile(term, action.file);
+        // the program runs and paste its path instead. The File may be
+        // missing (WebView2); the action then reads the clipboard itself or
+        // reports why it could not.
+        pasteImageAsFile(term, action.file, { types: Array.from(event.clipboardData?.types || []) });
       } else {
         // Ctrl+Shift+V / Cmd+V with an image on the clipboard: xterm only
         // forwards plain Ctrl+V as a keystroke, so hand the program the same
