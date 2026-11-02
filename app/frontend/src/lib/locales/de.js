@@ -212,6 +212,13 @@ export default {
         desc: 'Ob die WebKitGTK-Webview die GPU nutzen darf. „Bei Bedarf“ gibt den Terminals einen WebGL-Kontext (siehe Terminal-Renderer). Manche Treiber zeigen mit Beschleunigung Flackern oder ein leeres Fenster; dann zurück auf Aus.',
         restart: 'Gilt nach einem Neustart von Mimir.',
       },
+      imagePaste: {
+        title: 'Bilder einfügen',
+        clipboard: 'Programm liest die Zwischenablage (empfohlen)',
+        file: 'Als Datei speichern, Pfad einfügen',
+        desc_clipboard: 'Strg+V erreicht das Programm in der Pane, und es holt das Bild selbst aus der Zwischenablage (Claude Code, OpenCode). Auf Linux braucht das xclip oder wl-clipboard. SSH-Panes bekommen das Bild immer als Datei auf dem Host.',
+        desc_file: 'Das Bild wird im Cache-Verzeichnis gespeichert und sein Pfad in die Pane eingefügt; das Programm hängt ein Bild an, dessen Pfad im Prompt steht. Geht ohne Zwischenablage-Werkzeug, auch in WSL. Dateien älter als eine Woche werden entfernt.',
+      },
       renderer: {
         title: 'Terminal-Renderer',
         auto: 'Automatisch (WebGL, wenn verfügbar)',

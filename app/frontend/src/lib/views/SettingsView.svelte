@@ -4,7 +4,7 @@
   // i18n; shared styles come from the global stylesheets (styles/).
   import { t, locale, availableLocales } from '../i18n.js';
   import { agentDetectionEnabled, agentNotificationsEnabled } from '../stores/agentStore.js';
-  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, claudeRerenderOnWiden, inactivePaneThrottle, inactivePaneInterval, INACTIVE_PANE_INTERVALS, paneResourceOverlay, paneResourceScale, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
+  import { TERMINAL_FONT_MAX, TERMINAL_FONT_MIN, promptMode, resetTerminalFontSize, terminalFontSize, terminalRenderer, imagePasteSetting, claudeRerenderOnWiden, inactivePaneThrottle, inactivePaneInterval, INACTIVE_PANE_INTERVALS, paneResourceOverlay, paneResourceScale, tmuxIntegrationMode, tmuxScrollbackRefill, zoomTerminalFont } from '../stores/uiStore.js';
   import { handleResize, refreshTmuxStatuses } from '../actions/terminalActions.js';
   import { aggAvailable, aggStatus, customFolders, newFolderName } from '../stores/sessionStore.js';
   import { historyTrackingEnabled, notesPanelOpen, showFolderManager } from '../stores/uiStore.js';
@@ -195,6 +195,19 @@
       <button type="button" class="settings-card-title" aria-expanded={openCards.has('renderer')} on:click|preventDefault|stopPropagation={() => toggleCard('renderer')}><strong>{$t('settings.cards.renderer.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('renderer') ? '▾' : '▸'}</span></button>
       {#if openCards.has('renderer')}
       <p>{$t(`settings.cards.renderer.desc_${$terminalRenderer}`)}</p>
+      {/if}
+    </label>
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x1F5BC;</span>
+        <select bind:value={$imagePasteSetting}>
+          <option value="clipboard">{$t('settings.cards.imagePaste.clipboard')}</option>
+          <option value="file">{$t('settings.cards.imagePaste.file')}</option>
+        </select>
+      </div>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('imagePaste')} on:click|preventDefault|stopPropagation={() => toggleCard('imagePaste')}><strong>{$t('settings.cards.imagePaste.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('imagePaste') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('imagePaste')}
+      <p>{$t(`settings.cards.imagePaste.desc_${$imagePasteSetting}`)}</p>
       {/if}
     </label>
     {#if isLinux}

@@ -18,9 +18,13 @@ describe('clipboard image paste', () => {
     const png = { type: 'image/png' };
     expect(clipboardImageFile(data({ items: [{ kind: 'string', type: 'text/html' }, { kind: 'file', type: 'image/png', getAsFile: () => png }] }))).toBe(png);
   });
-  test('SSH panes get the image as a file, local panes as Ctrl+V', () => {
+  test('SSH panes get the image as a file, local panes follow the setting', () => {
     expect(imagePasteMode({ type: 'ssh' })).toBe('file');
-    for (const type of ['bash', 'zsh', 'wsl', 'powershell', 'cmd']) expect(imagePasteMode({ type })).toBe('keystroke');
+    expect(imagePasteMode({ type: 'ssh' }, 'clipboard')).toBe('file');
+    for (const type of ['bash', 'zsh', 'wsl', 'powershell', 'cmd']) {
+      expect(imagePasteMode({ type })).toBe('keystroke');
+      expect(imagePasteMode({ type }, 'file')).toBe('file');
+    }
   });
   test('blobToBase64 encodes large blobs in chunks', async () => {
     const bytes = new Uint8Array(70000).map((_, i) => i % 251);

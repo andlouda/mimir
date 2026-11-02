@@ -36,9 +36,11 @@ export function pasteAction(data) {
 }
 
 // How a pane gets an image: 'keystroke' hands the program Ctrl+V so it
-// reads the clipboard itself; 'file' uploads the image and pastes its path.
-export function imagePasteMode(term) {
-  return term?.type === 'ssh' ? 'file' : 'keystroke';
+// reads the clipboard itself; 'file' stores the image and pastes its path.
+// SSH panes always take the file; local panes follow the setting.
+export function imagePasteMode(term, localSetting = 'clipboard') {
+  if (term?.type === 'ssh') return 'file';
+  return localSetting === 'file' ? 'file' : 'keystroke';
 }
 
 // Base64 of a Blob, chunked so a multi-megabyte screenshot does not blow

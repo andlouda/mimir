@@ -212,6 +212,13 @@ export default {
         desc: 'Whether the WebKitGTK webview may use the GPU. "On demand" is what gives the terminals a WebGL context (see Terminal renderer). Some drivers blank or flicker with acceleration; switch back to Off if that happens.',
         restart: 'Takes effect after restarting Mimir.',
       },
+      imagePaste: {
+        title: 'Pasting images',
+        clipboard: 'Program reads the clipboard (recommended)',
+        file: 'Save as file, paste the path',
+        desc_clipboard: 'Ctrl+V reaches the program in the pane and it takes the image from the system clipboard itself (Claude Code, OpenCode). On Linux this needs xclip or wl-clipboard. SSH panes always get the image as a file on the host.',
+        desc_file: 'The image is saved to the cache directory and its path is pasted into the pane; the program attaches an image whose path appears in the prompt. Works without a clipboard tool, also inside WSL. Files older than a week are removed.',
+      },
       renderer: {
         title: 'Terminal renderer',
         auto: 'Automatic (WebGL when available)',

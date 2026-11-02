@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree, selectedTerminalType } from '../stores/terminalStore.js';
 import { openSSHProfilePicker } from './sshActions.js';
-import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill, inactivePaneThrottle, inactivePaneInterval } from '../stores/uiStore.js';
+import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill, inactivePaneThrottle, inactivePaneInterval, imagePasteSetting } from '../stores/uiStore.js';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { sshProfiles } from '../stores/sshStore.js';
@@ -451,9 +451,10 @@ export function wireTerminalDom(term) {
       // clipboard content executes line by line the moment it is pasted.
       term.terminal.paste(action.text);
     } else if (action.kind === 'image') {
-      if (imagePasteMode(term) === 'file' && action.file) {
-        // SSH pane: the program on the remote host cannot see this
-        // machine's clipboard. Upload the image and paste its path instead.
+      if (imagePasteMode(term, get(imagePasteSetting)) === 'file' && action.file) {
+        // SSH pane, or the setting asks for it: the program cannot (or
+        // should not) read this machine's clipboard. Store the image where
+        // the program runs and paste its path instead.
         pasteImageAsFile(term, action.file);
       } else {
         // Ctrl+Shift+V / Cmd+V with an image on the clipboard: xterm only
