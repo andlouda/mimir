@@ -44,6 +44,7 @@ export default {
     agentDone: 'fertig',
     agentPermission: 'Freigabe',
     noAgents: 'Noch kein Agent erkannt. + öffnet den Agent-Arbeitsplatz.',
+    sshAgentHostHint: 'SSH-Panes werden nur auf Agents geprüft, wenn das Profil den Host als Agent-Host markiert. Aus bei: {profiles}.',
     agentsShowArchived: '{n} archivierte zeigen',
     agentsHideArchived: 'archivierte ausblenden',
     expand: 'Sidebar ausklappen',

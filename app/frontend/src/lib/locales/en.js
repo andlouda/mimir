@@ -44,6 +44,7 @@ export default {
     agentDone: 'done',
     agentPermission: 'approval',
     noAgents: 'No agents detected yet. + opens the agent workspace.',
+    sshAgentHostHint: 'SSH panes are probed for agents only when the profile marks the host as agent host. Off for: {profiles}.',
     agentsShowArchived: 'show {n} archived',
     agentsHideArchived: 'hide archived',
     expand: 'Expand sidebar',
