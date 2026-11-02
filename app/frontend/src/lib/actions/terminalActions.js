@@ -56,7 +56,8 @@ setResizedListener((id, prevCols, cols) => {
 });
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { quotePathFor } from '../terminals/droppedPaths.js';
-import { CTRL_V, pasteAction } from '../terminals/clipboardImage.js';
+import { CTRL_V, imagePasteMode, pasteAction } from '../terminals/clipboardImage.js';
+import { pasteImageAsFile } from './imagePasteActions.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch, claudeRerenderOnResized } from './agentActions.js';
 import { windowsPtyOptions } from '../terminals/windowsPty.js';
 import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl, setResizedListener } from '../terminals/xtermLifecycle.js';
@@ -450,11 +451,17 @@ export function wireTerminalDom(term) {
       // clipboard content executes line by line the moment it is pasted.
       term.terminal.paste(action.text);
     } else if (action.kind === 'image') {
-      // Ctrl+Shift+V / Cmd+V with an image on the clipboard: xterm only
-      // forwards plain Ctrl+V as a keystroke, so hand the program the same
-      // Ctrl+V here and let it read the image from the clipboard itself
-      // (Claude Code, OpenCode); the webview cannot type an image.
-      term.terminal.input(CTRL_V, true);
+      if (imagePasteMode(term) === 'file' && action.file) {
+        // SSH pane: the program on the remote host cannot see this
+        // machine's clipboard. Upload the image and paste its path instead.
+        pasteImageAsFile(term, action.file);
+      } else {
+        // Ctrl+Shift+V / Cmd+V with an image on the clipboard: xterm only
+        // forwards plain Ctrl+V as a keystroke, so hand the program the same
+        // Ctrl+V here and let it read the image from the clipboard itself
+        // (Claude Code, OpenCode); the webview cannot type an image.
+        term.terminal.input(CTRL_V, true);
+      }
     }
     event.preventDefault();
   };

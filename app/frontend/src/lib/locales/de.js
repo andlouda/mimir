@@ -858,6 +858,7 @@ export default {
     statusPending: 'Ausstehend',
   },
   appMessages: {
+    imagePasteFailed: 'Bild einfügen fehlgeschlagen: {error}',
     deleteRecordingFailed: 'Aufnahme löschen fehlgeschlagen: {error}',
     exportSaved: 'Export gespeichert: {path}',
     exportScrubbedFailed: 'Bereinigter Export fehlgeschlagen: {error}',

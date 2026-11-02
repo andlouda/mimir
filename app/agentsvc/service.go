@@ -27,6 +27,8 @@ type RemoteFiles interface {
 	Open(path string) (*sftp.File, error)
 	OpenFile(path string, flags int) (*sftp.File, error)
 	Remove(path string) error
+	MkdirAll(path string) error
+	Chmod(path string, mode os.FileMode) error
 	Getwd() (string, error)
 	Close() error
 }

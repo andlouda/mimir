@@ -858,6 +858,7 @@ export default {
     statusPending: 'Pending',
   },
   appMessages: {
+    imagePasteFailed: 'Image paste failed: {error}',
     deleteRecordingFailed: 'Delete recording failed: {error}',
     exportSaved: 'Export saved: {path}',
     exportScrubbedFailed: 'Export scrubbed failed: {error}',
