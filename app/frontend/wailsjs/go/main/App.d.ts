@@ -301,6 +301,8 @@ export function SaveCurrentSession():Promise<void>;
 
 export function SaveNote(arg1:string,arg2:string):Promise<void>;
 
+export function SavePastedImage(arg1:number,arg2:string,arg3:string):Promise<string>;
+
 export function SavePlaybookJSON(arg1:string,arg2:string):Promise<string>;
 
 export function SaveSSHProfile(arg1:string):Promise<Array<ssh.Profile>>;

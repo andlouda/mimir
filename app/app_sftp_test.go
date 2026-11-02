@@ -24,7 +24,11 @@ func (fakeRemoteFileClient) Open(string) (*sftp.File, error) {
 func (fakeRemoteFileClient) OpenFile(string, int) (*sftp.File, error) {
 	return nil, errors.New("not implemented")
 }
-func (fakeRemoteFileClient) Remove(string) error    { return errors.New("not implemented") }
+func (fakeRemoteFileClient) Remove(string) error   { return errors.New("not implemented") }
+func (fakeRemoteFileClient) MkdirAll(string) error { return errors.New("not implemented") }
+func (fakeRemoteFileClient) Chmod(string, os.FileMode) error {
+	return errors.New("not implemented")
+}
 func (fakeRemoteFileClient) Getwd() (string, error) { return "/home/mimir", nil }
 func (fakeRemoteFileClient) Close() error           { return nil }
 
