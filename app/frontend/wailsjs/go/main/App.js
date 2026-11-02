@@ -350,6 +350,10 @@ export function GetWaylandFix() {
   return window['go']['main']['App']['GetWaylandFix']();
 }
 
+export function GetWindowsBuildNumber() {
+  return window['go']['main']['App']['GetWindowsBuildNumber']();
+}
+
 export function IMModuleEffective() {
   return window['go']['main']['App']['IMModuleEffective']();
 }

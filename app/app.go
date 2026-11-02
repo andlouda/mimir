@@ -201,6 +201,7 @@ func NewApp(embeddedTemplates embed.FS, iconPNG []byte) *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.TerminalManager.SetContext(ctx)
+	a.restoreWindowGeometry(ctx)
 
 	updateStarted, err := a.applyPendingUpdateOnStartup()
 	if err != nil {
@@ -700,6 +701,12 @@ func (a *App) WriteToTerminal(id int, data string) error {
 
 func (a *App) ResizeTerminal(id int, rowsStr string, colsStr string) error {
 	return a.TerminalManager.ResizeTerminal(id, rowsStr, colsStr)
+}
+
+// GetWindowsBuildNumber is the OS build on Windows and 0 elsewhere. xterm
+// tunes its ConPTY heuristics by it (frontend: terminals/windowsPty.js).
+func (a *App) GetWindowsBuildNumber() int {
+	return windowsBuildNumber()
 }
 
 func (a *App) CloseTerminal(id int) error {
