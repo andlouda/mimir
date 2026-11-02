@@ -21,7 +21,8 @@ describe('backend facade', () => {
     const offenders = [];
     for (const file of walk(SRC)) {
       const rel = relative(SRC, file).replace(/\\/g, '/');
-      if (rel === 'lib/backend.js') continue;
+      // The facade itself, and the test helper that installs a fake window.go.
+      if (rel === 'lib/backend.js' || rel.startsWith('test/')) continue;
       const text = readFileSync(file, 'utf8');
       if (/window(\[['"]go['"]\]|\.go\b|\?\.go\b)/.test(text) || /wailsjs\/go\/main\/App/.test(text)) {
         offenders.push(rel);

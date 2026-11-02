@@ -45,7 +45,7 @@
 
 {#if $showTemplatePicker}
   <TemplatePicker
-    $templates={$templates}
+    templates={$templates}
     onSelect={(name) => { $showTemplatePicker = false; applyTemplate(name); }}
     onClose={() => { $showTemplatePicker = false; }}
   />
