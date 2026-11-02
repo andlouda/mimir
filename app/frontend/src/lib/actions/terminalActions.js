@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { terminals, activeTerminalId, layoutTree, selectedTerminalType } from '../stores/terminalStore.js';
 import { openSSHProfilePicker } from './sshActions.js';
-import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill, inactivePaneThrottle, inactivePaneInterval } from '../stores/uiStore.js';
+import { currentPage, errorMessage, promptMode, terminalFontSize, terminalRenderer, tmuxScrollbackRefill, inactivePaneThrottle, inactivePaneInterval, imagePasteSetting } from '../stores/uiStore.js';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { sshProfiles } from '../stores/sshStore.js';
@@ -56,7 +56,7 @@ setResizedListener((id, prevCols, cols) => {
 });
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { quotePathFor } from '../terminals/droppedPaths.js';
-import { CTRL_V, imagePasteMode, pasteAction } from '../terminals/clipboardImage.js';
+import { CTRL_V, imagePasteMode, isPlainPasteKey, pasteAction } from '../terminals/clipboardImage.js';
 import { pasteImageAsFile } from './imagePasteActions.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch, claudeRerenderOnResized } from './agentActions.js';
 import { windowsPtyOptions } from '../terminals/windowsPty.js';
@@ -165,6 +165,10 @@ function finalizeTerminalRemoval(id) {
   scheduleSessionSave();
 }
 
+function findTerminal(id) {
+  return get(terminals).find((t) => t.id === id);
+}
+
 export async function createTerminalInstance(id, type, name, minimized, sshProfileId = '', restoring = false, existingTmuxSessionName = '', existingResumeId = '', initialRestoreClass = 'fresh') {
   // ConPTY heuristics for local panes on Windows; see terminals/windowsPty.js.
   const windowsPty = await windowsPtyOptions(type);
@@ -235,6 +239,13 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
         if (text) ClipboardSetText(text).catch((error) => console.error('Copy failed:', error));
       }
       event.preventDefault?.();
+      return false;
+    }
+    if (isPlainPasteKey(event) && imagePasteMode(findTerminal(id), get(imagePasteSetting)) === 'file') {
+      // A pane that takes images as a file (SSH, or the setting): the
+      // browser's own paste runs and raises the paste event, which uploads
+      // an image or pastes text. As a keystroke, 0x16 would only make the
+      // program on the host look for a clipboard it cannot see.
       return false;
     }
     if (!isGlobalShortcut(event)) return true;
@@ -451,9 +462,10 @@ export function wireTerminalDom(term) {
       // clipboard content executes line by line the moment it is pasted.
       term.terminal.paste(action.text);
     } else if (action.kind === 'image') {
-      if (imagePasteMode(term) === 'file' && action.file) {
-        // SSH pane: the program on the remote host cannot see this
-        // machine's clipboard. Upload the image and paste its path instead.
+      if (imagePasteMode(term, get(imagePasteSetting)) === 'file' && action.file) {
+        // SSH pane, or the setting asks for it: the program cannot (or
+        // should not) read this machine's clipboard. Store the image where
+        // the program runs and paste its path instead.
         pasteImageAsFile(term, action.file);
       } else {
         // Ctrl+Shift+V / Cmd+V with an image on the clipboard: xterm only

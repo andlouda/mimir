@@ -4,7 +4,7 @@ import { flushSync, mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
 import SettingsView from './SettingsView.svelte';
 import { aggAvailable, aggDownloadInfo, customFolders, newFolderName } from '../stores/sessionStore.js';
-import { currentPage, historyTrackingEnabled, notesPanelOpen, showFolderManager } from '../stores/uiStore.js';
+import { currentPage, historyTrackingEnabled, imagePasteSetting, notesPanelOpen, showFolderManager } from '../stores/uiStore.js';
 import { updateInfo } from '../stores/updateStore.js';
 import { installBackendStub, removeBackendStub } from '../../test/backendStub.js';
 
@@ -98,4 +98,17 @@ test('notes card opens the panel and returns to the terminals page', async () =>
   cardButton('Notes').click();
   await vi.waitFor(() => expect(get(notesPanelOpen)).toBe(true));
   expect(get(currentPage)).toBe('terminals');
+});
+
+test('image paste card switches local panes to the file path and remembers it', () => {
+  imagePasteSetting.set('clipboard');
+  flushSync();
+  const select = [...document.querySelectorAll('.ai-hub-card select')].find((el) => [...el.options].some((o) => o.value === 'file'));
+  expect(select.value).toBe('clipboard');
+  select.value = 'file';
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  flushSync();
+  expect(get(imagePasteSetting)).toBe('file');
+  expect(localStorage.getItem('mimir-image-paste')).toBe('file');
+  imagePasteSetting.set('clipboard');
 });

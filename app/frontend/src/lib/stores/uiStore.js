@@ -68,6 +68,19 @@ export const terminalRenderer = writable(initialRenderer());
 terminalRenderer.subscribe((mode) => {
   try { localStorage.setItem(RENDERER_KEY, mode); } catch { /* ignore */ }
 });
+// How a local pane gets a pasted image: 'clipboard' hands the program
+// Ctrl+V so it reads the clipboard itself (Claude Code, OpenCode; needs
+// xclip or wl-clipboard on Linux); 'file' saves the image to the cache and
+// pastes its path, which also works without a clipboard tool. SSH panes
+// always use the file. Remembered per machine.
+const IMAGE_PASTE_KEY = 'mimir-image-paste';
+function initialImagePaste() {
+  try { return localStorage.getItem(IMAGE_PASTE_KEY) === 'file' ? 'file' : 'clipboard'; } catch { return 'clipboard'; }
+}
+export const imagePasteSetting = writable(initialImagePaste());
+imagePasteSetting.subscribe((mode) => {
+  try { localStorage.setItem(IMAGE_PASTE_KEY, mode); } catch { /* ignore */ }
+});
 // Re-fill a tmux pane's scrollback after it was widened (see
 // terminals/tmuxScrollback.js); on by default.
 const SCROLLBACK_REFILL_KEY = 'mimir-tmux-scrollback-refill';

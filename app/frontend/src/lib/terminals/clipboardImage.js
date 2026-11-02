@@ -36,9 +36,11 @@ export function pasteAction(data) {
 }
 
 // How a pane gets an image: 'keystroke' hands the program Ctrl+V so it
-// reads the clipboard itself; 'file' uploads the image and pastes its path.
-export function imagePasteMode(term) {
-  return term?.type === 'ssh' ? 'file' : 'keystroke';
+// reads the clipboard itself; 'file' stores the image and pastes its path.
+// SSH panes always take the file; local panes follow the setting.
+export function imagePasteMode(term, localSetting = 'clipboard') {
+  if (term?.type === 'ssh') return 'file';
+  return localSetting === 'file' ? 'file' : 'keystroke';
 }
 
 // Base64 of a Blob, chunked so a multi-megabyte screenshot does not blow
@@ -51,4 +53,13 @@ export async function blobToBase64(blob) {
     binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   }
   return btoa(binary);
+}
+
+// Plain Ctrl+V, the key that makes a local program read the clipboard.
+// In a pane that takes images as a file it must not reach the program as
+// a keystroke: xterm would send 0x16 and a Claude Code on an SSH host
+// answers "no image over SSH". Letting the browser's default run instead
+// raises the paste event, where text and image are handled.
+export function isPlainPasteKey(event) {
+  return Boolean(event?.ctrlKey) && !event.shiftKey && !event.altKey && !event.metaKey && (event.key === 'v' || event.key === 'V');
 }
