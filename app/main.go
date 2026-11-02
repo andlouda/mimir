@@ -87,6 +87,7 @@ func main() {
 		},
 		OnStartup: app.startup,
 		OnBeforeClose: func(ctx context.Context) (prevent bool) {
+			app.saveWindowGeometry(ctx)
 			err := app.SaveCurrentSession()
 			if err != nil {
 				log.Printf("Failed to save session: %v", err)

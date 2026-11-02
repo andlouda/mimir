@@ -57,6 +57,7 @@ setResizedListener((id, prevCols, cols) => {
 import { containsControlChars, generateResumeId, shellQuotePath } from '../util.js';
 import { quotePathFor } from '../terminals/droppedPaths.js';
 import { handleTerminalPrompt, handleTerminalTitle, noteTerminalOutput, startAgentWatch, stopAgentWatch, claudeRerenderOnResized } from './agentActions.js';
+import { windowsPtyOptions } from '../terminals/windowsPty.js';
 import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl, setResizedListener } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
@@ -163,7 +164,10 @@ function finalizeTerminalRemoval(id) {
 }
 
 export async function createTerminalInstance(id, type, name, minimized, sshProfileId = '', restoring = false, existingTmuxSessionName = '', existingResumeId = '', initialRestoreClass = 'fresh') {
+  // ConPTY heuristics for local panes on Windows; see terminals/windowsPty.js.
+  const windowsPty = await windowsPtyOptions(type);
   const terminal = new Terminal({
+    ...(windowsPty ? { windowsPty } : {}),
     cursorBlink: true,
     cursorStyle: 'bar',
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",

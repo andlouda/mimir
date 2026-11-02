@@ -183,6 +183,8 @@ export function GetTranscriptDiskUsage():Promise<transcript.DiskUsageInfo>;
 
 export function GetWaylandFix():Promise<string>;
 
+export function GetWindowsBuildNumber():Promise<number>;
+
 export function IMModuleEffective():Promise<boolean>;
 
 export function ImportNoteFromLocal(arg1:string):Promise<string>;
