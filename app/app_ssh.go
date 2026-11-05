@@ -154,6 +154,9 @@ func (a *App) sshAuthMethods(secretID string, authMethod string, keyPath string)
 				}
 			}
 			if err != nil {
+				if ssh.IsHardwareKeyFile(keyBytes) {
+					return nil, fmt.Errorf("%s is a hardware key (YubiKey / FIDO): it can only sign through the SSH agent. Set this auth method to \"SSH agent / YubiKey\" and load the key with ssh-add", keyPath)
+				}
 				return nil, fmt.Errorf("failed to parse key: %w", err)
 			}
 		}
