@@ -622,6 +622,10 @@ export function SelectAgentSession(arg1, arg2, arg3) {
   return window['go']['main']['App']['SelectAgentSession'](arg1, arg2, arg3);
 }
 
+export function SelectSSHKeyFile() {
+  return window['go']['main']['App']['SelectSSHKeyFile']();
+}
+
 export function SetAgentDetectionEnabled(arg1) {
   return window['go']['main']['App']['SetAgentDetectionEnabled'](arg1);
 }

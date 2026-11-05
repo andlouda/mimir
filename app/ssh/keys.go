@@ -38,7 +38,9 @@ func ListSSHKeys() ([]SSHKeyInfo, error) {
 		return nil, err
 	}
 
-	var keys []SSHKeyInfo
+	// Never nil: an empty slice encodes as [] (nil would reach the frontend
+	// as null and crash the key list).
+	keys := []SSHKeyInfo{}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue

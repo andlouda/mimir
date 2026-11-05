@@ -7,6 +7,7 @@ import (
 	"mimir/executil"
 	"net"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,6 +18,8 @@ import (
 	"mimir/terminal"
 
 	gossh "golang.org/x/crypto/ssh"
+
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 var sshTmuxNameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
@@ -319,6 +322,23 @@ func (a *App) GetSSHSecretBackend() string {
 // ListSSHKeys returns discovered SSH keys from ~/.ssh/.
 func (a *App) ListSSHKeys() ([]ssh.SSHKeyInfo, error) {
 	return ssh.ListSSHKeys()
+}
+
+// SelectSSHKeyFile opens the native file dialog in ~/.ssh and returns the
+// chosen key's path, or "" when the user cancels. Used by the profile form
+// when ~/.ssh holds no recognisable key (keys kept elsewhere on Windows).
+func (a *App) SelectSSHKeyFile() (string, error) {
+	if a.ctx == nil {
+		return "", fmt.Errorf("app not started")
+	}
+	opts := wailsruntime.OpenDialogOptions{Title: "SSH private key"}
+	if home, err := os.UserHomeDir(); err == nil {
+		dir := filepath.Join(home, ".ssh")
+		if info, statErr := os.Stat(dir); statErr == nil && info.IsDir() {
+			opts.DefaultDirectory = dir
+		}
+	}
+	return wailsruntime.OpenFileDialog(a.ctx, opts)
 }
 
 // GetSSHTerminalLabel returns "user@host" for an SSH terminal, or "" if not SSH.

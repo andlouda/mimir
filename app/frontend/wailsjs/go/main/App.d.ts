@@ -319,6 +319,8 @@ export function SecretStoreState():Promise<string>;
 
 export function SelectAgentSession(arg1:number,arg2:string,arg3:string):Promise<void>;
 
+export function SelectSSHKeyFile():Promise<string>;
+
 export function SetAgentDetectionEnabled(arg1:boolean):Promise<void>;
 
 export function SetAgentProjectName(arg1:string,arg2:string):Promise<void>;
