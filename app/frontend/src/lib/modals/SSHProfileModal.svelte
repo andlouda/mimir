@@ -100,6 +100,12 @@
   }
 
   async function save() {
+    // Checked before the backend does, with a message that says which
+    // field is missing and what the two ways out are.
+    if (form.jumpHostEnabled && !String(form.jumpHost || '').trim()) {
+      onError($t('sshProfile.jumpHostMissing'));
+      return;
+    }
     try {
       const profileData = {
         name: form.name,
