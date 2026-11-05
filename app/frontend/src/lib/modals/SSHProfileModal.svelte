@@ -4,7 +4,7 @@
   // and persists via bindings; profile-list changes are reported to the parent
   // (which shares sshProfiles with the sidebar). Connecting and host-key
   // verification stay in the parent (terminal creation). Styles from the global stylesheets (styles/).
-  import { SaveSSHProfile, UpdateSSHProfile, DeleteSSHProfile, SetSSHPassword, ListSSHKeys } from '../backend.js';
+  import { SaveSSHProfile, UpdateSSHProfile, DeleteSSHProfile, SetSSHPassword, ListSSHKeys, SelectSSHKeyFile } from '../backend.js';
   import { t } from '../i18n.js';
 
   export let profiles = [];
@@ -74,12 +74,23 @@
     keys = [];
   }
 
+  // Lists the keys in ~/.ssh; when there are none (an empty folder, or keys
+  // kept elsewhere, common on Windows) the native file dialog opens instead.
   async function browseKeys() {
+    let found = [];
     try {
-      keys = await ListSSHKeys();
+      const listed = await ListSSHKeys();
+      found = Array.isArray(listed) ? listed : [];
     } catch (e) {
       console.error('Failed to list SSH keys:', e);
-      keys = [];
+    }
+    keys = found;
+    if (found.length > 0) return;
+    try {
+      const path = await SelectSSHKeyFile();
+      if (path) form.keyPath = path;
+    } catch (e) {
+      console.error('SSH key file dialog failed:', e);
     }
   }
 
@@ -230,7 +241,7 @@
               <button class="add-btn" on:click={browseKeys}>{$t('sshProfile.browse')}</button>
             </div>
           </label>
-          {#if keys.length > 0}
+          {#if keys?.length > 0}
             <div class="ssh-key-list">
               {#each keys as key (key.path)}
                 <button class="ssh-key-item" on:click={() => selectKey(key.path)}>
