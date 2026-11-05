@@ -87,8 +87,7 @@ func serveLoginCounter(t *testing.T, authorized gossh.PublicKey) (port int, host
 // One pane, one login: the tmux probe must not log in a second time (a
 // hardware key would ask for one more touch).
 func TestStartSSHTerminalLogsInOnce(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("HOME", t.TempDir())
+	isolateUserDirs(t)
 
 	_, clientPriv, _ := ed25519.GenerateKey(rand.Reader)
 	block, err := gossh.MarshalPrivateKey(clientPriv, "")
@@ -123,7 +122,7 @@ func TestStartSSHTerminalLogsInOnce(t *testing.T) {
 	}
 	app := &App{TerminalManager: terminal.NewManager(), sshProfileStore: store, knownHostStore: known}
 
-	id, err := app.StartSSHTerminal(profiles[0].ID)
+	id, err := app.StartSSHTerminal(profileIDByName(t, profiles, "counter"))
 	if err != nil {
 		t.Fatalf("StartSSHTerminal: %v", err)
 	}

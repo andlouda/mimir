@@ -127,7 +127,7 @@ func TestGetTerminalTmuxStatusForSSH(t *testing.T) {
 }
 
 func TestStartSSHTerminalWrapsConnectFailure(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	isolateUserDirs(t)
 
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -172,7 +172,7 @@ func TestStartSSHTerminalWrapsConnectFailure(t *testing.T) {
 		},
 	}
 
-	id, err := app.StartSSHTerminal(profiles[0].ID)
+	id, err := app.StartSSHTerminal(profileIDByName(t, profiles, "bad-host"))
 	if err == nil {
 		t.Fatal("StartSSHTerminal returned nil error")
 	}
