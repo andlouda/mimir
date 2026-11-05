@@ -155,6 +155,9 @@ func (a *App) sshAuthMethods(secretID string, authMethod string, keyPath string)
 			}
 		}
 		return []gossh.AuthMethod{gossh.PublicKeys(signer)}, nil
+	case "agent":
+		// Keys held by the SSH agent, including hardware keys (YubiKey).
+		return []gossh.AuthMethod{ssh.AgentAuthMethod()}, nil
 	default:
 		return nil, fmt.Errorf("unsupported auth method: %s", authMethod)
 	}

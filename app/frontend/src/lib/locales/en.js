@@ -480,6 +480,8 @@ export default {
     authMethod: 'Auth Method',
     authPassword: 'Password',
     authKey: 'SSH Key',
+    authAgent: 'SSH agent / YubiKey',
+    agentHint: 'Signs with the keys of the running SSH agent; the private key never leaves this machine or the hardware key. Windows: start the service "OpenSSH Authentication Agent" and run ssh-add with your key file (for a YubiKey: id_ed25519_sk). Linux/macOS: ssh-agent with SSH_AUTH_SOCK set.',
     password: 'Password',
     passwordPlaceholder: 'Enter password',
     keyPath: 'Key Path',
