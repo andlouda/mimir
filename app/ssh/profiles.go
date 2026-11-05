@@ -20,13 +20,13 @@ type Profile struct {
 	Host            string `json:"host"`
 	Port            int    `json:"port"`
 	Username        string `json:"username"`
-	AuthMethod      string `json:"authMethod"` // "password" or "key"
+	AuthMethod      string `json:"authMethod"` // "password", "key" or "agent"
 	KeyPath         string `json:"keyPath,omitempty"`
 	JumpHostEnabled bool   `json:"jumpHostEnabled,omitempty"`
 	JumpHost        string `json:"jumpHost,omitempty"`
 	JumpPort        int    `json:"jumpPort,omitempty"`
 	JumpUsername    string `json:"jumpUsername,omitempty"`
-	JumpAuthMethod  string `json:"jumpAuthMethod,omitempty"` // "password" or "key"
+	JumpAuthMethod  string `json:"jumpAuthMethod,omitempty"` // "password", "key" or "agent"
 	JumpKeyPath     string `json:"jumpKeyPath,omitempty"`
 	UseTmux         *bool  `json:"useTmux,omitempty"`
 	// AgentHost marks a host where coding agents run: only then does Mimir
@@ -242,13 +242,13 @@ func normalizeProfile(p *Profile) {
 	if p.Port == 0 {
 		p.Port = 22
 	}
-	if p.AuthMethod != "key" {
+	if p.AuthMethod != "key" && p.AuthMethod != "agent" {
 		p.AuthMethod = "password"
 	}
 	if p.JumpPort == 0 {
 		p.JumpPort = 22
 	}
-	if p.JumpAuthMethod != "key" {
+	if p.JumpAuthMethod != "key" && p.JumpAuthMethod != "agent" {
 		p.JumpAuthMethod = "password"
 	}
 	if !p.JumpHostEnabled {

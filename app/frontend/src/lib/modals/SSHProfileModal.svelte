@@ -128,13 +128,13 @@
         updated = await SaveSSHProfile(JSON.stringify(profileData));
       }
 
-      if (form.password) {
+      if (form.password && form.authMethod !== 'agent') {
         const saved = updated.find((p) => p.name === profileData.name && p.host === profileData.host);
         if (saved) {
           await SetSSHPassword(saved.id, form.password);
         }
       }
-      if (form.jumpPassword) {
+      if (form.jumpPassword && form.jumpAuthMethod !== 'agent') {
         const saved = updated.find((p) => p.id === profileData.id) || updated.find((p) => p.name === profileData.name && p.host === profileData.host);
         if (saved) {
           await SetSSHPassword(`${saved.id}:jump`, form.jumpPassword);
@@ -225,6 +225,7 @@
           <select bind:value={form.authMethod}>
             <option value="password">{$t('sshProfile.authPassword')}</option>
             <option value="key">{$t('sshProfile.authKey')}</option>
+            <option value="agent">{$t('sshProfile.authAgent')}</option>
           </select>
         </label>
 
@@ -233,6 +234,8 @@
             <span>{$t('sshProfile.password')}</span>
             <input type="password" bind:value={form.password} placeholder={$t('sshProfile.passwordPlaceholder')} />
           </label>
+        {:else if form.authMethod === 'agent'}
+          <p class="ssh-agent-hint" style="margin: 0; font-size: 0.8rem; line-height: 1.45; opacity: 0.8;">{$t('sshProfile.agentHint')}</p>
         {:else}
           <label>
             <span>{$t('sshProfile.keyPath')}</span>
@@ -280,6 +283,7 @@
               <select bind:value={form.jumpAuthMethod}>
                 <option value="password">{$t('sshProfile.authPassword')}</option>
                 <option value="key">{$t('sshProfile.authKey')}</option>
+                <option value="agent">{$t('sshProfile.authAgent')}</option>
               </select>
             </label>
             {#if form.jumpAuthMethod === 'password'}
@@ -287,6 +291,8 @@
                 <span>{$t('sshProfile.jumpPassword')}</span>
                 <input type="password" bind:value={form.jumpPassword} placeholder={$t('sshProfile.passwordPlaceholder')} />
               </label>
+            {:else if form.jumpAuthMethod === 'agent'}
+              <p class="ssh-agent-hint" style="margin: 0; font-size: 0.8rem; line-height: 1.45; opacity: 0.8;">{$t('sshProfile.agentHint')}</p>
             {:else}
               <label>
                 <span>{$t('sshProfile.jumpKeyPath')}</span>
