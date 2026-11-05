@@ -489,6 +489,7 @@ export default {
     passphrase: 'Key-Passphrase (optional)',
     passphrasePlaceholder: 'Leer lassen, falls unverschlüsselt',
     useJumpHost: 'Jumphost verwenden',
+    jumpHostMissing: '„Use jump host“ ist angehakt, aber das Feld „Jump Host“ ist leer. Trag die Adresse des Jumphosts ein (z. B. 100.64.0.2) oder entferne das Häkchen bei „Use jump host“.',
     jumpVia: 'via',
     jumpHost: 'Jumphost',
     jumpPort: 'Jumphost-Port',
