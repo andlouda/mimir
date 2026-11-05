@@ -219,39 +219,13 @@ func (a *App) dialJumpHost(profileID string, profile ssh.Profile) (*gossh.Client
 // probeRemoteTmux reports whether tmux exists on the host and which version
 // it is (the version is shown in the pane's tmux badge; old releases lack
 // set-clipboard / OSC 52, which explains missing mouse copy).
-func probeRemoteTmux(cfg terminal.SSHConnectConfig) (bool, string, string) {
-	hostKeyCallback := cfg.HostKeyCallback
-	if hostKeyCallback == nil {
-		return false, "", "host key verification not configured"
+// probeRemoteTmux asks the host whether tmux is installed, over the pane's
+// own SSH connection. It used to open a second connection and log in again
+// just for this: with a hardware key that meant one more touch per pane.
+func probeRemoteTmux(client *gossh.Client) (bool, string, string) {
+	if client == nil {
+		return false, "", "no SSH connection"
 	}
-	clientCfg := &gossh.ClientConfig{
-		User:            cfg.Username,
-		Auth:            cfg.AuthMethods,
-		HostKeyCallback: hostKeyCallback,
-		Timeout:         cfg.ConnectTimeout,
-	}
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-	var client *gossh.Client
-	if cfg.ProxyClient != nil {
-		conn, err := cfg.ProxyClient.Dial("tcp", addr)
-		if err != nil {
-			return false, "", err.Error()
-		}
-		clientConn, chans, reqs, err := gossh.NewClientConn(conn, addr, clientCfg)
-		if err != nil {
-			conn.Close()
-			return false, "", err.Error()
-		}
-		client = gossh.NewClient(clientConn, chans, reqs)
-	} else {
-		var err error
-		client, err = gossh.Dial("tcp", addr, clientCfg)
-		if err != nil {
-			return false, "", err.Error()
-		}
-	}
-	defer client.Close()
-
 	session, err := client.NewSession()
 	if err != nil {
 		return false, "", err.Error()
@@ -442,19 +416,6 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 		// is closed together with the session.
 		DialProxy: func() (*gossh.Client, error) { return a.dialJumpHost(profileID, profile) },
 	}
-	if tmuxEnabled {
-		if tmuxAvailable, version, probeErr := probeRemoteTmux(cfg); tmuxAvailable {
-			cfg.TmuxActive = true
-			cfg.TmuxStatus = "active"
-			cfg.TmuxVersion = version
-			cfg.TmuxMouse = terminal.TmuxMouseEnabled(integrationMode)
-		} else {
-			cfg.TmuxActive = false
-			cfg.TmuxStatus = "missing"
-			cfg.TmuxError = probeErr
-		}
-	}
-
 	newSSHSession := a.newSSHSession
 	if newSSHSession == nil {
 		newSSHSession = func(cfg terminal.SSHConnectConfig) (terminal.TerminalSession, error) {
@@ -474,6 +435,27 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 			return 0, fmt.Errorf("%s", errMsg[idx:])
 		}
 		return 0, fmt.Errorf("SSH connection failed: %w", err)
+	}
+
+	// tmux status for the pane header, asked over the connection that was
+	// just opened (one login per pane). The shell command already falls
+	// back to a plain shell when tmux is missing, so the session does not
+	// depend on this answer.
+	if tmuxEnabled {
+		var client *gossh.Client
+		if s, ok := session.(*terminal.SSHSession); ok {
+			client = s.Client()
+		}
+		if tmuxAvailable, version, probeErr := probeRemoteTmux(client); tmuxAvailable {
+			cfg.TmuxActive = true
+			cfg.TmuxStatus = "active"
+			cfg.TmuxVersion = version
+			cfg.TmuxMouse = terminal.TmuxMouseEnabled(integrationMode)
+		} else {
+			cfg.TmuxActive = false
+			cfg.TmuxStatus = "missing"
+			cfg.TmuxError = probeErr
+		}
 	}
 
 	meta := &terminal.SSHMeta{
