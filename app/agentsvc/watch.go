@@ -42,10 +42,14 @@ type agentWatcher struct {
 
 const (
 	agentWatchLocalInterval  = 2 * time.Second
-	agentWatchRemoteInterval = 4 * time.Second
-	agentWatchRelookup       = 30 * time.Second
-	agentWatchTailBytes      = 64 * 1024
-	agentWatchHeadBytes      = 48 * 1024
+	agentWatchRemoteInterval = 5 * time.Second
+	// A minimized pane's agent is watched at a slower pace: a finished
+	// agent or an approval request shows up within this time.
+	agentWatchLocalMinimized  = 10 * time.Second
+	agentWatchRemoteMinimized = 30 * time.Second
+	agentWatchRelookup        = 30 * time.Second
+	agentWatchTailBytes       = 64 * 1024
+	agentWatchHeadBytes       = 48 * 1024
 	// agentHookSettle: how long after a hook event a session-file change
 	// still counts as "the record the prompt belongs to".
 	agentHookSettle = 3 * time.Second
@@ -128,10 +132,7 @@ func (a *Service) watchAgentSession(ctx context.Context, w *agentWatcher, termin
 	}
 	defer cleanup()
 
-	interval := agentWatchLocalInterval
-	if state.source == "ssh" {
-		interval = agentWatchRemoteInterval
-	}
+	interval := a.watchInterval(terminalID, state.source)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -171,6 +172,7 @@ func (a *Service) watchAgentSession(ctx context.Context, w *agentWatcher, termin
 		eventsDir = hookEventsDir(state.source, fs, home)
 	}
 	remover, _ := fs.(agents.Remover)
+	var hookCache agents.HookEventCache
 	locate := func() {
 		cwd = state.cwd
 		if cwd == "" {
@@ -252,7 +254,7 @@ func (a *Service) watchAgentSession(ctx context.Context, w *agentWatcher, termin
 			}
 		}
 		if eventsDir != "" {
-			for _, ev := range agents.ScanHookEvents(fs, eventsDir) {
+			for _, ev := range agents.ScanHookEventsCached(fs, eventsDir, &hookCache) {
 				if !agents.MatchesHookEvent(ev.Event, state.pid, file, cwd) {
 					continue
 				}
@@ -323,6 +325,7 @@ func (a *Service) watchAgentSession(ctx context.Context, w *agentWatcher, termin
 			lastPayload = payload
 			a.emitAgentState(terminalID, payload)
 		}
+		a.repaceWatch(ticker, terminalID, state.source)
 		select {
 		case <-ctx.Done():
 			return
@@ -412,10 +415,32 @@ func (a *Service) watchOpenCode(ctx context.Context, w *agentWatcher, terminalID
 				}
 			}
 		}
+		a.repaceWatch(ticker, terminalID, state.source)
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 		}
 	}
+}
+
+// watchInterval is the watcher's pace for a pane: slower over SSH and
+// slower again while the pane is minimized.
+func (a *Service) watchInterval(terminalID int, source string) time.Duration {
+	minimized := a.terminals != nil && a.terminals.IsTerminalMinimized(terminalID)
+	switch {
+	case source == "ssh" && minimized:
+		return agentWatchRemoteMinimized
+	case source == "ssh":
+		return agentWatchRemoteInterval
+	case minimized:
+		return agentWatchLocalMinimized
+	default:
+		return agentWatchLocalInterval
+	}
+}
+
+// repaceWatch adjusts the ticker when the pane was minimized or restored.
+func (a *Service) repaceWatch(ticker *time.Ticker, terminalID int, source string) {
+	ticker.Reset(a.watchInterval(terminalID, source))
 }

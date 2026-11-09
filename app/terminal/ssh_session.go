@@ -51,6 +51,8 @@ type SSHSession struct {
 	mu            sync.Mutex
 	closed        bool
 	keepaliveDone chan struct{}
+	// idle reports whether the pane is minimized; nil means visible.
+	idle func() bool
 }
 
 // enableTCPKeepalive sets OS-level TCP keepalive on the connection so the
@@ -58,7 +60,7 @@ type SSHSession struct {
 func enableTCPKeepalive(conn net.Conn) {
 	if tc, ok := conn.(*net.TCPConn); ok {
 		_ = tc.SetKeepAlive(true)
-		_ = tc.SetKeepAlivePeriod(5 * time.Second)
+		_ = tc.SetKeepAlivePeriod(15 * time.Second)
 	}
 }
 
@@ -177,15 +179,41 @@ func NewSSHSession(cfg SSHConnectConfig) (*SSHSession, error) {
 	return s, nil
 }
 
-// keepalive sends periodic requests to detect dead connections quickly.
+// Keepalive pace: a pane on screen notices a dead link within about
+// 25 s, a minimized one within about 45 s. The request is a few bytes,
+// but there is no reason to send it every 5 s to a pane nobody watches.
+const (
+	keepaliveVisible   = 15 * time.Second
+	keepaliveMinimized = 30 * time.Second
+	keepaliveTimeout   = 10 * time.Second
+)
+
+// SetIdleFunc sets the check for a minimized pane (see Manager.pacePane).
+func (s *SSHSession) SetIdleFunc(fn func() bool) {
+	s.mu.Lock()
+	s.idle = fn
+	s.mu.Unlock()
+}
+
+func (s *SSHSession) keepaliveInterval() time.Duration {
+	s.mu.Lock()
+	idle := s.idle
+	s.mu.Unlock()
+	if idle != nil && idle() {
+		return keepaliveMinimized
+	}
+	return keepaliveVisible
+}
+
+// keepalive sends periodic requests to detect dead connections.
 func (s *SSHSession) keepalive() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
 	for {
+		timer := time.NewTimer(s.keepaliveInterval())
 		select {
 		case <-s.keepaliveDone:
+			timer.Stop()
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			done := make(chan error, 1)
 			go func() {
 				_, _, err := s.client.SendRequest("keepalive@openssh.com", true, nil)
@@ -197,7 +225,7 @@ func (s *SSHSession) keepalive() {
 					s.Close()
 					return
 				}
-			case <-time.After(10 * time.Second):
+			case <-time.After(keepaliveTimeout):
 				s.Close()
 				return
 			case <-s.keepaliveDone:

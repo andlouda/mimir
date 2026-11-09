@@ -256,3 +256,44 @@ func TestListHookEventStubs(t *testing.T) {
 		t.Fatalf("missing dir must yield nothing, got %+v", got)
 	}
 }
+
+// countingFS counts file reads on top of LocalFS.
+type countingFS struct {
+	LocalFS
+	reads int
+}
+
+func (c *countingFS) ReadHead(p string, n int64) ([]byte, error) {
+	c.reads++
+	return c.LocalFS.ReadHead(p, n)
+}
+
+func TestScanHookEventsCachedReadsOnlyNewFiles(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name string) {
+		body := `{"session_id":"s1","cwd":"/w","hook_event_name":"Notification","notification_type":"idle_prompt","message":"hi"}`
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("a-100.json")
+	write("b-101.json")
+	fs := &countingFS{}
+	var cache HookEventCache
+	if got := ScanHookEventsCached(fs, dir, &cache); len(got) != 2 || fs.reads != 2 {
+		t.Fatalf("first scan: %d events, %d reads; want 2, 2", len(got), fs.reads)
+	}
+	if got := ScanHookEventsCached(fs, dir, &cache); len(got) != 2 || fs.reads != 2 {
+		t.Fatalf("second scan re-read files: %d events, %d reads; want 2, 2", len(got), fs.reads)
+	}
+	write("c-102.json")
+	if got := ScanHookEventsCached(fs, dir, &cache); len(got) != 3 || fs.reads != 3 {
+		t.Fatalf("third scan: %d events, %d reads; want 3, 3", len(got), fs.reads)
+	}
+	if err := os.Remove(filepath.Join(dir, "a-100.json")); err != nil {
+		t.Fatal(err)
+	}
+	if got := ScanHookEventsCached(fs, dir, &cache); len(got) != 2 || len(cache.entries) != 2 {
+		t.Fatalf("after removal: %d events, %d cached; want 2, 2", len(got), len(cache.entries))
+	}
+}
