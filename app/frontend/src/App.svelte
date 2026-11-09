@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { startPaneResourceSampling, stopPaneResourceSampling } from './lib/actions/paneResources.js';
   import { t as tr } from './lib/i18n.js';
-  import { GetFunctionCatalogJSON, GetLoadedSessionData, GetPendingUpdate, GetTmuxIntegrationMode, ImportNoteFromLocal, ImportNoteFromRemote, IsHistoryTrackingEnabled, optional, SetHistoryTracking, StartSSHTerminal, StartTerminal, WriteToTerminal } from './lib/backend.js';
+  import { GetFunctionCatalogJSON, GetLoadedSessionData, GetPendingUpdate, GetTmuxIntegrationMode, ImportNoteFromLocal, ImportNoteFromRemote, IsHistoryTrackingEnabled, optional, SetHistoryTracking, StartTerminal, WriteToTerminal } from './lib/backend.js';
   import { EventsOn } from '../wailsjs/runtime';
   import SecretUnlockGate from './lib/SecretUnlockGate.svelte';
   import Sidebar from './lib/Sidebar.svelte';
@@ -38,7 +38,7 @@
   import { createKeydownHandler } from './lib/actions/keyboardShortcuts.js';
   import { closeTerminalSearch, toggleTerminalSearch } from './lib/actions/terminalSearchActions.js';
   import { loadTemplatesFromBackend, toggleWorkflowPicker } from './lib/actions/templateActions.js';
-  import { createSSHActions, loadSSHProfiles, openSSHProfilePicker } from './lib/actions/sshActions.js';
+  import { createSSHActions, loadSSHProfiles, openSSHProfilePicker, startRestoredSSHTerminal } from './lib/actions/sshActions.js';
   import { addTerminal, toggleMinimize, handleResize, reinitializeTerminals, createTerminalInstance, cleanupTerminalResources } from './lib/actions/terminalActions.js';
   import { persistTerminalState, scheduleSessionSave, loadTranscriptExcerpt, clearSessionSaveTimer, layoutKeyFor, enableLayoutPersistence } from './lib/actions/sessionActions.js';
   import { applyTerminalBackground } from './lib/actions/backgroundActions.js';
@@ -183,8 +183,7 @@
 
   async function restoreSSHTerminal(profile, saved) {
     {
-      const startSSH = StartSSHTerminal;
-      const id = await startSSH(profile.id);
+      const id = await startRestoredSSHTerminal(profile.id, saved.tmuxSessionName || '');
       if (!id) return null;
       const name = saved.name || `SSH: ${profile.name}`;
       const restoreClass = 'live-restored';

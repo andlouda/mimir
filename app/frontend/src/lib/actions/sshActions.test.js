@@ -5,6 +5,7 @@ import {
   loadSSHProfiles,
   openSSHProfilePicker,
   parseHostKeyVerifyError,
+  startRestoredSSHTerminal,
 } from './sshActions.js';
 import { activeTerminalId, layoutTree } from '../stores/terminalStore.js';
 import {
@@ -139,5 +140,24 @@ describe('ssh actions', () => {
 
     expect(RejectSSHHostKey).toHaveBeenCalledWith('prod');
     expect(get(hostKeyVerifyState)).toBe(null);
+  });
+});
+
+describe('startRestoredSSHTerminal', () => {
+  test('a restored pane attaches its saved tmux session', async () => {
+    const startSession = vi.fn(() => Promise.resolve(7));
+    const id = await startRestoredSSHTerminal('p1', 'mimir-ssh-p1-2', { startSession });
+    expect(id).toBe(7);
+    expect(startSession).toHaveBeenCalledWith('p1', 'mimir-ssh-p1-2');
+    expect(StartSSHTerminal).not.toHaveBeenCalled();
+  });
+
+  test('without a saved name or on an older backend the pane starts fresh', async () => {
+    StartSSHTerminal.mockResolvedValue(3);
+    const startSession = vi.fn();
+    expect(await startRestoredSSHTerminal('p1', '', { startSession })).toBe(3);
+    expect(await startRestoredSSHTerminal('p1', 'mimir-ssh-p1-2', { startSession: undefined })).toBe(3);
+    expect(startSession).not.toHaveBeenCalled();
+    expect(StartSSHTerminal).toHaveBeenCalledTimes(2);
   });
 });

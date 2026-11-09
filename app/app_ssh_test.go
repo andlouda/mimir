@@ -58,6 +58,36 @@ func TestSSHTmuxSessionNameSanitizesProfileID(t *testing.T) {
 	if a == b {
 		t.Fatalf("sshTmuxSessionName should produce unique names, got %q twice", a)
 	}
+	// Fresh names must not restart at the counter values of an earlier app
+	// run, or a new pane can take over a restored pane's session.
+	if strings.HasSuffix(a, "-1") || strings.HasSuffix(a, "-2") {
+		t.Fatalf("sshTmuxSessionName(%q) = %q looks like a bare counter", "test", a)
+	}
+	if !reusableSSHTmuxName("test", a) {
+		t.Fatalf("a fresh name must be reusable after a restart: %q", a)
+	}
+}
+
+func TestReusableSSHTmuxName(t *testing.T) {
+	const profile = "8e98e988-1f93-4aef-9e39-6633e45239a6"
+	tests := []struct {
+		name string
+		ok   bool
+	}{
+		{"mimir-ssh-8e98e988-2", true},
+		{"mimir-ssh-8e98e988-1a2b3c4d7", true},
+		{"mimir-ssh-eff7a2aa-5", false},
+		{"mimir-ssh-8e98e988-", false},
+		{"mimir-ssh-8e98e988-2;rm", false},
+		{"mimir-ssh-8e98e988-2 x", false},
+		{"other", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		if got := reusableSSHTmuxName(profile, tt.name); got != tt.ok {
+			t.Errorf("reusableSSHTmuxName(%q) = %v, want %v", tt.name, got, tt.ok)
+		}
+	}
 }
 
 func TestSSHTmuxBootstrapCommand(t *testing.T) {

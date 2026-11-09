@@ -5,6 +5,7 @@ import {
   GetSSHSecretBackend,
   RejectSSHHostKey,
   StartSSHTerminal,
+  optional,
 } from '../backend.js';
 import { activeTerminalId, layoutTree } from '../stores/terminalStore.js';
 import { appendLeaf } from '../terminals/layoutTree.js';
@@ -16,6 +17,18 @@ import {
   sshSecretBackend,
 } from '../stores/sshStore.js';
 import { errorMessage } from '../stores/uiStore.js';
+
+/**
+ * Starts the SSH pane of a terminal restored after an app restart, attached
+ * to the tmux session it used before. Without the saved name the backend
+ * hands out a fresh one and the pane, back in its old place, shows another
+ * pane's session or an empty one. An older backend without
+ * StartSSHTerminalSession gets the plain start.
+ */
+export function startRestoredSSHTerminal(profileId, tmuxSessionName, { startSession = optional('StartSSHTerminalSession') } = {}) {
+  if (tmuxSessionName && typeof startSession === 'function') return startSession(profileId, tmuxSessionName);
+  return StartSSHTerminal(profileId);
+}
 
 export async function loadSSHProfiles() {
   try {

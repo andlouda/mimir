@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"mimir/executil"
@@ -55,7 +57,9 @@ func sshTmuxBootstrapCommand(sessionName string, shellCommand string, tmuxMode s
 	return "sh -lc " + executil.ShellQuote(script)
 }
 
-func sshTmuxSessionName(profileID string) string {
+// sshTmuxNamePrefix is the part of a session name tied to the profile:
+// "mimir-ssh-<first 8 id chars, sanitized>-".
+func sshTmuxNamePrefix(profileID string) string {
 	shortID := profileID
 	if len(shortID) > 8 {
 		shortID = shortID[:8]
@@ -64,8 +68,34 @@ func sshTmuxSessionName(profileID string) string {
 	if shortID == "" {
 		shortID = "default"
 	}
+	return "mimir-ssh-" + shortID + "-"
+}
+
+// sshTmuxSessionName returns a fresh session name. The suffix combines a
+// random part with the in-process counter: a plain counter restarted at 1
+// with every app start, so a new pane could be handed the name of a session
+// that a restored pane was still using on the host, and "new-session -A -D"
+// then pulled that session into the new pane and detached the old one.
+func sshTmuxSessionName(profileID string) string {
 	n := atomic.AddUint64(&sshTmuxCounter, 1)
-	return fmt.Sprintf("mimir-ssh-%s-%d", shortID, n)
+	var b [4]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return fmt.Sprintf("%s%d-%d", sshTmuxNamePrefix(profileID), time.Now().UnixNano(), n)
+	}
+	return fmt.Sprintf("%s%s%d", sshTmuxNamePrefix(profileID), hex.EncodeToString(b[:]), n)
+}
+
+// sshTmuxSuffixPattern limits a reused session name to what
+// sshTmuxSessionName produces (old counter names included).
+var sshTmuxSuffixPattern = regexp.MustCompile(`^[a-z0-9]{1,32}$`)
+
+// reusableSSHTmuxName reports whether name, saved with a pane, may be
+// attached again for this profile: it must carry the profile's prefix and
+// a plain suffix, so a tampered session file cannot steer the pane into a
+// foreign session or smuggle shell syntax (the name is quoted anyway).
+func reusableSSHTmuxName(profileID, name string) bool {
+	prefix := sshTmuxNamePrefix(profileID)
+	return strings.HasPrefix(name, prefix) && sshTmuxSuffixPattern.MatchString(strings.TrimPrefix(name, prefix))
 }
 
 func expandLocalPath(path string) string {
@@ -352,6 +382,21 @@ func (a *App) GetSSHTerminalTmuxStatus(terminalID int) map[string]any {
 // StartSSHTerminal loads a profile, resolves credentials, establishes an SSH session
 // and registers it with the terminal manager. Returns the terminal ID.
 func (a *App) StartSSHTerminal(profileID string) (int, error) {
+	return a.startSSHTerminal(profileID, "")
+}
+
+// StartSSHTerminalSession is StartSSHTerminal for a pane restored after an
+// app restart: it attaches the tmux session the pane used before, so every
+// pane gets its own session back in its old place. A name that does not
+// belong to the profile is ignored and a fresh session is started.
+func (a *App) StartSSHTerminalSession(profileID string, tmuxSessionName string) (int, error) {
+	if !reusableSSHTmuxName(profileID, tmuxSessionName) {
+		tmuxSessionName = ""
+	}
+	return a.startSSHTerminal(profileID, tmuxSessionName)
+}
+
+func (a *App) startSSHTerminal(profileID string, reuseTmuxSession string) (int, error) {
 	integrationMode := a.TerminalManager.TmuxIntegrationMode()
 	if a.apiLimiter != nil {
 		if err := a.apiLimiter.allow("start_ssh"); err != nil {
@@ -391,7 +436,10 @@ func (a *App) StartSSHTerminal(profileID string) (int, error) {
 	tmuxMode := "off"
 	tmuxStatus := "disabled"
 	if tmuxEnabled {
-		tmuxSessionName = sshTmuxSessionName(profileID)
+		tmuxSessionName = reuseTmuxSession
+		if tmuxSessionName == "" {
+			tmuxSessionName = sshTmuxSessionName(profileID)
+		}
 		command = sshTmuxBootstrapCommand(tmuxSessionName, command, integrationMode)
 		tmuxMode = "auto"
 		tmuxStatus = "pending"
