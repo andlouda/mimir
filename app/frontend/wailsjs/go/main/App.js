@@ -666,6 +666,10 @@ export function SetSSHPassword(arg1, arg2) {
   return window['go']['main']['App']['SetSSHPassword'](arg1, arg2);
 }
 
+export function SetTerminalMinimized(arg1, arg2) {
+  return window['go']['main']['App']['SetTerminalMinimized'](arg1, arg2);
+}
+
 export function SetTmuxIntegrationMode(arg1) {
   return window['go']['main']['App']['SetTmuxIntegrationMode'](arg1);
 }

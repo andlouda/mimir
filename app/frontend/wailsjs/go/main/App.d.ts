@@ -341,6 +341,8 @@ export function SetRecordInput(arg1:boolean):Promise<void>;
 
 export function SetSSHPassword(arg1:string,arg2:string):Promise<void>;
 
+export function SetTerminalMinimized(arg1:number,arg2:boolean):Promise<void>;
+
 export function SetTmuxIntegrationMode(arg1:string):Promise<string>;
 
 export function SetWaylandFix(arg1:string):Promise<string>;

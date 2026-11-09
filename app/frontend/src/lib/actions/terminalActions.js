@@ -287,6 +287,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     cleanupHandlers: []
   };
   terminals.update(list => [...list, newTerminal]);
+  if (minimized) reportMinimized(id, true);
 
   saveTranscriptMetadata({
     resumeId: newTerminal.resumeId,
@@ -722,11 +723,19 @@ export async function reconnectSSH(id) {
   }
 }
 
+// Tells the backend whether a pane is on screen: background work for a
+// minimized pane (SSH keepalive, agent watching) runs at a slower pace.
+function reportMinimized(id, minimized) {
+  const fn = optional('SetTerminalMinimized');
+  if (fn) Promise.resolve(fn(id, Boolean(minimized))).catch(() => {});
+}
+
 export async function terminalToBackground(id) {
   terminals.update(list => list.map(t => {
     if (t.id === id) {
       const next = { ...t, minimized: true };
       persistTerminalState(next);
+      reportMinimized(id, true);
       return next;
     }
     return t;
@@ -746,6 +755,7 @@ export async function terminalToForeground(id) {
     if (t.id === id) {
       const next = { ...t, minimized: false };
       persistTerminalState(next);
+      reportMinimized(id, false);
       return next;
     }
     return t;

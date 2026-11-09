@@ -122,6 +122,9 @@ type Manager struct {
 	// tmuxMode is the tmux integration mode for new terminals (see
 	// tmux_options.go); "" behaves like TmuxModeInvisible.
 	tmuxMode string
+	// minimized: panes the frontend has put away. Background work for them
+	// (SSH keepalive, agent watching) runs at a slower pace.
+	minimized map[int]bool
 }
 
 // SessionMeta holds metadata about a terminal session for history recording.
@@ -153,7 +156,29 @@ func NewManager() *Manager {
 		runtimeMeta:  make(map[int]TerminalRuntimeMeta),
 		lastCwd:      make(map[int]string),
 		recorders:    make(map[int]*recording.Recorder),
+		minimized:    make(map[int]bool),
 	}
+}
+
+// SetTerminalMinimized records whether a pane is minimized (not on screen).
+func (m *Manager) SetTerminalMinimized(id int, minimized bool) {
+	m.ptyMutex.Lock()
+	defer m.ptyMutex.Unlock()
+	if m.minimized == nil {
+		m.minimized = make(map[int]bool)
+	}
+	if minimized {
+		m.minimized[id] = true
+	} else {
+		delete(m.minimized, id)
+	}
+}
+
+// IsTerminalMinimized reports whether the frontend has the pane minimized.
+func (m *Manager) IsTerminalMinimized(id int) bool {
+	m.ptyMutex.Lock()
+	defer m.ptyMutex.Unlock()
+	return m.minimized[id]
 }
 
 // SetHistoryStore sets the history store for recording commands.
@@ -229,6 +254,7 @@ func (m *Manager) removeTerminal(id int) {
 	delete(m.sessionMeta, id)
 	delete(m.runtimeMeta, id)
 	delete(m.lastCwd, id)
+	delete(m.minimized, id)
 }
 
 // GetTerminalRuntimeMeta returns runtime metadata for a local terminal.
@@ -248,8 +274,17 @@ func (m *Manager) RegisterSSHSession(session TerminalSession, meta *SSHMeta) int
 	m.sessions[id] = session
 	m.readySignals[id] = make(chan struct{})
 	m.sshMeta[id] = meta
+	m.pacePane(id, session)
 
 	return id
+}
+
+// pacePane lets an SSH session ask whether its pane is minimized, so its
+// keepalive can slow down while nobody looks at it.
+func (m *Manager) pacePane(id int, session TerminalSession) {
+	if s, ok := session.(*SSHSession); ok {
+		s.SetIdleFunc(func() bool { return m.IsTerminalMinimized(id) })
+	}
 }
 
 // StartTerminal starts a new terminal session.
@@ -607,6 +642,7 @@ func (m *Manager) ReconnectSSH(id int) error {
 	}
 	m.sessions[id] = newSession
 	m.readySignals[id] = make(chan struct{})
+	m.pacePane(id, newSession)
 	m.ptyMutex.Unlock()
 
 	return nil

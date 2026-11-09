@@ -709,6 +709,12 @@ func (a *App) GetWindowsBuildNumber() int {
 	return windowsBuildNumber()
 }
 
+// SetTerminalMinimized tells the backend a pane was minimized or restored;
+// background work for minimized panes runs at a slower pace.
+func (a *App) SetTerminalMinimized(id int, minimized bool) {
+	a.TerminalManager.SetTerminalMinimized(id, minimized)
+}
+
 func (a *App) CloseTerminal(id int) error {
 	a.agents.ForgetDetectionOutcome(id)
 	return a.TerminalManager.CloseTerminal(id)

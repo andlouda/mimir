@@ -497,13 +497,35 @@ const hookEventHardMaxAge = 24 * time.Hour
 // beyond this is dropped (its result is in the transcript anyway).
 const maxHookFileBytes = 256 * 1024
 
+// HookEventCache remembers parsed event files by path and mtime, so a
+// watcher that scans the same directory every few seconds only lists it
+// and reads files that are new or changed. Over SSH every read is an SFTP
+// round trip; with tool events on, the directory holds hundreds of files.
+type HookEventCache struct {
+	entries map[string]cachedHookEvent
+}
+
+type cachedHookEvent struct {
+	mod time.Time
+	ev  HookEvent
+}
+
 // ScanHookEvents reads all payloads in dir, oldest first. Unparseable or
 // stale files are removed when fs can delete; a missing directory is not an
 // error.
 func ScanHookEvents(fs FS, dir string) []HookEventFile {
+	return ScanHookEventsCached(fs, dir, nil)
+}
+
+// ScanHookEventsCached is ScanHookEvents that reuses cache (may be nil)
+// for files it has parsed before and whose mtime did not change.
+func ScanHookEventsCached(fs FS, dir string, cache *HookEventCache) []HookEventFile {
 	entries, err := fs.ReadDir(dir)
 	if err != nil {
 		return nil
+	}
+	if cache != nil && cache.entries == nil {
+		cache.entries = make(map[string]cachedHookEvent)
 	}
 	remover, _ := fs.(Remover)
 	// Mtimes of SSH/WSL hosts come from their clocks; judge age against the
@@ -516,13 +538,26 @@ func ScanHookEvents(fs FS, dir string) []HookEventFile {
 			newest = e.ModTime
 		}
 	}
+	listed := make(map[string]bool, len(entries))
 	var out []HookEventFile
 	for _, e := range entries {
 		if e.IsDir || !strings.HasSuffix(e.Name, ".json") {
 			continue
 		}
 		p := fs.Join(dir, e.Name)
-		stale := newest.Sub(e.ModTime) > hookEventMaxAge || time.Since(e.ModTime) > hookEventHardMaxAge
+		if newest.Sub(e.ModTime) > hookEventMaxAge || time.Since(e.ModTime) > hookEventHardMaxAge {
+			if remover != nil {
+				_ = remover.Remove(p)
+			}
+			continue
+		}
+		listed[p] = true
+		if cache != nil {
+			if c, ok := cache.entries[p]; ok && c.mod.Equal(e.ModTime) {
+				out = append(out, HookEventFile{Path: p, ModTime: e.ModTime, Event: c.ev})
+				continue
+			}
+		}
 		data, err := fs.ReadHead(p, maxHookFileBytes)
 		if err != nil {
 			continue
@@ -533,14 +568,24 @@ func ScanHookEvents(fs FS, dir string) []HookEventFile {
 			data = compact
 		}
 		ev, perr := ParseHookEvent(data)
-		if perr != nil || stale {
+		if perr != nil {
 			if remover != nil {
 				_ = remover.Remove(p)
 			}
 			continue
 		}
 		ev.PPID = hookEventPPID(e.Name)
+		if cache != nil {
+			cache.entries[p] = cachedHookEvent{mod: e.ModTime, ev: ev}
+		}
 		out = append(out, HookEventFile{Path: p, ModTime: e.ModTime, Event: ev})
+	}
+	if cache != nil {
+		for p := range cache.entries {
+			if !listed[p] {
+				delete(cache.entries, p)
+			}
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ModTime.Before(out[j].ModTime) })
 	return out
