@@ -9,6 +9,7 @@
   let backgroundDialogId = null; // terminal id whose background is being edited
   import { hoveredLink, isOpenableUrl, openUrl } from './terminals/terminalLinks.js';
   import { joinSelectionLines } from './util.js';
+  import { cleanTerminalSelection } from './terminals/tmuxFiller.js';
   import { tmuxScrollKeys } from './terminals/wheelScroll.js';
   import { GetTmuxPasteBufferJSON, WriteToTerminal } from './backend.js';
   import { createEventDispatcher, tick, onDestroy } from 'svelte';
@@ -262,7 +263,7 @@
   async function ctxCopy(term) {
     closeContextMenu();
     try {
-      const text = term.terminal?.getSelection?.() || '';
+      const text = cleanTerminalSelection(term.terminal?.getSelection?.() || '');
       if (text) await ClipboardSetText(text);
     } catch (error) {
       console.error('Context menu copy failed:', error);

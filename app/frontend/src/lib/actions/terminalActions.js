@@ -12,6 +12,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import { createWriteOnlyClipboardProvider } from '../terminals/osc52Clipboard.js';
 import { clearHoveredLink, createHyperlinkHandler, createLinkProvider } from '../terminals/terminalLinks.js';
+import { cleanTerminalSelection } from '../terminals/tmuxFiller.js';
 import { isGlobalShortcut, closeTopOverlay, focusTerminal } from './keyboardShortcuts.js';
 import { updateTerminalSearchResult } from './terminalSearchActions.js';
 import { ClipboardSetText, EventsOn } from '../../../wailsjs/runtime';
@@ -235,7 +236,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
       // and only when something is selected: otherwise the key goes to the
       // shell as usual.
       if (event.type === 'keydown') {
-        const text = terminal.getSelection();
+        const text = cleanTerminalSelection(terminal.getSelection());
         if (text) ClipboardSetText(text).catch((error) => console.error('Copy failed:', error));
       }
       event.preventDefault?.();

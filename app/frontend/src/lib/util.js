@@ -1,5 +1,6 @@
 // Generic, state-free helpers extracted from App.svelte.
 import DOMPurify from 'dompurify';
+import { stripTmuxFiller } from './terminals/tmuxFiller.js';
 
 /** Single-quotes a path for safe interpolation into a POSIX shell command. */
 export function shellQuotePath(path) {
@@ -124,16 +125,35 @@ export function sanitizeHtml(html) {
  * width was cut mid-token and is glued to the next row without a space
  * (URLs, paths, tokens); a shorter row was wrapped at a word boundary and
  * gets a single space. Continuation indentation is dropped.
+ *
+ * tmux's border and dot filler (window smaller than the pane) is removed
+ * first; the window width then counts as the row width. Rows hard-wrapped
+ * at a fixed narrower width (fold, programs printing at 80 columns) are
+ * glued too: the inner rows share one length of at least 40 and every row
+ * involved is one unbroken token (the first may be "text: https://...").
  */
 export function joinSelectionLines(text, cols) {
-  const lines = String(text ?? '').replace(/\r/g, '').split('\n');
-  if (lines.length <= 1) return lines[0] || '';
-  let out = lines[0].trimEnd();
-  for (let i = 1; i < lines.length; i++) {
-    const next = lines[i].trim();
+  const rows = String(text ?? '').replace(/\r/g, '').split('\n').map((line) => {
+    const info = stripTmuxFiller(line, cols);
+    return { line: info.filler ? info.text : line, width: info.width };
+  });
+  while (rows.length > 1 && rows[rows.length - 1].line === '') rows.pop();
+  if (rows.length <= 1) return rows[0]?.line || '';
+  const inner = rows.slice(1, -1).map((r) => r.line.trim().length);
+  const foldWidth = inner.length > 0 && inner[0] >= 40 && inner.every((n) => n === inner[0]) ? inner[0] : 0;
+  const token = /^\S+$/;
+  const endsInUrl = /:\/\/\S*$/;
+  let out = rows[0].line.trimEnd();
+  for (let i = 1; i < rows.length; i++) {
+    const next = rows[i].line.trim();
     if (!next) continue;
-    const prevFull = cols > 0 && lines[i - 1].length >= cols;
-    out += prevFull ? next : ' ' + next;
+    const prev = rows[i - 1];
+    const prevTrim = prev.line.trim();
+    const prevFull = prev.width > 0 && prev.line.length >= prev.width;
+    const prevFolded = foldWidth > 0 && token.test(next) && (i === 1
+      ? token.test(prevTrim) || endsInUrl.test(prevTrim)
+      : prevTrim.length === foldWidth && token.test(prevTrim));
+    out += prevFull || prevFolded ? next : ' ' + next;
   }
   return out;
 }
