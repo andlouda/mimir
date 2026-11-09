@@ -353,6 +353,8 @@ export function StartRecording(arg1:number,arg2:string):Promise<string>;
 
 export function StartSSHTerminal(arg1:string):Promise<number>;
 
+export function StartSSHTerminalSession(arg1:string,arg2:string):Promise<number>;
+
 export function StartTerminal(arg1:string):Promise<number>;
 
 export function StartTerminalWithOptions(arg1:string,arg2:string):Promise<number>;

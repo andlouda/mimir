@@ -690,6 +690,10 @@ export function StartSSHTerminal(arg1) {
   return window['go']['main']['App']['StartSSHTerminal'](arg1);
 }
 
+export function StartSSHTerminalSession(arg1, arg2) {
+  return window['go']['main']['App']['StartSSHTerminalSession'](arg1, arg2);
+}
+
 export function StartTerminal(arg1) {
   return window['go']['main']['App']['StartTerminal'](arg1);
 }

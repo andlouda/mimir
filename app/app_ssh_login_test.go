@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -133,5 +134,27 @@ func TestStartSSHTerminalLogsInOnce(t *testing.T) {
 	}
 	if meta := app.TerminalManager.GetSSHMeta(id); meta == nil || !meta.Config.TmuxActive || meta.Config.TmuxVersion != "3.3a" {
 		t.Fatalf("tmux probe over the pane's connection did not report tmux: %#v", meta)
+	}
+
+	// A restored pane attaches its saved session; a name of another profile
+	// is not reused.
+	profileID := profileIDByName(t, profiles, "counter")
+	saved := sshTmuxNamePrefix(profileID) + "2"
+	restored, err := app.StartSSHTerminalSession(profileID, saved)
+	if err != nil {
+		t.Fatalf("StartSSHTerminalSession: %v", err)
+	}
+	defer app.TerminalManager.CloseTerminal(restored)
+	if meta := app.TerminalManager.GetSSHMeta(restored); meta == nil || meta.Config.TmuxSessionName != saved ||
+		!strings.Contains(meta.Config.Command, saved) {
+		t.Fatalf("restored pane did not attach %q: %#v", saved, meta)
+	}
+	foreign, err := app.StartSSHTerminalSession(profileID, "mimir-ssh-otherpro-2")
+	if err != nil {
+		t.Fatalf("StartSSHTerminalSession (foreign): %v", err)
+	}
+	defer app.TerminalManager.CloseTerminal(foreign)
+	if meta := app.TerminalManager.GetSSHMeta(foreign); meta == nil || meta.Config.TmuxSessionName == "mimir-ssh-otherpro-2" {
+		t.Fatalf("foreign session name was reused: %#v", meta)
 	}
 }
