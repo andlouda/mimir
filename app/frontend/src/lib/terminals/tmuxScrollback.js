@@ -1,9 +1,11 @@
-// tmux stores its history at the width it was written. After a pane is
-// widened, lines scrolled off earlier stay cut at the old width, and xterm
-// cannot re-wrap them (tmux emitted hard line breaks). This module re-fills
-// xterm's scrollback from tmux once a widen has settled: the history comes
-// back with tmux's soft wraps joined, so xterm wraps it at the new width,
-// then tmux repaints the visible screen.
+// tmux stores its history at the width it was written. After a pane changes
+// width, lines scrolled off earlier keep the old width: after a widen they
+// stay cut short, after a narrowing xterm folds each old row on its own and
+// the text turns ragged (long row, short rest, long row, ...). xterm cannot
+// re-wrap them properly because tmux emitted hard line breaks. This module
+// re-fills xterm's scrollback from tmux once a width change has settled:
+// the history comes back with tmux's soft wraps joined, so xterm wraps it at
+// the new width, then tmux repaints the visible screen.
 
 const SETTLE_MS = 700;
 const HISTORY_LINES = 5000;
@@ -19,11 +21,11 @@ export function createScrollbackRefill({ fetchHistory, refreshClient, isEnabled 
     generations.set(id, (generations.get(id) || 0) + 1);
   }
 
-  /** Call after a resize was sent to the PTY. Only a widen of a tmux pane qualifies. */
+  /** Call after a resize was sent to the PTY. Any width change of a tmux pane qualifies; a change of height alone does not. */
   function onResized(term, prevCols, cols) {
     if (!term) return;
     cancel(term.id);
-    if (!isEnabled() || !term.tmuxActive || term.minimized || !(cols > prevCols)) return;
+    if (!isEnabled() || !term.tmuxActive || term.minimized || !(cols > 0) || cols === prevCols) return;
     const gen = generations.get(term.id) || 0;
     const timer = setTimeout(() => {
       timers.delete(term.id);

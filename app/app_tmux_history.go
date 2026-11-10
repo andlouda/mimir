@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
-// tmux keeps its history at the width it was written: after a pane is
-// widened, lines scrolled off earlier stay cut at the old width, and xterm
-// cannot re-wrap them because tmux emitted hard line breaks. The frontend
-// therefore re-fills xterm's scrollback from tmux after a widen:
+// tmux keeps its history at the width it was written: after a pane changes
+// width, lines scrolled off earlier keep the old width, and xterm cannot
+// re-wrap them because tmux emitted hard line breaks. The frontend
+// therefore re-fills xterm's scrollback from tmux after a width change:
 // GetTmuxHistoryJSON hands over the history with tmux's soft wraps joined
 // (-J) and colours kept (-e); RefreshTmuxClient then makes tmux repaint
 // the visible screen.

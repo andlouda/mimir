@@ -116,7 +116,7 @@ export default {
     cards: {
       tmuxRefill: {
         title: 'tmux-Verlauf nach Größenänderung',
-        desc: 'Wird eine tmux-Pane breiter, wird ihr Verlauf neu geladen, damit ältere Zeilen in der neuen Breite umbrechen. tmux selbst lässt sie in der alten Breite abgeschnitten. Aus: der Verlauf bleibt, wie er gezeichnet wurde.',
+        desc: 'Ändert eine tmux-Pane ihre Breite, egal ob breiter oder schmaler, wird ihr Verlauf neu geladen, damit ältere Zeilen in der neuen Breite umbrechen. tmux selbst lässt sie in der alten Breite. Aus: der Verlauf bleibt, wie er gezeichnet wurde.',
       },
       claudeRerender: {
         title: 'Claude: nach Verbreitern neu zeichnen',
