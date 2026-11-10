@@ -406,6 +406,10 @@ export function IsWaylandSession() {
   return window['go']['main']['App']['IsWaylandSession']();
 }
 
+export function KillSSHTmuxSession(arg1) {
+  return window['go']['main']['App']['KillSSHTmuxSession'](arg1);
+}
+
 export function KillTmuxSession(arg1) {
   return window['go']['main']['App']['KillTmuxSession'](arg1);
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -17,6 +18,23 @@ import (
 
 	gossh "golang.org/x/crypto/ssh"
 )
+
+// loginServerExecs records every exec command the loopback server received.
+var loginServerExecs struct {
+	sync.Mutex
+	cmds []string
+}
+
+func loginServerSawExec(want string) bool {
+	loginServerExecs.Lock()
+	defer loginServerExecs.Unlock()
+	for _, c := range loginServerExecs.cmds {
+		if strings.Contains(c, want) {
+			return true
+		}
+	}
+	return false
+}
 
 // serveLoginCounter runs a loopback SSH server that accepts one key and
 // counts successful logins. exec requests answer like a host with tmux;
@@ -67,6 +85,11 @@ func serveLoginCounter(t *testing.T, authorized gossh.PublicKey) (port int, host
 							switch req.Type {
 							case "exec":
 								// Both the tmux probe and the pane's command are exec.
+								if len(req.Payload) > 4 {
+									loginServerExecs.Lock()
+									loginServerExecs.cmds = append(loginServerExecs.cmds, string(req.Payload[4:]))
+									loginServerExecs.Unlock()
+								}
 								req.Reply(true, nil)
 								ch.Write([]byte("tmux 3.3a\n"))
 								status := make([]byte, 4)
@@ -156,5 +179,32 @@ func TestStartSSHTerminalLogsInOnce(t *testing.T) {
 	defer app.TerminalManager.CloseTerminal(foreign)
 	if meta := app.TerminalManager.GetSSHMeta(foreign); meta == nil || meta.Config.TmuxSessionName == "mimir-ssh-otherpro-2" {
 		t.Fatalf("foreign session name was reused: %#v", meta)
+	}
+
+	// Closing a pane ends exactly its tmux session on the host, over the
+	// pane's connection (no further login).
+	before := atomic.LoadInt32(logins)
+	if err := app.KillSSHTmuxSession(restored); err != nil {
+		t.Fatalf("KillSSHTmuxSession: %v", err)
+	}
+	if want := sshKillSessionCommand(saved); !loginServerSawExec(want) {
+		t.Fatalf("host did not receive %q", want)
+	}
+	if n := atomic.LoadInt32(logins); n != before {
+		t.Fatalf("ending the session logged in again: %d -> %d", before, n)
+	}
+	// A session name Mimir did not create for the profile is never killed.
+	if meta := app.TerminalManager.GetSSHMeta(foreign); meta != nil {
+		meta.Config.TmuxSessionName = "main"
+		if err := app.KillSSHTmuxSession(foreign); err == nil {
+			t.Fatal("KillSSHTmuxSession must refuse a session Mimir did not create")
+		}
+		if loginServerSawExec("kill-session -t '=main'") || loginServerSawExec("kill-session -t =main") {
+			t.Fatal("a foreign tmux session was killed")
+		}
+	}
+	// Unknown panes are a no-op.
+	if err := app.KillSSHTmuxSession(99999); err != nil {
+		t.Fatalf("KillSSHTmuxSession(unknown): %v", err)
 	}
 }
