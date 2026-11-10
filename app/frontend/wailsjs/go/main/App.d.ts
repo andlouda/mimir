@@ -213,6 +213,8 @@ export function IsWaylandSession():Promise<boolean>;
 
 export function KillSSHTmuxSession(arg1:number):Promise<void>;
 
+export function KillSSHTmuxSessionByName(arg1:number,arg2:string):Promise<void>;
+
 export function KillTmuxSession(arg1:string):Promise<void>;
 
 export function LinkAgentWorkspaceSessionJSON(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string):Promise<string>;
@@ -234,6 +236,8 @@ export function ListRecordings():Promise<Array<recording.RecordingInfo>>;
 export function ListSSHKeys():Promise<Array<ssh.SSHKeyInfo>>;
 
 export function ListTerminalBackgroundsJSON():Promise<string>;
+
+export function ListTmuxSessionsJSON():Promise<string>;
 
 export function ListTranscripts():Promise<Array<main.TranscriptListEntry>>;
 

@@ -37,6 +37,7 @@
   // Read from the store directly — the state is pushed by the backend's
   // session-file watcher and does not belong to any single page.
   import { agentStates } from './stores/agentStore.js';
+  import { showTmuxSessions } from './stores/uiStore.js';
 
   // SSH panes are probed for agents only when their profile marks the host
   // as an agent host; without that an agent on the host stays invisible and
@@ -293,6 +294,7 @@
         aria-expanded={sshNavOpen}
       >
         <span class="nav-icon">&#x2192;</span> {$t('sidebar.sshHosts')}
+        <button class="sidebar-add-btn" on:click|stopPropagation={() => { showTmuxSessions.set(true); }} title={$t('sidebar.tmuxSessions')}>&#x2261;</button>
         <button class="sidebar-add-btn" on:click|stopPropagation={() => { openSSHProfilePicker(); }} title={$t('sidebar.manageSSH')}>+</button>
         <span class="sidebar-disclosure">{sshNavOpen ? '▾' : '▸'}</span>
       </div>

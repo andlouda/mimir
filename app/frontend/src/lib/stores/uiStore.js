@@ -188,3 +188,5 @@ export const historyConsentDismissed = writable(false);
 export const transcriptViewerState = writable(null);
 // When set to { terminalId, terminalType, label } the secure .env viewer modal opens.
 export const dotEnvViewerState = writable(null);
+// True while the tmux session overview is open (see actions/tmuxSessionActions.js).
+export const showTmuxSessions = writable(false);

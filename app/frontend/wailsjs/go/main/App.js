@@ -410,12 +410,20 @@ export function KillSSHTmuxSession(arg1) {
   return window['go']['main']['App']['KillSSHTmuxSession'](arg1);
 }
 
+export function KillSSHTmuxSessionByName(arg1, arg2) {
+  return window['go']['main']['App']['KillSSHTmuxSessionByName'](arg1, arg2);
+}
+
 export function KillTmuxSession(arg1) {
   return window['go']['main']['App']['KillTmuxSession'](arg1);
 }
 
 export function LinkAgentWorkspaceSessionJSON(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['LinkAgentWorkspaceSessionJSON'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function ListTmuxSessionsJSON() {
+  return window['go']['main']['App']['ListTmuxSessionsJSON']();
 }
 
 export function ListAgentSessionsJSON(arg1, arg2) {

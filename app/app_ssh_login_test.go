@@ -207,4 +207,30 @@ func TestStartSSHTerminalLogsInOnce(t *testing.T) {
 	if err := app.KillSSHTmuxSession(99999); err != nil {
 		t.Fatalf("KillSSHTmuxSession(unknown): %v", err)
 	}
+
+	// The session overview: the host is asked over a pane's connection, and
+	// only an orphaned session of the profile can be ended from it.
+	groups := app.sshTmuxSessionGroups()
+	if len(groups) != 1 || groups[0].ProfileID != profileID || groups[0].Label != "counter" || groups[0].Error != "" {
+		t.Fatalf("session groups: %#v", groups)
+	}
+	if !loginServerSawExec("tmux list-panes -a -F ") {
+		t.Fatal("host was not asked for its sessions")
+	}
+	if n := atomic.LoadInt32(logins); n != before {
+		t.Fatalf("listing sessions logged in again: %d -> %d", before, n)
+	}
+	orphan := sshTmuxNamePrefix(profileID) + "9"
+	if err := app.KillSSHTmuxSessionByName(id, orphan); err != nil {
+		t.Fatalf("KillSSHTmuxSessionByName(orphan): %v", err)
+	}
+	if !loginServerSawExec(sshKillSessionCommand(orphan)) {
+		t.Fatal("orphaned session was not ended on the host")
+	}
+	if err := app.KillSSHTmuxSessionByName(id, "main"); err == nil {
+		t.Fatal("a session Mimir did not create must be refused")
+	}
+	if err := app.KillSSHTmuxSessionByName(id, saved); err == nil {
+		t.Fatal("a session open in a pane must be ended by closing the pane")
+	}
 }
