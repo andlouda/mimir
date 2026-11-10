@@ -401,3 +401,36 @@ Alle drei Suites laufen in CI auf Ubuntu/Windows/macOS.
   Plan, in den das Transcript-Modul später integriert wird
 - [`security-notes.md`](security-notes.md) — generelle Security-Linie
 - [`testing.md`](testing.md) — Vitest/Playwright-Setup
+
+---
+
+## 14. Breitenunabhängiges Transkript für tmux-Panes
+
+Der Roh-Stream (`<resumeID>.log`) einer tmux-Pane ist kein Text mit logischen
+Zeilen: tmux zeichnet den Bildschirm in der Breite, die die Pane gerade hat,
+und zeichnet ihn nach jeder Größenänderung neu. Das Transkript enthält dadurch
+Abschnitte in wechselnden Breiten und Wiederholungen.
+
+Für tmux-Panes gibt es deshalb eine zweite Datei:
+
+```
+<resumeID>.history   ← tmux-Verlauf als ganze Zeilen, wird als Ganzes ersetzt
+```
+
+- Quelle: `tmux capture-pane -p -J -S -50000` (Soft-Wraps zusammengefügt, ohne
+  Farben, sichtbarer Bildschirm eingeschlossen). Eine Zeile ist damit so lang,
+  wie das Programm sie geschrieben hat, unabhängig von jeder Pane-Breite.
+- Gesichert wird, solange die Sitzung lebt: einige Minuten nach neuer Ausgabe
+  (`lib/transcript/tmuxSnapshot.js`), vor dem Schließen der Pane und beim
+  Öffnen des Viewers für eine offene Pane.
+- Backend: `SnapshotTmuxTranscript` schreibt nur in das Transkript, das zur
+  Pane gehört. `GetTerminalTranscriptHistory` und die `…Scrubbed`-Variante
+  lesen. `transcript.Delete` entfernt die Datei mit.
+- Viewer: zeigt den Verlauf, wenn es einen gibt; der Bildschirmstrom bleibt
+  per Umschalter erreichbar. Die Seite ist fest 160 Spalten breit, egal wie
+  groß Pane oder Fenster sind; ein schmaleres Fenster scrollt seitwärts.
+
+Grenzen: Vollbild-Programme (alternativer Bildschirm) haben keinen Verlauf,
+dort bleibt der letzte Snapshot stehen. Zeilen, die ein Programm selbst hart
+umbrochen hat, bleiben umbrochen. Pro Snapshot die letzten 50.000 Zeilen,
+höchstens 16 MiB.

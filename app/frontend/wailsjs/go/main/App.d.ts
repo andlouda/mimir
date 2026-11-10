@@ -173,6 +173,10 @@ export function GetTerminalTranscriptExcerpt(arg1:string,arg2:number):Promise<st
 
 export function GetTerminalTranscriptFull(arg1:string,arg2:number):Promise<string>;
 
+export function GetTerminalTranscriptHistory(arg1:string,arg2:number):Promise<transcript.Content>;
+
+export function GetTerminalTranscriptHistoryScrubbed(arg1:string,arg2:number):Promise<transcript.Content>;
+
 export function GetTmuxHistoryJSON(arg1:number,arg2:string,arg3:number):Promise<string>;
 
 export function GetTmuxIntegrationMode():Promise<string>;
@@ -354,6 +358,8 @@ export function SetTmuxIntegrationMode(arg1:string):Promise<string>;
 export function SetWaylandFix(arg1:string):Promise<string>;
 
 export function SetupSecretMasterPassword(arg1:string):Promise<void>;
+
+export function SnapshotTmuxTranscript(arg1:number,arg2:string,arg3:string):Promise<boolean>;
 
 export function StartRecording(arg1:number,arg2:string):Promise<string>;
 

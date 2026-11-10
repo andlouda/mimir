@@ -3,7 +3,8 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { t } from '../i18n.js';
   import { cleanTranscript } from '../transcript/cleanTranscript.js';
-  import { getTranscriptContent, getTranscriptContentScrubbed, listTranscripts, deleteTranscript, getTranscriptDiskUsage } from '../transcript/transcriptApi.js';
+  import { getTranscriptContent, getTranscriptContentScrubbed, getTranscriptHistory, getTranscriptHistoryScrubbed, listTranscripts, deleteTranscript, getTranscriptDiskUsage } from '../transcript/transcriptApi.js';
+  import { snapshotTranscriptOf } from '../actions/terminalActions.js';
 
   export let initialResumeId = '';
   export let initialLabel = '';
@@ -12,6 +13,7 @@
 
   let modalEl;
   let viewerEl;
+  let scrollEl; // scrolls the fixed-width page
   // Element that owned focus before the modal opened; we return focus to it
   // on close so keyboard users don't get dropped at the top of the page.
   let triggerEl = null;
@@ -27,6 +29,11 @@
   let transcriptError = '';
   let truncated = false;
   let showRaw = false;
+  // A tmux pane has two transcripts: its history as logical lines (the same
+  // at any pane width, see app/transcript/history.go) and the raw screen
+  // stream. The history is shown when there is one.
+  let historyText = '';
+  let source = 'stream'; // 'history' | 'stream'
   // Start collapsed when we were opened with a known resumeId (the user
   // pressed the button on a specific terminal) so the viewer takes the full
   // width by default. Browse mode is one click away via the header toggle.
@@ -85,10 +92,11 @@
       sel.addRange(range);
       // scrollIntoView for the range
       const rect = range.getBoundingClientRect();
-      const containerRect = viewerEl.getBoundingClientRect();
+      const scroller = scrollEl || viewerEl;
+      const containerRect = scroller.getBoundingClientRect();
       if (rect.top < containerRect.top || rect.bottom > containerRect.bottom) {
-        const scrollTarget = viewerEl.scrollTop + rect.top - containerRect.top - containerRect.height / 3;
-        viewerEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        const scrollTarget = scroller.scrollTop + rect.top - containerRect.top - containerRect.height / 3;
+        scroller.scrollTo({ top: scrollTarget, behavior: 'smooth' });
       }
     } catch (_) { /* text node length mismatch edge case */ }
   }
@@ -140,7 +148,7 @@
     cleanCacheValue = cleanTranscript(text);
     return cleanCacheValue;
   }
-  $: displayText = getDisplayText(transcriptText, showRaw);
+  $: displayText = source === 'history' && historyText ? historyText : getDisplayText(transcriptText, showRaw);
 
   $: selectedEntry = selectedResumeId
     ? entries.find((entry) => entry.resumeId === selectedResumeId)
@@ -205,6 +213,8 @@
   async function loadTranscript(resumeId) {
     if (!resumeId) {
       transcriptText = '';
+      historyText = '';
+      source = 'stream';
       transcriptSize = 0;
       transcriptReadBytes = 0;
       truncated = false;
@@ -215,20 +225,31 @@
     loadingTranscript = true;
     transcriptError = '';
     try {
-      const content = await getTranscriptContent(resumeId, 0);
+      // A pane that is still open gets its tmux history saved first, so the
+      // viewer shows the current state and not the last periodic snapshot.
+      await snapshotTranscriptOf(resumeId).catch(() => false);
+      const [content, history] = await Promise.all([
+        getTranscriptContent(resumeId, 0),
+        getTranscriptHistory(resumeId, 0).catch(() => ({ text: '' })),
+      ]);
       if (token !== loadToken) return; // a newer request superseded us
+      historyText = history.text || '';
+      source = historyText ? 'history' : 'stream';
       transcriptText = content.text;
       transcriptSize = content.size;
       transcriptReadBytes = content.readBytes;
       truncated = content.truncated;
       await tick();
-      if (viewerEl) viewerEl.scrollTop = viewerEl.scrollHeight;
+      const scroller = scrollEl || viewerEl;
+      if (scroller) scroller.scrollTop = scroller.scrollHeight;
     } catch (error) {
       if (token !== loadToken) return;
       const message = error?.message || String(error);
       transcriptError = message;
       onError(`Failed to load transcript: ${message}`);
       transcriptText = '';
+      historyText = '';
+      source = 'stream';
       transcriptSize = 0;
       transcriptReadBytes = 0;
       truncated = false;
@@ -339,7 +360,7 @@
   }
 
   async function copyAll() {
-    if (!transcriptText) return;
+    if (!displayText) return;
     try {
       await ClipboardSetText(displayText);
     } catch (error) {
@@ -350,8 +371,13 @@
   async function copyScrubbed() {
     if (!selectedResumeId) return;
     try {
-      const result = await getTranscriptContentScrubbed(selectedResumeId);
-      const text = showCleaned ? cleanTranscript(result.text) : result.text;
+      let text;
+      if (source === 'history' && historyText) {
+        text = (await getTranscriptHistoryScrubbed(selectedResumeId)).text;
+      } else {
+        const result = await getTranscriptContentScrubbed(selectedResumeId);
+        text = showRaw ? result.text : cleanTranscript(result.text);
+      }
       await ClipboardSetText(text);
     } catch (error) {
       onError(`Copy failed: ${error?.message || error}`);
@@ -567,10 +593,10 @@
           </div>
         {:else if !selectedResumeId}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.pickOne')}</div>
-        {:else if !transcriptText}
+        {:else if !transcriptText && !historyText}
           <div class="transcript-viewer-empty">{$t('transcriptViewer.emptyTranscript')}</div>
         {:else}
-          {#if truncated}
+          {#if truncated && source === 'stream'}
             <div class="transcript-viewer-truncated">
               {$t('transcriptViewer.truncatedDetail', {
                 read: formatBytes(transcriptReadBytes),
@@ -578,7 +604,9 @@
               })}
             </div>
           {/if}
-          <pre bind:this={viewerEl} class="transcript-viewer-content">{displayText}</pre>
+          <div bind:this={scrollEl} class="transcript-viewer-content">
+            <pre bind:this={viewerEl} class="transcript-viewer-page">{displayText}</pre>
+          </div>
         {/if}
       </section>
 
@@ -601,10 +629,18 @@
 
     <footer class="transcript-viewer-footer">
       <div class="transcript-viewer-footer-left">
-        <label class="transcript-viewer-toggle">
-          <input type="checkbox" bind:checked={showRaw} />
-          <span>{$t('transcriptViewer.showRaw')}</span>
-        </label>
+        {#if historyText}
+          <div class="transcript-source" role="group" aria-label={$t('transcriptViewer.sourceLabel')}>
+            <button type="button" class:active={source === 'history'} title={$t('transcriptViewer.sourceHistoryTitle')} on:click={() => { source = 'history'; }}>{$t('transcriptViewer.sourceHistory')}</button>
+            <button type="button" class:active={source === 'stream'} title={$t('transcriptViewer.sourceStreamTitle')} on:click={() => { source = 'stream'; }}>{$t('transcriptViewer.sourceStream')}</button>
+          </div>
+        {/if}
+        {#if source === 'stream'}
+          <label class="transcript-viewer-toggle">
+            <input type="checkbox" bind:checked={showRaw} />
+            <span>{$t('transcriptViewer.showRaw')}</span>
+          </label>
+        {/if}
         {#if diskUsage.count > 0}
           <span class="transcript-disk-usage">
             {$t('transcriptViewer.diskUsage', { count: diskUsage.count, size: formatBytes(diskUsage.totalBytes) })}
@@ -651,8 +687,9 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    width: min(960px, 92vw);
-    height: min(720px, 88vh);
+    /* Wide enough for the fixed transcript page (160 columns) on an HD screen. */
+    width: min(1280px, 96vw);
+    height: min(1024px, 90vh);
     background: #15171f;
     border: 1px solid #2b3140;
     border-radius: 10px;
@@ -759,16 +796,42 @@
   }
   .transcript-viewer-content {
     flex: 1;
-    margin: 0;
+    min-height: 0;
     padding: 14px 16px;
     overflow: auto;
     background: #0c0e14;
+  }
+  /* The transcript page has one fixed width, 160 columns, whatever size the
+     pane had and whatever size this window has: lines always break at the
+     same place. A narrower window scrolls sideways instead of re-wrapping. */
+  .transcript-viewer-page {
+    box-sizing: content-box;
+    width: 160ch;
+    margin: 0;
     color: #c8cdd8;
     font-family: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
     font-size: 12px;
     line-height: 1.5;
     white-space: pre-wrap;
-    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .transcript-source {
+    display: inline-flex;
+    border: 1px solid #2b3140;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .transcript-source button {
+    background: transparent;
+    border: none;
+    color: #8b93a5;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+  }
+  .transcript-source button.active {
+    background: #2b3140;
+    color: #d6dae3;
   }
   .transcript-viewer-truncated {
     padding: 8px 16px;
