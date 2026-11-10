@@ -33,13 +33,26 @@ describe('tmux scrollback refill', () => {
     expect(refreshClient).toHaveBeenCalledWith(1);
   });
 
-  test('skips narrowing, non-tmux panes, alternate screens and a disabled setting', async () => {
+  test('a narrowed pane is re-filled too, so old rows do not fold raggedly', async () => {
+    const xterm = fakeXterm(2);
+    const fetchHistory = vi.fn(async () => ({ alternate: false, lines: ['one long line'] }));
+    const refreshClient = vi.fn(async () => {});
+    const refill = createScrollbackRefill({ fetchHistory, refreshClient });
+    refill.onResized({ id: 1, terminal: xterm, tmuxActive: true }, 120, 80);
+    await vi.advanceTimersByTimeAsync(refill._settleMs + 10);
+    expect(fetchHistory).toHaveBeenCalledTimes(1);
+    expect(xterm.cleared).toBe(1);
+    expect(refreshClient).toHaveBeenCalledWith(1);
+  });
+
+  test('skips an unchanged width, non-tmux panes, alternate screens and a disabled setting', async () => {
     const fetchHistory = vi.fn(async () => ({ alternate: true, lines: ['x'] }));
     const refreshClient = vi.fn(async () => {});
     let enabled = true;
     const refill = createScrollbackRefill({ fetchHistory, refreshClient, isEnabled: () => enabled });
     const xterm = fakeXterm();
-    refill.onResized({ id: 1, terminal: xterm, tmuxActive: true }, 120, 80);
+    refill.onResized({ id: 1, terminal: xterm, tmuxActive: true }, 120, 120); // height changed only
+    refill.onResized({ id: 5, terminal: xterm, tmuxActive: true, minimized: true }, 80, 120);
     refill.onResized({ id: 2, terminal: xterm, tmuxActive: false }, 80, 120);
     enabled = false;
     refill.onResized({ id: 3, terminal: xterm, tmuxActive: true }, 80, 120);

@@ -33,8 +33,8 @@ const outputThrottle = createOutputThrottle({
 });
 activeTerminalId.subscribe((id) => { if (id != null) outputThrottle.flush(id); });
 
-// After a tmux pane was widened, its old history is re-fetched so it wraps
-// at the new width (tmux keeps it cut at the old one otherwise).
+// After a tmux pane changed width, its old history is re-fetched so it wraps
+// at the new width (tmux keeps it at the old one otherwise).
 const scrollbackRefill = createScrollbackRefill({
   fetchHistory: async (id, maxLines) => {
     const term = get(terminals).find((t) => t.id === id);

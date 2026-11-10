@@ -81,7 +81,7 @@ export const imagePasteSetting = writable(initialImagePaste());
 imagePasteSetting.subscribe((mode) => {
   try { localStorage.setItem(IMAGE_PASTE_KEY, mode); } catch { /* ignore */ }
 });
-// Re-fill a tmux pane's scrollback after it was widened (see
+// Re-fill a tmux pane's scrollback after its width changed (see
 // terminals/tmuxScrollback.js); on by default.
 const SCROLLBACK_REFILL_KEY = 'mimir-tmux-scrollback-refill';
 function initialScrollbackRefill() {
