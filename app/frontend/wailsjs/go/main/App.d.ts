@@ -211,6 +211,8 @@ export function IsRecording(arg1:number):Promise<boolean>;
 
 export function IsWaylandSession():Promise<boolean>;
 
+export function KillSSHTmuxSession(arg1:number):Promise<void>;
+
 export function KillTmuxSession(arg1:string):Promise<void>;
 
 export function LinkAgentWorkspaceSessionJSON(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string):Promise<string>;

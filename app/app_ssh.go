@@ -561,6 +561,41 @@ func (a *App) ReconnectSSHTerminal(id int) error {
 	return nil
 }
 
+// sshKillSessionCommand ends one tmux session on the host. "=" makes tmux
+// match the name exactly instead of by prefix.
+func sshKillSessionCommand(sessionName string) string {
+	return "tmux kill-session -t " + executil.ShellQuote("="+sessionName)
+}
+
+// KillSSHTmuxSession ends the tmux session of an SSH pane on the host. The
+// frontend calls it when the user closes the pane: closing only the
+// connection left the session, and everything running in it, alive on the
+// server for good. Quitting the app does not call it, so sessions still
+// survive a restart. Only a session Mimir created for the pane's profile is
+// touched; without a live connection there is nothing to send, and the
+// caller is told so.
+func (a *App) KillSSHTmuxSession(id int) error {
+	meta := a.TerminalManager.GetSSHMeta(id)
+	if meta == nil {
+		return nil
+	}
+	name := strings.TrimSpace(meta.Config.TmuxSessionName)
+	if name == "" {
+		return nil
+	}
+	if !reusableSSHTmuxName(meta.ProfileID, name) {
+		return fmt.Errorf("tmux session %q was not created by Mimir for this profile", name)
+	}
+	client := a.TerminalManager.GetSSHClient(id)
+	if client == nil {
+		return fmt.Errorf("no connection to end tmux session %s on the host", name)
+	}
+	// The command answers with an error when the session is already gone
+	// (the shell in it exited); that is the wanted end state.
+	_, _ = ssh.RunCommand(client, sshKillSessionCommand(name)+" 2>/dev/null; true", discoveryTimeout)
+	return nil
+}
+
 // CloseSSHTerminalFull fully removes a disconnected SSH terminal from the manager.
 func (a *App) CloseSSHTerminalFull(id int) {
 	a.TerminalManager.CloseSSHTerminal(id)

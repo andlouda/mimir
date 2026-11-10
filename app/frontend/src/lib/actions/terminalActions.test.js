@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { get } from 'svelte/store';
 import { terminals, activeTerminalId, layoutTree } from '../stores/terminalStore.js';
+import { errorMessage } from '../stores/uiStore.js';
 import {
   CloseTerminal,
   CloseSSHTerminalFull,
@@ -192,5 +193,55 @@ describe('saveTerminalName', () => {
     const term = get(terminals)[0];
     expect(term.name).toBe('New');
     expect(term.editingName).toBe(false);
+  });
+});
+
+describe('removeTerminal for SSH panes', () => {
+  beforeEach(() => {
+    vi.stubGlobal('window', {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test('ends the tmux session on the host before closing the connection', async () => {
+    const order = [];
+    const kill = vi.fn(() => { order.push('kill'); return Promise.resolve(); });
+    CloseTerminal.mockImplementation(() => { order.push('close'); return Promise.resolve(); });
+    globalThis.window.go = { main: { App: { KillSSHTmuxSession: kill } } };
+    terminals.set([{ id: 4, type: 'ssh', tmuxSessionName: 'mimir-ssh-abc-1', cleanupHandlers: [] }]);
+
+    removeTerminal(4);
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+
+    expect(kill).toHaveBeenCalledWith(4);
+    expect(order).toEqual(['kill', 'close']);
+    expect(KillTmuxSession).not.toHaveBeenCalled();
+  });
+
+  test('a failing host command still closes the pane and reports the session', async () => {
+    const kill = vi.fn(() => Promise.reject(new Error('no connection')));
+    globalThis.window.go = { main: { App: { KillSSHTmuxSession: kill } } };
+    terminals.set([{ id: 4, type: 'ssh', tmuxSessionName: 'mimir-ssh-abc-1', cleanupHandlers: [] }]);
+
+    removeTerminal(4);
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+
+    expect(CloseTerminal).toHaveBeenCalledWith(4);
+    expect(get(errorMessage)).toContain('mimir-ssh-abc-1');
+  });
+
+  test('SSH panes without tmux and older backends close as before', () => {
+    terminals.set([{ id: 4, type: 'ssh', tmuxSessionName: '', cleanupHandlers: [] }]);
+    removeTerminal(4);
+    expect(CloseTerminal).toHaveBeenCalledWith(4);
+  });
+
+  test('a disconnected pane names the session that may be left on the host', () => {
+    terminals.set([{ id: 9, type: 'ssh', disconnected: true, tmuxSessionName: 'mimir-ssh-abc-2', cleanupHandlers: [] }]);
+    removeTerminal(9);
+    expect(CloseSSHTerminalFull).toHaveBeenCalledWith(9);
+    expect(get(errorMessage)).toContain('tmux kill-session -t mimir-ssh-abc-2');
   });
 });

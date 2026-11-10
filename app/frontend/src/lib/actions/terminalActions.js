@@ -695,13 +695,31 @@ export function removeTerminal(id) {
     KillTmuxSession(term.tmuxSessionName).catch(() => {});
   }
   if (term && term.type === 'ssh' && term.disconnected) {
+    // No connection, so the tmux session on the host cannot be ended from
+    // here; say so instead of leaving it behind silently.
+    if (term.tmuxSessionName) {
+      errorMessage.set(`The pane was closed without a connection. Its tmux session may still run on the host: tmux kill-session -t ${term.tmuxSessionName}`);
+    }
     Promise.resolve(CloseSSHTerminalFull(id)).catch(() => {});
     safelyDisposeTerminal(term, 'disconnected terminal');
     finalizeTerminalRemoval(id);
     reinitializeTerminals();
     return;
   }
-  Promise.resolve(CloseTerminal(id)).catch(() => {});
+  // Closing an SSH pane ends its tmux session on the host first, over the
+  // pane's own connection; closing only the connection left the session
+  // and its processes running on the server. The pane itself disappears
+  // without waiting for the host (see the timer below).
+  const killRemote = term?.type === 'ssh' && term.tmuxSessionName ? optional('KillSSHTmuxSession') : undefined;
+  const closeBackend = () => Promise.resolve(CloseTerminal(id)).catch(() => {});
+  if (typeof killRemote === 'function') {
+    Promise.resolve()
+      .then(() => killRemote(id))
+      .catch((error) => errorMessage.set(`tmux session ${term.tmuxSessionName} could not be ended on the host: ${error?.message || error}`))
+      .finally(closeBackend);
+  } else {
+    closeBackend();
+  }
   setTimeout(() => {
     const stillExists = get(terminals).find(t => t.id === id);
     if (stillExists) {
