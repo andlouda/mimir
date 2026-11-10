@@ -64,6 +64,24 @@ import { windowsPtyOptions } from '../terminals/windowsPty.js';
 import { safelyWriteTerminal, safelyFitAndResizeTerminal, safelyAttachTerminal, safelyDisposeTerminal, observeTerminalResize, rebindTerminalResize, forgetTerminalResize, enableWebgl, disableWebgl, setResizedListener } from '../terminals/xtermLifecycle.js';
 import { markReconnectStarted, markReconnectSucceeded, markReconnectFailed } from '../terminals/reconnectLifecycle.js';
 import { appendTerminalTranscript, saveTranscriptMetadata } from '../transcript/transcriptApi.js';
+import { createSnapshotScheduler } from '../transcript/tmuxSnapshot.js';
+
+// The transcript of a tmux pane as logical lines, independent of the pane's
+// width (see transcript/tmuxSnapshot.js). Only a connected tmux pane has a
+// history to save; everything else resolves to false.
+function snapshotPaneTranscript(id) {
+  const term = get(terminals).find((t) => t.id === id);
+  const snapshot = optional('SnapshotTmuxTranscript');
+  if (typeof snapshot !== 'function' || !term?.tmuxActive || !term.resumeId || term.disconnected) return Promise.resolve(false);
+  return Promise.resolve(snapshot(id, term.type || '', term.resumeId));
+}
+export const transcriptSnapshots = createSnapshotScheduler({ snapshot: snapshotPaneTranscript });
+
+/** Saves the current tmux history of the live pane recording resumeId, if there is one. */
+export function snapshotTranscriptOf(resumeId) {
+  const term = resumeId ? get(terminals).find((t) => t.resumeId === resumeId) : null;
+  return term ? transcriptSnapshots.flush(term.id) : Promise.resolve(false);
+}
 import { persistTerminalState, scheduleSessionSave } from './sessionActions.js';
 
 const tmuxCapableTerminalTypes = new Set(['bash', 'zsh', 'wsl']);
@@ -348,6 +366,7 @@ export async function createTerminalInstance(id, type, name, minimized, sshProfi
     // one, which was most of the webview's work under load.
     rememberOutput(id, data);
     appendTerminalTranscript(newTerminal.resumeId, data);
+    transcriptSnapshots.markDirty(id);
   });
   newTerminal.cleanupHandlers.push(offOutput);
 
@@ -691,8 +710,18 @@ export async function toggleRecording(terminalId) {
 
 export function removeTerminal(id) {
   const term = get(terminals).find(t => t.id === id);
+  // A tmux pane's history is saved one last time before its session ends;
+  // afterwards there is nothing left to ask. Panes without tmux skip this
+  // and close exactly as before.
+  const canSnapshot = Boolean(term?.tmuxActive && term.resumeId && !term.disconnected && optional('SnapshotTmuxTranscript'));
+  const snapshotted = canSnapshot ? transcriptSnapshots.flush(id) : null;
+  const afterSnapshot = (run) => {
+    if (snapshotted) snapshotted.finally(run);
+    else run();
+  };
+  if (!canSnapshot) transcriptSnapshots.forget(id);
   if (term?.tmuxSessionName && term?.tmuxOwned) {
-    KillTmuxSession(term.tmuxSessionName).catch(() => {});
+    afterSnapshot(() => { KillTmuxSession(term.tmuxSessionName).catch(() => {}); });
   }
   if (term && term.type === 'ssh' && term.disconnected) {
     // No connection, so the tmux session on the host cannot be ended from
@@ -712,14 +741,16 @@ export function removeTerminal(id) {
   // without waiting for the host (see the timer below).
   const killRemote = term?.type === 'ssh' && term.tmuxSessionName ? optional('KillSSHTmuxSession') : undefined;
   const closeBackend = () => Promise.resolve(CloseTerminal(id)).catch(() => {});
-  if (typeof killRemote === 'function') {
-    Promise.resolve()
-      .then(() => killRemote(id))
-      .catch((error) => errorMessage.set(`tmux session ${term.tmuxSessionName} could not be ended on the host: ${error?.message || error}`))
-      .finally(closeBackend);
-  } else {
-    closeBackend();
-  }
+  afterSnapshot(() => {
+    if (typeof killRemote === 'function') {
+      Promise.resolve()
+        .then(() => killRemote(id))
+        .catch((error) => errorMessage.set(`tmux session ${term.tmuxSessionName} could not be ended on the host: ${error?.message || error}`))
+        .finally(closeBackend);
+    } else {
+      closeBackend();
+    }
+  });
   setTimeout(() => {
     const stillExists = get(terminals).find(t => t.id === id);
     if (stillExists) {

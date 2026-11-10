@@ -326,6 +326,14 @@ export function GetTerminalTranscriptExcerpt(arg1, arg2) {
   return window['go']['main']['App']['GetTerminalTranscriptExcerpt'](arg1, arg2);
 }
 
+export function GetTerminalTranscriptHistory(arg1, arg2) {
+  return window['go']['main']['App']['GetTerminalTranscriptHistory'](arg1, arg2);
+}
+
+export function GetTerminalTranscriptHistoryScrubbed(arg1, arg2) {
+  return window['go']['main']['App']['GetTerminalTranscriptHistoryScrubbed'](arg1, arg2);
+}
+
 export function GetTerminalTranscriptFull(arg1, arg2) {
   return window['go']['main']['App']['GetTerminalTranscriptFull'](arg1, arg2);
 }
@@ -692,6 +700,10 @@ export function SetWaylandFix(arg1) {
 
 export function SetupSecretMasterPassword(arg1) {
   return window['go']['main']['App']['SetupSecretMasterPassword'](arg1);
+}
+
+export function SnapshotTmuxTranscript(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SnapshotTmuxTranscript'](arg1, arg2, arg3);
 }
 
 export function StartRecording(arg1, arg2) {

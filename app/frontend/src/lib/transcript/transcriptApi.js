@@ -144,7 +144,10 @@ export async function deleteTranscripts(resumeIds) {
 export async function getTranscriptDiskUsage() {
   const api = backend();
   if (!api?.GetTranscriptDiskUsage) return { count: 0, totalBytes: 0 };
-  return await api.GetTranscriptDiskUsage();
+  // A backend that answers with nothing must not leave the viewer without
+  // an object to read from.
+  const usage = await api.GetTranscriptDiskUsage();
+  return usage && typeof usage === 'object' ? usage : { count: 0, totalBytes: 0 };
 }
 
 /**
@@ -158,4 +161,34 @@ export async function getTranscriptExcerpt(resumeId, maxBytes = 8000) {
   if (!api?.GetTerminalTranscriptExcerpt || !resumeId) return '';
   const text = await api.GetTerminalTranscriptExcerpt(resumeId, maxBytes);
   return typeof text === 'string' ? text : '';
+}
+
+/**
+ * The transcript of a tmux pane as logical lines, independent of any pane
+ * width (see app/transcript/history.go). Empty for panes without tmux.
+ *
+ * @returns {Promise<{resumeId: string, text: string, size: number, readBytes: number, truncated: boolean}>}
+ */
+export async function getTranscriptHistory(resumeId, maxBytes = 0) {
+  return readHistory('GetTerminalTranscriptHistory', resumeId, maxBytes);
+}
+
+/** getTranscriptHistory with known secrets replaced by [REDACTED]; for copy and export. */
+export async function getTranscriptHistoryScrubbed(resumeId, maxBytes = 0) {
+  return readHistory('GetTerminalTranscriptHistoryScrubbed', resumeId, maxBytes);
+}
+
+async function readHistory(method, resumeId, maxBytes) {
+  const empty = { resumeId, text: '', size: 0, readBytes: 0, truncated: false };
+  const api = backend();
+  if (!api?.[method] || !resumeId) return empty;
+  const raw = await api[method](resumeId, maxBytes);
+  if (!raw || typeof raw !== 'object') return empty;
+  return {
+    resumeId: raw.resumeId || resumeId,
+    text: typeof raw.text === 'string' ? raw.text : '',
+    size: Number.isFinite(raw.size) ? raw.size : 0,
+    readBytes: Number.isFinite(raw.readBytes) ? raw.readBytes : 0,
+    truncated: Boolean(raw.truncated),
+  };
 }

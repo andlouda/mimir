@@ -416,6 +416,9 @@ func Delete(resumeID string) error {
 	if err := os.Remove(metaPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete transcript metadata: %w", err)
 	}
+	if err := deleteHistory(resumeID); err != nil {
+		return err
+	}
 	// Forget the lock entry so the map doesn't grow unbounded.
 	appendLocks.Delete(resumeID)
 	appendDropLog.Delete(resumeID)

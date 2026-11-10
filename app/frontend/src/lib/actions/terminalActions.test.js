@@ -245,3 +245,58 @@ describe('removeTerminal for SSH panes', () => {
     expect(get(errorMessage)).toContain('tmux kill-session -t mimir-ssh-abc-2');
   });
 });
+
+describe('removeTerminal saves the tmux history first', () => {
+  beforeEach(() => {
+    vi.stubGlobal('window', {});
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test('an SSH tmux pane is snapshotted, then its session ends, then the connection closes', async () => {
+    const order = [];
+    globalThis.window.go = { main: { App: {
+      SnapshotTmuxTranscript: vi.fn(() => { order.push('snapshot'); return Promise.resolve(true); }),
+      KillSSHTmuxSession: vi.fn(() => { order.push('kill'); return Promise.resolve(); }),
+    } } };
+    CloseTerminal.mockImplementation(() => { order.push('close'); return Promise.resolve(); });
+    terminals.set([{ id: 4, type: 'ssh', tmuxActive: true, resumeId: 'r-4', tmuxSessionName: 'mimir-ssh-abc-1', cleanupHandlers: [] }]);
+
+    removeTerminal(4);
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+
+    expect(globalThis.window.go.main.App.SnapshotTmuxTranscript).toHaveBeenCalledWith(4, 'ssh', 'r-4');
+    expect(order).toEqual(['snapshot', 'kill', 'close']);
+  });
+
+  test('a local tmux pane is snapshotted before its session is killed', async () => {
+    const order = [];
+    globalThis.window.go = { main: { App: {
+      SnapshotTmuxTranscript: vi.fn(() => { order.push('snapshot'); return Promise.resolve(true); }),
+    } } };
+    KillTmuxSession.mockImplementation(() => { order.push('kill'); return Promise.resolve(); });
+    CloseTerminal.mockImplementation(() => { order.push('close'); return Promise.resolve(); });
+    terminals.set([{ id: 5, type: 'bash', tmuxActive: true, tmuxOwned: true, resumeId: 'r-5', tmuxSessionName: 'mimir-x', cleanupHandlers: [] }]);
+
+    removeTerminal(5);
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+
+    expect(order).toEqual(['snapshot', 'kill', 'close']);
+  });
+
+  test('a failing snapshot does not keep the pane from closing', async () => {
+    globalThis.window.go = { main: { App: {
+      SnapshotTmuxTranscript: vi.fn(() => Promise.reject(new Error('host gone'))),
+    } } };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    CloseTerminal.mockImplementation(() => Promise.resolve());
+    terminals.set([{ id: 6, type: 'wsl', tmuxActive: true, resumeId: 'r-6', cleanupHandlers: [] }]);
+
+    removeTerminal(6);
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+
+    expect(CloseTerminal).toHaveBeenCalledWith(6);
+    warn.mockRestore();
+  });
+});
