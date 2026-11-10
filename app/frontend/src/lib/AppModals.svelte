@@ -13,12 +13,14 @@
   import AggDownloadModal from './modals/AggDownloadModal.svelte';
   import TranscriptViewerModal from './modals/TranscriptViewerModal.svelte';
   import DotEnvViewerModal from './modals/DotEnvViewerModal.svelte';
+  import TmuxSessionsModal from './modals/TmuxSessionsModal.svelte';
   import { aiPanelState, aiProviders, aiSettings, aiToolFlowConfig, aiToolFlowLists, functionCatalog, showAISettings, showFunctionCatalog } from './stores/aiStore.js';
   import { aggDownloadInfo, downloadingAgg } from './stores/sessionStore.js';
   import { hostKeyVerifyState, showSSHProfileModal, sshConnecting, sshProfiles, sshSecretBackend } from './stores/sshStore.js';
   import { showTemplatePicker, showWorkflowPicker, templatePromptState, templates, workflowPickerLoading, workflowPickerPlaybooks } from './stores/templateStore.js';
   import { activeTerminalId, discoveryTerminalType } from './stores/terminalStore.js';
-  import { dotEnvViewerState, errorMessage, transcriptViewerState } from './stores/uiStore.js';
+  import { dotEnvViewerState, errorMessage, showTmuxSessions, transcriptViewerState } from './stores/uiStore.js';
+  import { closeTmuxSessions } from './actions/tmuxSessionActions.js';
   import { runAggDownload } from './actions/aggActions.js';
   import { applyAISettingsDefaults, clearAIApiKey, closeAISettings, getAIToolPromptPreview, saveAISettings, setDevOpsPrePromptExample } from './actions/aiSettingsActions.js';
   import { queueWorkflowFromCatalog } from './actions/navigationActions.js';
@@ -136,6 +138,10 @@
     onClose={closeTranscriptViewer}
     onError={reportError}
   />
+{/if}
+
+{#if $showTmuxSessions}
+  <TmuxSessionsModal onClose={closeTmuxSessions} />
 {/if}
 
 {#if $dotEnvViewerState}
