@@ -59,6 +59,10 @@ func SaveSession(data SessionData) error {
 		return fmt.Errorf("failed to marshal session data: %w", err)
 	}
 
+	if len(data.Terminals) == 0 {
+		keepPreviousSession(filePath)
+	}
+
 	// Write with restrictive permissions (owner read/write only)
 	if err := safeio.AtomicWriteFile(filePath, jsonData, 0600); err != nil {
 		return fmt.Errorf("failed to write session file: %w", err)
@@ -86,4 +90,25 @@ func LoadSession() (SessionData, error) {
 		return SessionData{}, fmt.Errorf("failed to unmarshal session data: %w", err)
 	}
 	return data, nil
+}
+
+// previousSessionSuffix marks the copy of the last session that still had
+// terminals, see keepPreviousSession.
+const previousSessionSuffix = ".previous"
+
+// keepPreviousSession copies a session file that still lists terminals to
+// "<file>.previous" before an empty session replaces it. An empty save is
+// legitimate (the user closed every pane), but it is also what a bug or a
+// stray process writes, and without the copy the layout is gone for good.
+// Best effort: a failure here must not block the save itself.
+func keepPreviousSession(filePath string) {
+	existing, err := os.ReadFile(filePath)
+	if err != nil {
+		return
+	}
+	var current SessionData
+	if err := json.Unmarshal(existing, &current); err != nil || len(current.Terminals) == 0 {
+		return
+	}
+	_ = safeio.AtomicWriteFile(filePath+previousSessionSuffix, existing, 0600)
 }
