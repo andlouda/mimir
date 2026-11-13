@@ -218,6 +218,10 @@ export function GetCurrentVersion() {
   return window['go']['main']['App']['GetCurrentVersion']();
 }
 
+export function GetDLPSettingsJSON() {
+  return window['go']['main']['App']['GetDLPSettingsJSON']();
+}
+
 export function GetFileContent(arg1) {
   return window['go']['main']['App']['GetFileContent'](arg1);
 }
@@ -476,6 +480,10 @@ export function ListTranscripts() {
 
 export function LockSecrets() {
   return window['go']['main']['App']['LockSecrets']();
+}
+
+export function MaskTextForAgentJSON(arg1, arg2) {
+  return window['go']['main']['App']['MaskTextForAgentJSON'](arg1, arg2);
 }
 
 export function NotifyDesktop(arg1, arg2, arg3) {
@@ -742,6 +750,10 @@ export function UnlinkAgentWorkspaceSessionJSON(arg1) {
   return window['go']['main']['App']['UnlinkAgentWorkspaceSessionJSON'](arg1);
 }
 
+export function UnmaskTextFromAgentJSON(arg1, arg2) {
+  return window['go']['main']['App']['UnmaskTextFromAgentJSON'](arg1, arg2);
+}
+
 export function UnlockSecrets(arg1) {
   return window['go']['main']['App']['UnlockSecrets'](arg1);
 }
@@ -756,6 +768,10 @@ export function UpdateAISettingsJSON(arg1) {
 
 export function UpdateAIToolFlowConfigJSON(arg1) {
   return window['go']['main']['App']['UpdateAIToolFlowConfigJSON'](arg1);
+}
+
+export function UpdateDLPSettingsJSON(arg1) {
+  return window['go']['main']['App']['UpdateDLPSettingsJSON'](arg1);
 }
 
 export function UpdateSSHProfile(arg1) {

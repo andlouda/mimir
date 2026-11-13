@@ -123,6 +123,90 @@ Zusätzlich werden im strikten Provider-Modus sensible Pfade/Zeilen entfernt, z.
 - `id_rsa`
 - `id_ed25519`
 
+### 5a. Identifier-Maskierung mit Rückübersetzung
+
+Quelle:
+- [`dlp/dlp.go`](dlp/dlp.go:1)
+- [`ai_identifier_mask.go`](ai_identifier_mask.go:1)
+
+Für Provider ohne `allowSensitiveContext` (alle Cloud-Provider) werden
+Netzwerk-Identifier vor dem Senden durch stabile Platzhalter ersetzt:
+
+| Art | Platzhalter |
+|---|---|
+| IPv4 | `MIMIR_IP_1` |
+| IPv6 | `MIMIR_IP6_1` |
+| MAC-Adresse | `MIMIR_MAC_1` |
+| E-Mail-Adresse | `MIMIR_EMAIL_1` |
+
+Derselbe Wert bekommt innerhalb einer Anfrage immer denselben Platzhalter,
+in Terminal-Ausgabe und Ziel/Prompt gleichermaßen. Loopback, `0.0.0.0` und
+Netzmasken bleiben lesbar.
+
+Die Zuordnung existiert nur im Speicher und nur für die Dauer der Anfrage.
+Die Antwort wird lokal und rein per Zeichenersetzung zurückübersetzt – ohne
+Modell, damit ein vorgeschlagener Befehl exakt die maskierten Werte enthält.
+
+Platzhalter, die die Zuordnung nie vergeben hat (vom Modell erfunden oder
+verändert), bleiben stehen:
+
+- Textantwort / Befehlsvorschlag: Warnung an den User
+- Tool-Auswahl: Ausführung wird blockiert
+
+Das Interaction-Log enthält Prompt und Antwort in der maskierten Form sowie
+die Anzahl der Ersetzungen je Art, nie die Originalwerte.
+
+Gilt für `AskAI`, den AI-Tool-Flow und AI-Schritte in Workflows.
+
+### 5b. Agenten-Brücke zwischen Panes
+
+Quelle:
+- [`app_agent_mask.go`](app_agent_mask.go:1)
+
+Ein Agent in einer Pane (Claude Code, Codex) läuft nicht über `AskAI`. Text
+erreicht ihn über „An Agent senden“. Dafür gibt es zwei explizite
+User-Aktionen auf einer Auswahl:
+
+- **An Agent senden (maskiert):** Secrets werden entfernt, Identifier durch
+  Platzhalter ersetzt, dann wie bisher als Eingabe eingefügt.
+- **Rückübersetzt einfügen in:** Auswahl aus der Agenten-Pane, Platzhalter
+  werden durch die echten Werte ersetzt, Einfügen in eine andere Pane.
+  Enthält die Auswahl einen unbekannten Platzhalter, wird nichts eingefügt.
+
+Keine der beiden Aktionen drückt Enter. Jede Agenten-Pane hat eine eigene
+Zuordnung für ihre Lebensdauer; sie liegt nur im Speicher.
+
+Grenze: Der Agent liest den Rechner, auf dem er läuft, selbst. Maskiert wird
+nur, was aus anderen Panes hinübergeschickt wird.
+
+### 5c. Lokales Modell als zweite Maskierungsstufe
+
+Quelle:
+- [`ai_term_detector.go`](ai_term_detector.go:1)
+- [`dlp/terms.go`](dlp/terms.go:1)
+
+Optional (Einstellungen → „Lokale Maskierung“) benennt ein Modell auf dem
+eigenen Rechner oder im privaten Netz Hostnamen, Benutzernamen und Namen von
+Personen, Kunden und Projekten. Platzhalter: `MIMIR_HOST_1`, `MIMIR_USER_1`,
+`MIMIR_NAME_1`.
+
+Das Modell ist nur Vorschlagsgeber, die Durchsetzung bleibt deterministisch:
+
+- Es liefert eine Liste von Begriffen, nie den umgeschriebenen Text.
+- Jeder Begriff muss wörtlich im Text vorkommen und die Regeln aus
+  `dlp.ValidTerm` erfüllen (Länge, kein Leerraum, kein generisches Wort,
+  kein Platzhalter). Pro Antwort höchstens 40 Begriffe.
+- Es sieht den Text erst nach der Muster-Stufe, also ohne Secrets und
+  Adressen.
+- Ein einmal gelernter Begriff wird in jedem späteren Text derselben
+  Zuordnung maskiert.
+- Die Adresse des Modells muss Loopback oder ein privates Netz sein; das wird
+  beim Speichern und bei jedem Aufruf geprüft.
+
+Fail closed: Ist die Stufe eingeschaltet und das Modell antwortet nicht oder
+nicht verwertbar, wird nichts gesendet. Texte, die mehr als sechs Aufrufe
+bräuchten, werden abgelehnt statt nur teilweise geprüft.
+
 ### 6. AI Tool Catalog Filtering
 
 Quelle:

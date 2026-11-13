@@ -20,6 +20,7 @@
   import { ClipboardSetText } from '../../../wailsjs/runtime';
   import { loadClaudeHookHosts, setClaudeHookInstalledOnHost } from '../actions/agentActions.js';
   import { onDestroy, onMount } from 'svelte';
+  import { DLP_DEFAULTS, loadDLPSettings, saveDLPSettings } from '../actions/dlpSettings.js';
   import { perfStats, startDiagnostics, stopDiagnostics } from '../perf/diagnostics.js';
   import { GetGPUPolicy, GetIMModule, GetWaylandFix, IMModuleEffective, IsWaylandSession, SetGPUPolicy, SetIMModule, SetPromptMode, SetTmuxIntegrationMode, SetWaylandFix } from '../backend.js';
 
@@ -45,6 +46,18 @@
   // Agent timeline (backend-backed: the Go side installs hooks and keeps
   // the files, so the setting lives there).
   let telemetry = null;
+  // Local masking model (second masking stage, see actions/dlpSettings.js).
+  let dlp = { ...DLP_DEFAULTS };
+  let dlpError = '';
+  onMount(async () => {
+    try { dlp = await loadDLPSettings(); } catch (error) { dlpError = String(error?.message || error); }
+  });
+  async function patchDLP(patch) {
+    try { dlp = await saveDLPSettings(dlp, patch); dlpError = ''; } catch (error) {
+      dlpError = String(error?.message || error);
+      dlp = { ...dlp }; // redraw the inputs with the stored values
+    }
+  }
   let telemetryError = '';
   let telemetryStatus = null;
   let telemetryNote = '';
@@ -428,6 +441,26 @@
     </label>
     <label class="ai-hub-card settings-toggle-card">
       <div class="ai-hub-card-top">
+        <span class="ai-hub-icon">&#x25A8;</span>
+        <input type="checkbox" checked={dlp.localModelEnabled} on:change={(e) => patchDLP({ localModelEnabled: e.target.checked })} />
+      </div>
+      <button type="button" class="settings-card-title" aria-expanded={openCards.has('localMasking')} on:click|preventDefault|stopPropagation={() => toggleCard('localMasking')}><strong>{$t('settings.cards.localMasking.title')}</strong><span class="settings-card-chevron" aria-hidden="true">{openCards.has('localMasking') ? '▾' : '▸'}</span></button>
+      {#if openCards.has('localMasking')}
+      <p>{$t('settings.cards.localMasking.desc')}</p>
+      <div class="settings-sub">
+        <label class="settings-sub-row">{$t('settings.cards.localMasking.url')}
+          <input class="settings-port settings-wide" type="text" value={dlp.baseUrl} on:change={(e) => patchDLP({ baseUrl: e.target.value })} />
+        </label>
+        <label class="settings-sub-row">{$t('settings.cards.localMasking.model')}
+          <input class="settings-port settings-wide" type="text" value={dlp.model} on:change={(e) => patchDLP({ model: e.target.value })} />
+        </label>
+        <p class="settings-note">{$t('settings.cards.localMasking.note')}</p>
+      </div>
+      {/if}
+      {#if dlpError}<p class="settings-note">{dlpError}</p>{/if}
+    </label>
+    <label class="ai-hub-card settings-toggle-card">
+      <div class="ai-hub-card-top">
         <span class="ai-hub-icon">&#x266A;</span>
         <input type="checkbox" bind:checked={$agentNotificationsEnabled} />
       </div>
@@ -794,6 +827,7 @@
   .settings-sub { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-subtle); }
   .settings-sub-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
   .settings-sub-row select, .settings-sub-row .settings-port { margin-left: auto; }
+  .settings-port.settings-wide { width: 22em; max-width: 60%; }
   .settings-port { width: 7em; background: var(--bg-elevated, rgba(255,255,255,0.06)); border: 1px solid var(--border-subtle); color: inherit; border-radius: 4px; padding: 1px 6px; font: inherit; }
   .settings-inline-btn { margin-left: 6px; }
 </style>
