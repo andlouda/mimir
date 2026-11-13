@@ -961,6 +961,12 @@ func (a *App) AskAI(mode string, goal string, terminalType string, terminalName 
 	mask := newIdentifierMask(policy)
 	sanitizedContext.Value = mask.mask(sanitizedContext.Value)
 	goal = mask.mask(goal)
+	if err := mask.learn(a, sanitizedContext.Value, goal); err != nil {
+		return "", err
+	}
+	// Second pass: replace what the local model named.
+	sanitizedContext.Value = mask.mask(sanitizedContext.Value)
+	goal = mask.mask(goal)
 	contextAudit := mask.audit(aiContextAudit(settings.Provider, true, sanitizedContext.Audit))
 
 	input, err := buildAIPrompt(mode, goal, terminalType, terminalName, sanitizedContext.Value)
@@ -1160,6 +1166,10 @@ func (a *App) RunAITemplateTool(id int, goal string, terminalType string, termin
 	// identifiers; the selected variables are translated back below.
 	mask := newIdentifierMask(providerPolicy)
 	goal = mask.mask(goal)
+	if err := mask.learn(a, goal); err != nil {
+		return "", err
+	}
+	goal = mask.mask(goal)
 	toolPromptTerminalOutput := ""
 	var loggedTerminalOutput string
 	var loggedContextRedactions []string
@@ -1167,6 +1177,11 @@ func (a *App) RunAITemplateTool(id int, goal string, terminalType string, termin
 	if config.Prompt.IncludeTerminalOutput {
 		sanitizedContext := aiflow.SanitizeTerminalContext(terminalOutput, providerPolicy)
 		sanitizedContext.Value = mask.mask(sanitizedContext.Value)
+		if err := mask.learn(a, sanitizedContext.Value); err != nil {
+			return "", err
+		}
+		sanitizedContext.Value = mask.mask(sanitizedContext.Value)
+		goal = mask.mask(goal) // terms found in the output also hide in the goal
 		toolPromptTerminalOutput = sanitizedContext.Value
 		loggedTerminalOutput = sanitizedContext.Value
 		loggedContextRedactions = sanitizedContext.Redactions

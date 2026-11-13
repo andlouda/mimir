@@ -62,6 +62,8 @@ type App struct {
 	// agentMasks: placeholder mappings of the agent bridge, one per agent
 	// pane (see app_agent_mask.go).
 	agentMasks agentMaskStore
+	// termDetectorCaller replaces the local masking model in tests.
+	termDetectorCaller func(DLPSettings, string) (string, error)
 	// telemetry / timeline: the agent timeline settings and its store (see
 	// telemetry_settings.go, timeline package).
 	telemetry       TelemetrySettings

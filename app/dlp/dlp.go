@@ -40,7 +40,7 @@ const (
 const placeholderPrefix = "MIMIR_"
 
 var (
-	placeholderPattern = regexp.MustCompile(`\bMIMIR_(?:IP6|IP|MAC|EMAIL)_[0-9]+\b`)
+	placeholderPattern = regexp.MustCompile(`\bMIMIR_(?:IP6|IP|MAC|EMAIL|HOST|USER|NAME)_[0-9]+\b`)
 
 	emailPattern = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}`)
 	macPattern   = regexp.MustCompile(`(?:[0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}`)
@@ -55,7 +55,8 @@ type Mapping struct {
 	tokenOf map[string]string // canonical value → placeholder
 	valueOf map[string]string // placeholder → value as first seen
 	next    map[Kind]int
-	counts  map[Kind]int // occurrences replaced, per kind
+	counts  map[Kind]int    // occurrences replaced, per kind
+	terms   map[string]Kind // learned literal terms, see terms.go
 }
 
 // NewMapping returns an empty mapping.
@@ -83,7 +84,7 @@ func (m *Mapping) Mask(text string) string {
 	})
 	text = m.replace(text, ipv6Candidate, KindIPv6, canonicalIPv6)
 	text = m.replace(text, ipv4Candidate, KindIPv4, canonicalIPv4)
-	return text
+	return m.maskTerms(text)
 }
 
 // canonicalIPv4 accepts addresses that identify a host or network. Loopback,

@@ -36,6 +36,21 @@ func (m *identifierMask) mask(text string) string {
 	return m.mapping.Mask(text)
 }
 
+// learn runs the local model stage over the texts of this request, after
+// they went through mask. With the stage switched on and no answer it
+// returns an error and the caller must not send.
+func (m *identifierMask) learn(a *App, texts ...string) error {
+	if m == nil {
+		return nil
+	}
+	for _, text := range texts {
+		if err := a.learnTerms(m.mapping, noLock{}, text); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // annotate tells the model what the placeholders are, so it uses them
 // verbatim instead of "correcting" them. Only added when something was
 // masked.
@@ -43,7 +58,7 @@ func (m *identifierMask) annotate(prompt string) string {
 	if m == nil || m.mapping.Empty() {
 		return prompt
 	}
-	return prompt + "\nNote: tokens such as MIMIR_IP_1, MIMIR_IP6_1, MIMIR_MAC_1 or MIMIR_EMAIL_1 stand for real addresses that were withheld. " +
+	return prompt + "\nNote: tokens such as MIMIR_IP_1, MIMIR_HOST_1, MIMIR_USER_1 or MIMIR_EMAIL_1 stand for real addresses and names that were withheld. " +
 		"Use them exactly as written wherever the real value belongs; do not invent new ones and do not alter them.\n"
 }
 

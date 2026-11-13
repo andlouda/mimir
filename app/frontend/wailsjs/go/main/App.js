@@ -218,6 +218,10 @@ export function GetCurrentVersion() {
   return window['go']['main']['App']['GetCurrentVersion']();
 }
 
+export function GetDLPSettingsJSON() {
+  return window['go']['main']['App']['GetDLPSettingsJSON']();
+}
+
 export function GetFileContent(arg1) {
   return window['go']['main']['App']['GetFileContent'](arg1);
 }
@@ -764,6 +768,10 @@ export function UpdateAISettingsJSON(arg1) {
 
 export function UpdateAIToolFlowConfigJSON(arg1) {
   return window['go']['main']['App']['UpdateAIToolFlowConfigJSON'](arg1);
+}
+
+export function UpdateDLPSettingsJSON(arg1) {
+  return window['go']['main']['App']['UpdateDLPSettingsJSON'](arg1);
 }
 
 export function UpdateSSHProfile(arg1) {

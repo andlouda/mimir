@@ -64,10 +64,20 @@ type agentUnmaskResult struct {
 // secrets become [REDACTED] (not reversible), network identifiers become
 // placeholders of that pane's mapping.
 func (a *App) MaskTextForAgentJSON(agentTerminalID int, text string) (string, error) {
+	// Stage one, patterns. Its result is what the local model gets to see.
 	a.agentMasks.mu.Lock()
 	mapping := a.agentMasks.mapping(agentTerminalID)
 	before := mapping.Counts()
 	masked := mapping.Mask(aiflow.ScrubSecrets(text))
+	a.agentMasks.mu.Unlock()
+
+	// Stage two, the local model names further terms; the call runs
+	// without the lock. If it is switched on and fails, nothing is sent.
+	if err := a.learnTerms(mapping, &a.agentMasks.mu, masked); err != nil {
+		return "", err
+	}
+	a.agentMasks.mu.Lock()
+	masked = mapping.Mask(masked)
 	after := mapping.Counts()
 	a.agentMasks.mu.Unlock()
 

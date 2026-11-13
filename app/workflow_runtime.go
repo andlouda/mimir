@@ -28,6 +28,11 @@ func (r workflowAIRunner) Run(prompt string, terminalType string, terminalName s
 	mask := newIdentifierMask(policy)
 	sanitized.Value = mask.mask(sanitized.Value)
 	prompt = mask.mask(prompt)
+	if err := mask.learn(r.app, sanitized.Value, prompt); err != nil {
+		return "", err
+	}
+	sanitized.Value = mask.mask(sanitized.Value)
+	prompt = mask.mask(prompt)
 
 	if strings.HasPrefix(prompt, "AI mode: ") {
 		mode := strings.TrimPrefix(prompt, "AI mode: ")

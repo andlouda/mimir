@@ -243,6 +243,13 @@ export default {
       },
       agentNotify: { title: 'Agent-Benachrichtigungen', desc: 'Desktop-Benachrichtigung, wenn ein Agent fertig ist oder auf eine Freigabe wartet, während seine Pane nicht vorne ist (andere Pane aktiv oder Mimir im Hintergrund). Zeigt nur Agent, Terminalnamen und die einzeilige Meldung der Rückfrage; nutzt den System-Benachrichtiger (notify-send, macOS-Mitteilungen, Windows-Toast).' },
       agentDetection: { title: 'Agent-Erkennung', desc: 'Erkennt Claude Code, Codex und andere Coding-Agenten in einer Pane, zeigt ihren Status im Pane-Header und bietet ihre Ausgabe zum exakten Kopieren an. Prüft die Prozessliste der Pane out-of-band und nur, wenn ein Terminal Aktivität meldet (Titel, Startbanner, neuer Prompt); keine Tastendrücke, kein regelmäßiges Polling. Funktioniert in tmux-Panes, PowerShell und cmd; die Aktivierung fügt außerdem den leichtgewichtigen Prompt-Hook ein, der das Arbeitsverzeichnis meldet.' },
+      localMasking: {
+        title: 'Lokale Maskierung (lokale KI)',
+        desc: 'Eine KI auf diesem Rechner oder im privaten Netz benennt Hostnamen, Benutzernamen sowie Namen von Personen, Kunden und Projekten, bevor Text an eine Cloud-KI oder die Pane eines Agenten geht. Mimir ersetzt sie durch Platzhalter und setzt die echten Werte in Antworten wieder ein. IP-, MAC- und E-Mail-Adressen sowie Secrets werden auch ohne diese Stufe behandelt.',
+        url: 'Adresse (Ollama-Chat-API)',
+        model: 'Modell',
+        note: 'Ist die Stufe eingeschaltet und die lokale KI antwortet nicht, wird nichts gesendet. Die Adresse muss auf diesem Rechner oder in einem privaten Netz liegen.',
+      },
       aiSettings: { title: 'AI Settings', desc: 'Provider, Tool-Filter, Approval-Policy und Prompt-Konfiguration verwalten.' },
       templates: { title: 'Templates', desc: 'Command-Templates und Favoriten bearbeiten, ohne sie dauerhaft in der Sidebar zu halten.' },
       notes: { title: 'Notes', desc: 'Notes als rechtes Terminal-Panel ein- oder ausblenden.' },

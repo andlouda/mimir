@@ -117,6 +117,8 @@ export function GetCurrentDirectory():Promise<string>;
 
 export function GetCurrentVersion():Promise<string>;
 
+export function GetDLPSettingsJSON():Promise<string>;
+
 export function GetFileContent(arg1:string):Promise<string>;
 
 export function GetFunctionCatalogJSON():Promise<string>;
@@ -390,6 +392,8 @@ export function UnlockSecretsFIDO(arg1:string):Promise<void>;
 export function UpdateAISettingsJSON(arg1:string):Promise<string>;
 
 export function UpdateAIToolFlowConfigJSON(arg1:string):Promise<string>;
+
+export function UpdateDLPSettingsJSON(arg1:string):Promise<string>;
 
 export function UpdateSSHProfile(arg1:string):Promise<Array<ssh.Profile>>;
 
