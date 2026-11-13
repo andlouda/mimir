@@ -19,16 +19,24 @@ func (r workflowAIRunner) Run(prompt string, terminalType string, terminalName s
 		return "", fmt.Errorf("app is required")
 	}
 
+	// Sanitize and mask before anything is put into a prompt. The built-in
+	// "AI mode" prompt embeds the terminal output a second time; it used to
+	// get the raw output, past the secret filter.
+	settings := r.app.currentAISettings()
+	policy := loadEffectiveAIFlowConfig().ProviderPolicy(settings.Provider)
+	sanitized := aiflow.SanitizeTerminalContext(terminalOutput, policy)
+	mask := newIdentifierMask(policy)
+	sanitized.Value = mask.mask(sanitized.Value)
+	prompt = mask.mask(prompt)
+
 	if strings.HasPrefix(prompt, "AI mode: ") {
 		mode := strings.TrimPrefix(prompt, "AI mode: ")
-		builtIn, err := buildAIPrompt(mode, "", terminalType, terminalName, terminalOutput)
+		builtIn, err := buildAIPrompt(mode, "", terminalType, terminalName, sanitized.Value)
 		if err == nil {
 			prompt = builtIn
 		}
 	}
 
-	settings := r.app.currentAISettings()
-	sanitized := sanitizeTerminalOutputForAI(settings.Provider, terminalOutput)
 	input := fmt.Sprintf(
 		"You are a cautious infrastructure troubleshooting assistant. Use the supplied terminal context and answer the workflow step instruction clearly and practically. Prefer read-only reasoning, highlight uncertainty, and do not use markdown code fences.\n\nTerminal type: %s\nTerminal name: %s\nRecent terminal output:\n%s\n\nWorkflow step instruction:\n%s\n",
 		terminalType,
@@ -37,7 +45,12 @@ func (r workflowAIRunner) Run(prompt string, terminalType string, terminalName s
 		strings.TrimSpace(prompt),
 	)
 
-	result, err := r.app.callAIProvider(settings, input)
+	input = mask.annotate(input)
+
+	rawResult, err := r.app.callAIProvider(settings, input)
+	// Translated back locally; the log keeps the answer as received. An
+	// unresolved placeholder stays visible in the text of the step result.
+	result, _ := mask.unmask(rawResult)
 	entry := AIInteractionLogEntry{
 		Provider:          settings.Provider,
 		Model:             settings.Model,
@@ -49,7 +62,8 @@ func (r workflowAIRunner) Run(prompt string, terminalType string, terminalName s
 		Prompt:            input,
 		TerminalOutput:    sanitized.Value,
 		ContextRedactions: sanitized.Redactions,
-		Response:          result,
+		ContextAudit:      mask.audit(aiContextAudit(settings.Provider, true, sanitized.Audit)),
+		Response:          rawResult,
 	}
 	if err != nil {
 		entry.Error = err.Error()

@@ -574,11 +574,6 @@ func loadEffectiveAIFlowConfig() aiflow.Config {
 	return aiflow.ApplyImmutableGuardrails(config)
 }
 
-func sanitizeTerminalOutputForAI(provider string, terminalOutput string) aiflow.SanitizedContext {
-	config := loadEffectiveAIFlowConfig()
-	return aiflow.SanitizeTerminalContext(terminalOutput, config.ProviderPolicy(provider))
-}
-
 func buildAIToolRegistry(manager *template.Manager) (*tools.Registry, []tools.Tool, error) {
 	if manager == nil {
 		return nil, nil, fmt.Errorf("template manager is required")
@@ -959,10 +954,19 @@ func (a *App) AskAI(mode string, goal string, terminalType string, terminalName 
 		}
 	}
 	settings := a.currentAISettings()
-	sanitizedContext := sanitizeTerminalOutputForAI(settings.Provider, terminalOutput)
-	contextAudit := aiContextAudit(settings.Provider, true, sanitizedContext.Audit)
+	policy := loadEffectiveAIFlowConfig().ProviderPolicy(settings.Provider)
+	sanitizedContext := aiflow.SanitizeTerminalContext(terminalOutput, policy)
+	// From here on goal and terminal output are what leaves the machine:
+	// masked for providers that must not see identifiers.
+	mask := newIdentifierMask(policy)
+	sanitizedContext.Value = mask.mask(sanitizedContext.Value)
+	goal = mask.mask(goal)
+	contextAudit := mask.audit(aiContextAudit(settings.Provider, true, sanitizedContext.Audit))
 
 	input, err := buildAIPrompt(mode, goal, terminalType, terminalName, sanitizedContext.Value)
+	if err == nil {
+		input = mask.annotate(input)
+	}
 	if err != nil {
 		a.logAIInteraction(AIInteractionLogEntry{
 			Provider:          settings.Provider,
@@ -980,11 +984,15 @@ func (a *App) AskAI(mode string, goal string, terminalType string, terminalName 
 		return "", err
 	}
 
-	result, providerErr := a.callAIProvider(settings, input)
+	rawResult, providerErr := a.callAIProvider(settings, input)
+	// The answer is translated back locally; the log keeps it as received.
+	result, unknownPlaceholders := mask.unmask(rawResult)
 	warning := ""
 	if providerErr == nil {
 		if validationErr := aiflow.ValidateCommandSuggestion(mode, result); validationErr != nil {
 			warning = validationErr.Error()
+		} else if len(unknownPlaceholders) > 0 {
+			warning = unknownPlaceholderWarning(unknownPlaceholders)
 		}
 	}
 
@@ -1000,7 +1008,7 @@ func (a *App) AskAI(mode string, goal string, terminalType string, terminalName 
 		TerminalOutput:    sanitizedContext.Value,
 		ContextRedactions: sanitizedContext.Redactions,
 		ContextAudit:      contextAudit,
-		Response:          result,
+		Response:          rawResult,
 	}
 	if providerErr != nil {
 		entry.Error = providerErr.Error()
@@ -1148,19 +1156,28 @@ func (a *App) RunAITemplateTool(id int, goal string, terminalType string, termin
 		}
 	}
 
+	// Goal and terminal output are masked for providers that must not see
+	// identifiers; the selected variables are translated back below.
+	mask := newIdentifierMask(providerPolicy)
+	goal = mask.mask(goal)
 	toolPromptTerminalOutput := ""
 	var loggedTerminalOutput string
 	var loggedContextRedactions []string
 	contextAudit := aiContextAudit(settings.Provider, false, aiflow.SanitizationAudit{})
 	if config.Prompt.IncludeTerminalOutput {
 		sanitizedContext := aiflow.SanitizeTerminalContext(terminalOutput, providerPolicy)
+		sanitizedContext.Value = mask.mask(sanitizedContext.Value)
 		toolPromptTerminalOutput = sanitizedContext.Value
 		loggedTerminalOutput = sanitizedContext.Value
 		loggedContextRedactions = sanitizedContext.Redactions
 		contextAudit = aiContextAudit(settings.Provider, true, sanitizedContext.Audit)
 	}
+	contextAudit = mask.audit(contextAudit)
 
 	prompt, err := buildToolSelectionPrompt(goal, terminalType, terminalName, toolPromptTerminalOutput, availableTools, config)
+	if err == nil {
+		prompt = mask.annotate(prompt)
+	}
 	if err != nil {
 		a.logAIInteraction(AIInteractionLogEntry{
 			Mode:              "run_template_tool",
@@ -1236,6 +1253,28 @@ func (a *App) RunAITemplateTool(id int, goal string, terminalType string, termin
 			Error:             fmt.Sprintf("failed to parse tool selection: %v", err),
 		})
 		return "", fmt.Errorf("failed to parse tool selection: %w", err)
+	}
+	// A variable that still carries a placeholder the mask never handed out
+	// has no real value behind it: block instead of running with a guess.
+	if unknown := mask.unmaskSelection(&selection); len(unknown) > 0 {
+		blocked := fmt.Errorf("tool selection blocked: %s", unknownPlaceholderWarning(unknown))
+		a.logAIInteraction(AIInteractionLogEntry{
+			Provider:          settings.Provider,
+			Model:             settings.Model,
+			BaseURL:           settings.BaseURL,
+			Mode:              "run_template_tool",
+			TerminalID:        id,
+			TerminalType:      terminalType,
+			TerminalName:      terminalName,
+			Goal:              goal,
+			Prompt:            prompt,
+			TerminalOutput:    loggedTerminalOutput,
+			ContextRedactions: loggedContextRedactions,
+			ContextAudit:      contextAudit,
+			Response:          result,
+			Error:             blocked.Error(),
+		})
+		return "", blocked
 	}
 
 	if strings.TrimSpace(selection.Template) == "" {

@@ -123,6 +123,41 @@ Zusätzlich werden im strikten Provider-Modus sensible Pfade/Zeilen entfernt, z.
 - `id_rsa`
 - `id_ed25519`
 
+### 5a. Identifier-Maskierung mit Rückübersetzung
+
+Quelle:
+- [`dlp/dlp.go`](dlp/dlp.go:1)
+- [`ai_identifier_mask.go`](ai_identifier_mask.go:1)
+
+Für Provider ohne `allowSensitiveContext` (alle Cloud-Provider) werden
+Netzwerk-Identifier vor dem Senden durch stabile Platzhalter ersetzt:
+
+| Art | Platzhalter |
+|---|---|
+| IPv4 | `MIMIR_IP_1` |
+| IPv6 | `MIMIR_IP6_1` |
+| MAC-Adresse | `MIMIR_MAC_1` |
+| E-Mail-Adresse | `MIMIR_EMAIL_1` |
+
+Derselbe Wert bekommt innerhalb einer Anfrage immer denselben Platzhalter,
+in Terminal-Ausgabe und Ziel/Prompt gleichermaßen. Loopback, `0.0.0.0` und
+Netzmasken bleiben lesbar.
+
+Die Zuordnung existiert nur im Speicher und nur für die Dauer der Anfrage.
+Die Antwort wird lokal und rein per Zeichenersetzung zurückübersetzt – ohne
+Modell, damit ein vorgeschlagener Befehl exakt die maskierten Werte enthält.
+
+Platzhalter, die die Zuordnung nie vergeben hat (vom Modell erfunden oder
+verändert), bleiben stehen:
+
+- Textantwort / Befehlsvorschlag: Warnung an den User
+- Tool-Auswahl: Ausführung wird blockiert
+
+Das Interaction-Log enthält Prompt und Antwort in der maskierten Form sowie
+die Anzahl der Ersetzungen je Art, nie die Originalwerte.
+
+Gilt für `AskAI`, den AI-Tool-Flow und AI-Schritte in Workflows.
+
 ### 6. AI Tool Catalog Filtering
 
 Quelle:
