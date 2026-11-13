@@ -478,6 +478,10 @@ export function LockSecrets() {
   return window['go']['main']['App']['LockSecrets']();
 }
 
+export function MaskTextForAgentJSON(arg1, arg2) {
+  return window['go']['main']['App']['MaskTextForAgentJSON'](arg1, arg2);
+}
+
 export function NotifyDesktop(arg1, arg2, arg3) {
   return window['go']['main']['App']['NotifyDesktop'](arg1, arg2, arg3);
 }
@@ -740,6 +744,10 @@ export function ToggleFavorite(arg1) {
 
 export function UnlinkAgentWorkspaceSessionJSON(arg1) {
   return window['go']['main']['App']['UnlinkAgentWorkspaceSessionJSON'](arg1);
+}
+
+export function UnmaskTextFromAgentJSON(arg1, arg2) {
+  return window['go']['main']['App']['UnmaskTextFromAgentJSON'](arg1, arg2);
 }
 
 export function UnlockSecrets(arg1) {

@@ -59,6 +59,9 @@ type App struct {
 	// agents: detection, prompts, hooks and timeline of the AI agents
 	// running in panes (package agentsvc); App only forwards the bindings.
 	agents *agentsvc.Service
+	// agentMasks: placeholder mappings of the agent bridge, one per agent
+	// pane (see app_agent_mask.go).
+	agentMasks agentMaskStore
 	// telemetry / timeline: the agent timeline settings and its store (see
 	// telemetry_settings.go, timeline package).
 	telemetry       TelemetrySettings
@@ -717,6 +720,7 @@ func (a *App) SetTerminalMinimized(id int, minimized bool) {
 
 func (a *App) CloseTerminal(id int) error {
 	a.agents.ForgetDetectionOutcome(id)
+	a.agentMasks.forget(id)
 	return a.TerminalManager.CloseTerminal(id)
 }
 
