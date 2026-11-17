@@ -1,8 +1,8 @@
 <script>
   import { registerOverlay, isGlobalShortcut } from './actions/keyboardShortcuts.js';
-  import { zoomTerminalFont, uiBlink, paneResourceOverlay, paneResourceScale } from './stores/uiStore.js';
+  import { zoomTerminalFont, uiBlink, paneResourceOverlay, paneResourceScale, errorMessage } from './stores/uiStore.js';
   import { agentStates } from './stores/agentStore.js';
-  import { agentTargets, sendTextToAgent } from './agents/sendToAgent.js';
+  import { agentTargets, pasteTargets, pasteUnmaskedFromAgent, sendMaskedTextToAgent, sendTextToAgent } from './agents/sendToAgent.js';
   import TerminalBackgroundDialog from './TerminalBackgroundDialog.svelte';
   import { backgroundLayerStyle } from './terminals/background.js';
   import { paneResources, paneResourceCores, formatResources } from './actions/paneResources.js';
@@ -154,6 +154,9 @@
     const mouseTracking = term.terminal?.modes?.mouseTrackingMode && term.terminal.modes.mouseTrackingMode !== 'none';
     contextMenu = {
       agentTargets: selection.length > 0 ? agentTargets(term.id) : [],
+      // A selection in an agent's pane can go back to another pane with
+      // the placeholders translated to the real values.
+      pasteTargets: selection.length > 0 && $agentStates[term.id] ? pasteTargets(term.id) : [],
       termId: term.id,
       x: Math.max(0, Math.min(event.clientX, window.innerWidth - CTX_MENU_WIDTH)),
       y: Math.max(0, Math.min(event.clientY, window.innerHeight - CTX_MENU_HEIGHT)),
@@ -293,6 +296,34 @@
     const text = term.terminal?.getSelection?.() || '';
     closeContextMenu();
     if (text) sendTextToAgent(targetId, text);
+  }
+
+  // Same, but secrets scrubbed and addresses replaced by placeholders.
+  async function ctxSendToAgentMasked(term, targetId) {
+    const text = term.terminal?.getSelection?.() || '';
+    closeContextMenu();
+    if (!text) return;
+    try {
+      const result = await sendMaskedTextToAgent(targetId, text);
+      if (!result.ok) errorMessage.set($t('splitPane.sendMaskedFailed'));
+    } catch (error) {
+      errorMessage.set(`${$t('splitPane.sendMaskedFailed')} ${error?.message || error}`);
+    }
+  }
+
+  // Selection in the agent's pane → another pane, placeholders translated
+  // back (bracketed paste, no Enter).
+  async function ctxPasteUnmasked(term, targetId) {
+    const text = term.terminal?.getSelection?.() || '';
+    closeContextMenu();
+    if (!text) return;
+    try {
+      const result = await pasteUnmaskedFromAgent(term.id, targetId, text);
+      if (result.unknown.length > 0) errorMessage.set($t('splitPane.pasteUnknownPlaceholders', { names: result.unknown.join(', ') }));
+      else if (!result.ok) errorMessage.set($t('splitPane.pasteUnmaskedFailed'));
+    } catch (error) {
+      errorMessage.set(`${$t('splitPane.pasteUnmaskedFailed')} ${error?.message || error}`);
+    }
   }
 
   function ctxBackground(term) {
@@ -501,15 +532,25 @@
                 {$t('splitPane.ctxCopyJoined')}
               </button>
             {/if}
-            {#if contextMenu.agentTargets.length === 1}
-              <button class="ctx-item" role="menuitem" on:click={() => ctxSendToAgent(term, contextMenu.agentTargets[0].id)} title={$t('splitPane.ctxSendToAgentTitle')}>
-                {$t('splitPane.ctxSendToAgent')} → {contextMenu.agentTargets[0].label} · {contextMenu.agentTargets[0].name}
-              </button>
-            {:else if contextMenu.agentTargets.length > 1}
+            {#if contextMenu.agentTargets.length > 0}
+              <div class="ctx-hint">{$t('splitPane.ctxSendToAgentMasked')}</div>
+              {#each contextMenu.agentTargets as target (target.id)}
+                <button class="ctx-item ctx-item-sub" role="menuitem" on:click={() => ctxSendToAgentMasked(term, target.id)} title={$t('splitPane.ctxSendToAgentMaskedTitle')}>
+                  → {target.label} · {target.name}
+                </button>
+              {/each}
               <div class="ctx-hint">{$t('splitPane.ctxSendToAgent')}</div>
               {#each contextMenu.agentTargets as target (target.id)}
                 <button class="ctx-item ctx-item-sub" role="menuitem" on:click={() => ctxSendToAgent(term, target.id)} title={$t('splitPane.ctxSendToAgentTitle')}>
                   → {target.label} · {target.name}
+                </button>
+              {/each}
+            {/if}
+            {#if contextMenu.pasteTargets.length > 0}
+              <div class="ctx-hint">{$t('splitPane.ctxPasteUnmasked')}</div>
+              {#each contextMenu.pasteTargets as target (target.id)}
+                <button class="ctx-item ctx-item-sub" role="menuitem" on:click={() => ctxPasteUnmasked(term, target.id)} title={$t('splitPane.ctxPasteUnmaskedTitle')}>
+                  → {target.name}
                 </button>
               {/each}
             {/if}

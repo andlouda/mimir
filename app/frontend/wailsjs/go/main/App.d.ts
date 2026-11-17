@@ -117,6 +117,8 @@ export function GetCurrentDirectory():Promise<string>;
 
 export function GetCurrentVersion():Promise<string>;
 
+export function GetDLPSettingsJSON():Promise<string>;
+
 export function GetFileContent(arg1:string):Promise<string>;
 
 export function GetFunctionCatalogJSON():Promise<string>;
@@ -246,6 +248,8 @@ export function ListTmuxSessionsJSON():Promise<string>;
 export function ListTranscripts():Promise<Array<main.TranscriptListEntry>>;
 
 export function LockSecrets():Promise<void>;
+
+export function MaskTextForAgentJSON(arg1:number,arg2:string):Promise<string>;
 
 export function NotifyDesktop(arg1:number,arg2:string,arg3:string):Promise<void>;
 
@@ -379,6 +383,8 @@ export function ToggleFavorite(arg1:string):Promise<Array<template.Template>>;
 
 export function UnlinkAgentWorkspaceSessionJSON(arg1:string):Promise<string>;
 
+export function UnmaskTextFromAgentJSON(arg1:number,arg2:string):Promise<string>;
+
 export function UnlockSecrets(arg1:string):Promise<void>;
 
 export function UnlockSecretsFIDO(arg1:string):Promise<void>;
@@ -386,6 +392,8 @@ export function UnlockSecretsFIDO(arg1:string):Promise<void>;
 export function UpdateAISettingsJSON(arg1:string):Promise<string>;
 
 export function UpdateAIToolFlowConfigJSON(arg1:string):Promise<string>;
+
+export function UpdateDLPSettingsJSON(arg1:string):Promise<string>;
 
 export function UpdateSSHProfile(arg1:string):Promise<Array<ssh.Profile>>;
 
