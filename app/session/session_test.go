@@ -3,6 +3,7 @@ package session
 import (
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -119,5 +120,42 @@ func TestSaveEmptySession(t *testing.T) {
 	}
 	if loaded.Terminals != nil {
 		t.Errorf("Expected nil terminals for empty session, got %v", loaded.Terminals)
+	}
+}
+
+func TestEmptySaveKeepsThePreviousSession(t *testing.T) {
+	setTestConfigHome(t)
+	filePath, err := getSessionFilePath()
+	if err != nil {
+		t.Fatalf("getSessionFilePath failed: %v", err)
+	}
+	previous := filePath + previousSessionSuffix
+
+	full := SessionData{Terminals: []TerminalState{{Type: "ssh", Name: "SSH: host", TmuxSessionName: "mimir-ssh-1"}}, Layout: "{}"}
+	if err := SaveSession(full); err != nil {
+		t.Fatalf("SaveSession failed: %v", err)
+	}
+	if _, err := os.Stat(previous); !os.IsNotExist(err) {
+		t.Fatalf("a non-empty save must not write a previous copy, stat err = %v", err)
+	}
+
+	if err := SaveSession(SessionData{}); err != nil {
+		t.Fatalf("empty SaveSession failed: %v", err)
+	}
+	kept, err := os.ReadFile(previous)
+	if err != nil {
+		t.Fatalf("previous session was not kept: %v", err)
+	}
+	if !strings.Contains(string(kept), "mimir-ssh-1") {
+		t.Fatalf("previous copy does not hold the old session: %s", kept)
+	}
+
+	// A second empty save must not replace the copy with an empty one.
+	if err := SaveSession(SessionData{}); err != nil {
+		t.Fatalf("second empty SaveSession failed: %v", err)
+	}
+	again, err := os.ReadFile(previous)
+	if err != nil || string(again) != string(kept) {
+		t.Fatalf("previous copy changed after a second empty save (err %v)", err)
 	}
 }
