@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"mimir/appdir"
 	"mimir/safeio"
 	"mimir/ssh"
 	"os"
@@ -18,11 +19,11 @@ import (
 const tmuxModeFileName = "tmux_mode"
 
 func tmuxModePath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("tmux mode config dir: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", tmuxModeFileName), nil
+	return filepath.Join(appHome, tmuxModeFileName), nil
 }
 
 // loadTmuxIntegrationMode reads the persisted mode; missing or unreadable

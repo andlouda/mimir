@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"mimir/appdir"
 	"mimir/safeio"
 	"os"
 	"path/filepath"
@@ -29,11 +30,11 @@ const (
 )
 
 func prefPath(name string) (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(configDir, "mimir", name), nil
+	return filepath.Join(appHome, name), nil
 }
 
 func readPref(name, fallback string) string {

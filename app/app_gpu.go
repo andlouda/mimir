@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"mimir/appdir"
 	"mimir/safeio"
 	"os"
 	"path/filepath"
@@ -33,11 +34,11 @@ func normalizeGPUPolicy(p string) string {
 }
 
 func gpuPolicyPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("gpu policy config dir: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", gpuPolicyFileName), nil
+	return filepath.Join(appHome, gpuPolicyFileName), nil
 }
 
 // loadGPUPolicy reads the persisted policy; missing or unreadable files
@@ -98,11 +99,11 @@ func normalizeWaylandFix(v string) string {
 }
 
 func waylandFixPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("wayland fix config dir: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", waylandFixFileName), nil
+	return filepath.Join(appHome, waylandFixFileName), nil
 }
 
 func loadWaylandFix() string {

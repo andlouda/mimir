@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"mimir/appdir"
 	"mimir/safeio"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -57,11 +58,11 @@ type BackgroundImage struct {
 }
 
 func backgroundsDir() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("backgrounds config dir: %w", err)
 	}
-	dir := filepath.Join(configDir, "mimir", backgroundsDirName)
+	dir := filepath.Join(appHome, backgroundsDirName)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", fmt.Errorf("create backgrounds dir: %w", err)
 	}

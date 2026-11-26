@@ -12,6 +12,7 @@ import (
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 
+	"mimir/appdir"
 	"mimir/safeio"
 )
 
@@ -41,11 +42,11 @@ type KnownHostStore struct {
 
 // NewKnownHostStore creates or opens the known_hosts file.
 func NewKnownHostStore() (*KnownHostStore, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config dir: %w", err)
 	}
-	dir := filepath.Join(configDir, "mimir")
+	dir := appHome
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create config dir: %w", err)
 	}

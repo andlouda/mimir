@@ -12,6 +12,8 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
+
+	"mimir/appdir"
 )
 
 // CommandEntry represents a single command recorded from a terminal session.
@@ -84,11 +86,11 @@ type Store struct {
 }
 
 func configDir() string {
-	configDir, err := os.UserConfigDir()
+	home, err := appdir.Home()
 	if err != nil {
 		return filepath.Join(".", "mimir")
 	}
-	return filepath.Join(configDir, "mimir")
+	return home
 }
 
 // NewStore opens (or creates) the command history database.

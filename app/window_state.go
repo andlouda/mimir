@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"mimir/appdir"
 	"mimir/safeio"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -82,11 +83,11 @@ func fitWindowToScreen(width, height int, screen screenSize) (int, int) {
 }
 
 func windowStatePath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(configDir, "mimir", windowStateFile), nil
+	return filepath.Join(appHome, windowStateFile), nil
 }
 
 // loadWindowState returns the zero state for a missing or unreadable file;

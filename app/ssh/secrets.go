@@ -18,6 +18,7 @@ import (
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/hkdf"
 
+	"mimir/appdir"
 	"mimir/safeio"
 )
 
@@ -155,11 +156,11 @@ func NewSecretStore() (*SecretStore, error) {
 	}
 
 	store.backend = BackendEncryptedFile
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user config directory: %w", err)
 	}
-	appDir := filepath.Join(configDir, "mimir")
+	appDir := appHome
 	if err := os.MkdirAll(appDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}

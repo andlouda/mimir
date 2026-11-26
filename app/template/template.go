@@ -14,6 +14,7 @@ import (
 	"sync"
 	"text/template"
 
+	"mimir/appdir"
 	"mimir/safeio"
 )
 
@@ -104,11 +105,11 @@ func NewManagerWithUserDir(embeddedTemplates fs.FS, userTemplateDir string) *Man
 }
 
 func defaultUserTemplateDir() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil || strings.TrimSpace(configDir) == "" {
-		configDir = os.TempDir()
+	appHome, err := appdir.Home()
+	if err != nil || strings.TrimSpace(appHome) == "" {
+		appHome = filepath.Join(os.TempDir(), "mimir")
 	}
-	return filepath.Join(configDir, "mimir", "templates")
+	return filepath.Join(appHome, "templates")
 }
 
 func normalizeTemplate(tmpl *Template) {

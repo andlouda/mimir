@@ -18,6 +18,7 @@ import (
 
 	"mimir/activitylog"
 	"mimir/aiflow"
+	"mimir/appdir"
 	"mimir/safeio"
 	mimirssh "mimir/ssh"
 	"mimir/template"
@@ -192,12 +193,12 @@ func normalizeAISettings(settings AISettings) AISettings {
 }
 
 func getAISettingsFilePath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user config directory: %w", err)
 	}
 
-	appConfigDir := filepath.Join(configDir, "mimir")
+	appConfigDir := appHome
 	if err := os.MkdirAll(appConfigDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create application config directory: %w", err)
 	}

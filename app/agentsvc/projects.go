@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"mimir/appdir"
 	"mimir/safeio"
 	"os"
 	"path/filepath"
@@ -118,11 +119,11 @@ const (
 var annotationsMu sync.Mutex
 
 func agentAnnotationsPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("config dir: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", annotationsFile), nil
+	return filepath.Join(appHome, annotationsFile), nil
 }
 
 // loadAgentAnnotations reads the notes; a missing file means none. A file

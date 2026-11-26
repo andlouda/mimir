@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"mimir/appdir"
 	"mimir/executil"
 	"mimir/history"
 	"mimir/recording"
@@ -234,11 +235,11 @@ func writeMimirShellFile(name string, content string) (string, error) {
 
 // isHistoryEnabled checks if the user has opted in to command history tracking.
 func isHistoryEnabled() bool {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return false
 	}
-	_, err = os.Stat(filepath.Join(configDir, "mimir", "history_enabled"))
+	_, err = os.Stat(filepath.Join(appHome, "history_enabled"))
 	return err == nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mimir/appdir"
 	"mimir/executil"
 	"net/http"
 	"os"
@@ -488,11 +489,11 @@ func aggBinName() string {
 
 // mimirBinDir returns the private mimir binary directory, creating it if needed.
 func mimirBinDir() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("recording: config dir: %w", err)
 	}
-	dir := filepath.Join(configDir, "mimir", "bin")
+	dir := filepath.Join(appHome, "bin")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", fmt.Errorf("recording: create bin dir: %w", err)
 	}

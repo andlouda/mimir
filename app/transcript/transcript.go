@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"mimir/appdir"
 	"mimir/safeio"
 )
 
@@ -96,11 +97,11 @@ type Content struct {
 var resumeIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
 func transcriptsDir() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user config directory: %w", err)
 	}
-	dir := filepath.Join(configDir, "mimir", "transcripts")
+	dir := filepath.Join(appHome, "transcripts")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create transcript directory: %w", err)
 	}

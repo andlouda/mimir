@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"mimir/appdir"
 	"mimir/safeio"
 	"mimir/tools"
 	"mimir/workflow"
@@ -189,11 +190,11 @@ func writableConfigPath() (string, error) {
 }
 
 func userConfigPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user config directory: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", userConfigFileName), nil
+	return filepath.Join(appHome, userConfigFileName), nil
 }
 
 func (c *Config) normalize() {

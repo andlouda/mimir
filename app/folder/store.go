@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"mimir/appdir"
 	"mimir/safeio"
 )
 
@@ -28,11 +29,11 @@ type FolderStore struct {
 
 // NewFolderStore creates a FolderStore and loads existing folders from disk.
 func NewFolderStore() (*FolderStore, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user config directory: %w", err)
 	}
-	appDir := filepath.Join(configDir, "mimir")
+	appDir := appHome
 	if err := os.MkdirAll(appDir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}

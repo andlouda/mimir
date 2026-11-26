@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"mimir/agentsvc"
+	"mimir/appdir"
 	"mimir/executil"
 	"os"
 	"os/exec"
@@ -223,8 +224,8 @@ func (a *App) startup(ctx context.Context) {
 	a.startTelemetryListener()
 
 	// Remove orphaned atomic-write temp files left by a previous crash/force-quit.
-	if configDir, cfgErr := os.UserConfigDir(); cfgErr == nil {
-		if removed, sweepErr := safeio.SweepStaleTempFiles(filepath.Join(configDir, "mimir"), time.Hour); sweepErr != nil {
+	if appHome, cfgErr := appdir.Home(); cfgErr == nil {
+		if removed, sweepErr := safeio.SweepStaleTempFiles(appHome, time.Hour); sweepErr != nil {
 			log.Printf("Failed to sweep stale temp files: %v", sweepErr)
 		} else if removed > 0 {
 			log.Printf("Removed %d orphaned temp file(s)", removed)

@@ -72,3 +72,26 @@ func TestUserDirectoriesAreRedirected(t *testing.T) {
 		t.Fatalf("home dir %q is not inside the test sandbox", home)
 	}
 }
+
+// TestMimirHomeRedirectsTheStores checks the override end to end: with
+// MIMIR_HOME set, stores write there and nowhere under the config dir.
+func TestMimirHomeRedirectsTheStores(t *testing.T) {
+	configDir := freshConfigDir(t)
+	scratch := filepath.Join(t.TempDir(), "scratch-home")
+	t.Setenv("MIMIR_HOME", scratch)
+
+	app := &App{}
+	if _, err := app.UpdateDLPSettingsJSON(`{"localModelEnabled":false}`); err != nil {
+		t.Fatalf("UpdateDLPSettingsJSON: %v", err)
+	}
+	app.logAIInteraction(AIInteractionLogEntry{Mode: "test"})
+
+	for _, name := range []string{"dlp_settings.json", "ai_interactions.jsonl"} {
+		if _, err := os.Stat(filepath.Join(scratch, name)); err != nil {
+			t.Errorf("%s was not written to MIMIR_HOME: %v", name, err)
+		}
+		if _, err := os.Stat(filepath.Join(configDir, name)); err == nil {
+			t.Errorf("%s was also written to the default directory", name)
+		}
+	}
+}

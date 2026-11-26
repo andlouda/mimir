@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"mimir/appdir"
 	"mimir/safeio"
 )
 
@@ -36,11 +37,11 @@ type SessionData struct {
 
 // getSessionFilePath returns the absolute path to the session file.
 func getSessionFilePath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user config directory: %w", err)
 	}
-	appConfigDir := filepath.Join(configDir, "mimir")
+	appConfigDir := appHome
 	if err := os.MkdirAll(appConfigDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create application config directory: %w", err)
 	}

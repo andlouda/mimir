@@ -3,6 +3,8 @@ package terminal
 import (
 	"os"
 	"path/filepath"
+
+	"mimir/appdir"
 )
 
 // AgentDetectionDisabledFile marks that the user turned agent detection off
@@ -14,10 +16,10 @@ const AgentDetectionDisabledFile = "agent_detection_disabled"
 // tmux (PowerShell, cmd, tmux mode "off") the hook's cwd beacon is the only
 // way to learn which project the agent runs in.
 func agentDetectionEnabled() bool {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return true
 	}
-	_, err = os.Stat(filepath.Join(configDir, "mimir", AgentDetectionDisabledFile))
+	_, err = os.Stat(filepath.Join(appHome, AgentDetectionDisabledFile))
 	return err != nil
 }

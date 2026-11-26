@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"time"
 
 	"mimir/activitylog"
+	"mimir/appdir"
 	"mimir/safeio"
 	"mimir/timeline"
 )
@@ -85,20 +85,20 @@ func newTelemetryToken() string {
 }
 
 func telemetrySettingsPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user config directory: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", telemetrySettingsFileName), nil
+	return filepath.Join(appHome, telemetrySettingsFileName), nil
 }
 
 // timelineDir is where the per-session JSONL files live.
 func timelineDir() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(configDir, "mimir", "agent-timeline"), nil
+	return filepath.Join(appHome, "agent-timeline"), nil
 }
 
 // loadTelemetrySettings reads the file; a missing file means defaults, an

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mimir/appdir"
 	"mimir/executil"
 	"mimir/safeio"
 	"mimir/ssh"
@@ -33,11 +34,11 @@ type dotEnvResult struct {
 }
 
 func dotEnvViewerConsentPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("dotenv viewer config dir: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", "dotenv_viewer_enabled"), nil
+	return filepath.Join(appHome, "dotenv_viewer_enabled"), nil
 }
 
 // IsDotEnvViewerEnabled reports whether the user has opted in to the secure
