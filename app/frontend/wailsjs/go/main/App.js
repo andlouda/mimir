@@ -622,6 +622,10 @@ export function SavePlaybookJSON(arg1, arg2) {
   return window['go']['main']['App']['SavePlaybookJSON'](arg1, arg2);
 }
 
+export function SaveSSHPaneMeta(arg1, arg2) {
+  return window['go']['main']['App']['SaveSSHPaneMeta'](arg1, arg2);
+}
+
 export function SaveSSHProfile(arg1) {
   return window['go']['main']['App']['SaveSSHProfile'](arg1);
 }

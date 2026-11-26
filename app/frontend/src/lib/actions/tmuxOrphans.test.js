@@ -78,3 +78,40 @@ describe('scheduled refresh', () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('stored arrangement', () => {
+  test('panes that come back with a place are put together as one block', async () => {
+    const { layoutTree } = await import('../stores/terminalStore.js');
+    const { restoreArrangement, openRecoverableSessions: openAll } = await import('./tmuxSessionActions.js');
+    const leaf = (terminalId) => ({ type: 'leaf', terminalId });
+    const withPlace = {
+      kind: 'ssh',
+      profileId: 'p1',
+      sessions: [
+        row('mimir-ssh-p1-a', { meta: { v: 1, name: 'top', path: [{ d: 'v', r: 0.3, i: 0 }] } }),
+        row('mimir-ssh-p1-b', { meta: { v: 1, name: 'bottom', path: [{ d: 'v', r: 0.3, i: 1 }] } }),
+      ],
+    };
+    // A local pane is already there; each reopened pane is appended as a column first.
+    layoutTree.set(leaf(1));
+    let next = 10;
+    const open = vi.fn(async () => {
+      const id = next++;
+      layoutTree.update((tree) => ({ type: 'split', direction: 'horizontal', ratio: 0.5, children: [tree, leaf(id)] }));
+      return id;
+    });
+    expect(await openAll(withPlace, { open })).toBe(2);
+    expect(get(layoutTree)).toEqual({
+      type: 'split',
+      direction: 'horizontal',
+      ratio: 0.5,
+      children: [leaf(1), { type: 'split', direction: 'vertical', ratio: 0.3, children: [leaf(10), leaf(11)] }],
+    });
+
+    // Contradicting places change nothing.
+    const before = get(layoutTree);
+    expect(restoreArrangement([{ id: 10, path: [] }, { id: 11, path: [] }])).toBe(false);
+    expect(get(layoutTree)).toBe(before);
+    expect(restoreArrangement([{ id: 10, path: [] }])).toBe(false);
+  });
+});

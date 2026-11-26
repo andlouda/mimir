@@ -471,6 +471,8 @@ export default {
   sshProfile: {
     agentHost: 'Agent-Host: in diesen Terminals nach Claude Code & Co. suchen',
     agentHostTitle: 'Nur damit sucht Mimir auf dem Host nach Coding-Agents und liest ihre Session-Dateien per SFTP (installiert wird dort nichts). Aus: ein normales Terminal.',
+    layoutOnHost: 'Pane-Namen und Anordnung auf diesem Host merken',
+    layoutOnHostTitle: 'Mimir speichert Name und Platz jeder Pane an ihrer tmux-Sitzung auf dem Host (als tmux-Option, keine Datei). Geht die lokale Sitzungsdatei verloren, kommen die Panes dieses Hosts mit Namen und Anordnung zurück. Aus: auf dem Host wird nichts gespeichert. Braucht tmux.',
     titleList: 'SSH-Profile',
     titleNew: 'Neues SSH-Profil',
     titleEdit: 'SSH-Profil bearbeiten',

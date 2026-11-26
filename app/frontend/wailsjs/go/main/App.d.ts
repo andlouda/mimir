@@ -319,6 +319,8 @@ export function SavePastedImage(arg1:number,arg2:string,arg3:string):Promise<str
 
 export function SavePlaybookJSON(arg1:string,arg2:string):Promise<string>;
 
+export function SaveSSHPaneMeta(arg1:number,arg2:string):Promise<void>;
+
 export function SaveSSHProfile(arg1:string):Promise<Array<ssh.Profile>>;
 
 export function SaveTemplate(arg1:string):Promise<Array<template.Template>>;

@@ -471,6 +471,8 @@ export default {
   sshProfile: {
     agentHost: 'Agent host: look for Claude Code & co. in these terminals',
     agentHostTitle: 'Only with this on does Mimir probe the host for coding agents and read their session files over SFTP (nothing is installed there). Off: a plain terminal.',
+    layoutOnHost: 'Remember pane names and arrangement on this host',
+    layoutOnHostTitle: 'Mimir stores the name and place of each pane with its tmux session on the host (as a tmux option, no file). If the local session file is lost, this host\'s panes come back with their names and arrangement. Off: nothing is stored on the host. Needs tmux.',
     titleList: 'SSH Profiles',
     titleNew: 'New SSH Profile',
     titleEdit: 'Edit SSH Profile',

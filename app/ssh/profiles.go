@@ -35,6 +35,11 @@ type Profile struct {
 	// SFTP, approvals). Off by default so a plain server stays a plain
 	// terminal.
 	AgentHost bool   `json:"agentHost,omitempty"`
+	// LayoutOnHost keeps each pane's name and place in the window with the
+	// tmux session it shows on this host (a tmux user option, no file), so
+	// the panes can come back when the local session file is lost. Off by
+	// default: nothing is stored on a host that did not ask for it.
+	LayoutOnHost bool `json:"layoutOnHost,omitempty"`
 	RCMode    string `json:"rcMode,omitempty"` // "off", "remote-default", "mimir", "local-snippet"
 	RCSnippet string `json:"rcSnippet,omitempty"`
 }

@@ -8,7 +8,8 @@ import { tick } from 'svelte';
 import { KillSSHTmuxSessionByName, KillTmuxSession, ListTmuxSessionsJSON, StartSSHTerminalSession, StartTerminalWithOptions } from '../backend.js';
 import { activeTerminalId, layoutTree, terminals } from '../stores/terminalStore.js';
 import { currentPage, errorMessage, orphanSessionCount, showTmuxSessions } from '../stores/uiStore.js';
-import { appendLeaf } from '../terminals/layoutTree.js';
+import { appendLeaf, removeLeafFromTree } from '../terminals/layoutTree.js';
+import { treeFromPaths } from '../terminals/hostLayout.js';
 import { focusTerminal } from './keyboardShortcuts.js';
 import { persistTerminalState } from './sessionActions.js';
 import { createTerminalInstance, reinitializeTerminals, terminalToForeground } from './terminalActions.js';
@@ -94,7 +95,8 @@ export async function openTmuxSession(group, row, deps = {}) {
       await tick();
     }
     layoutTree.set(appendLeaf(get(layoutTree), { type: 'leaf', terminalId: id }));
-    const name = ssh ? `SSH: ${group.label}` : `${String(type).toUpperCase()} ${get(terminals).length + 1}`;
+    // A profile that keeps placement on the host hands the pane's name back.
+    const name = row.meta?.name || (ssh ? `SSH: ${group.label}` : `${String(type).toUpperCase()} ${get(terminals).length + 1}`);
     const term = await createInstance(id, type, name, false, ssh ? group.profileId : '', false, row.name, '', 'fresh');
     if (!term) return null; // closed while it was still starting
     activeTerminalId.set(id);
@@ -174,11 +176,32 @@ export function scheduleOrphanSessionRefresh(delayMs = 5000, refresh = refreshOr
   }, delayMs);
 }
 
+/**
+ * Puts panes that came back with a stored place into the arrangement they
+ * had among themselves. Each was first appended as a plain column; they are
+ * taken out again and added as one block. Contradicting places (stored at
+ * different times) leave the plain columns as they are.
+ */
+export function restoreArrangement(placed) {
+  if (!Array.isArray(placed) || placed.length < 2) return false;
+  const block = treeFromPaths(placed);
+  if (!block) return false;
+  let tree = get(layoutTree);
+  for (const { id } of placed) tree = removeLeafFromTree(tree, id);
+  layoutTree.set(appendLeaf(tree, block));
+  return true;
+}
+
 /** Opens every recoverable session of a group, one after the other. Returns how many opened. */
 export async function openRecoverableSessions(group, { open = openTmuxSession } = {}) {
   let opened = 0;
+  const placed = []; // panes that came back with a stored place
   for (const row of recoverableSessions(group)) {
-    if (await open(group, row)) opened += 1;
+    const id = await open(group, row);
+    if (!id) continue;
+    opened += 1;
+    if (Array.isArray(row.meta?.path)) placed.push({ id, path: row.meta.path });
   }
+  restoreArrangement(placed);
   return opened;
 }
