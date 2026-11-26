@@ -7,7 +7,7 @@ import { get } from 'svelte/store';
 import { tick } from 'svelte';
 import { KillSSHTmuxSessionByName, KillTmuxSession, ListTmuxSessionsJSON, StartSSHTerminalSession, StartTerminalWithOptions } from '../backend.js';
 import { activeTerminalId, layoutTree, terminals } from '../stores/terminalStore.js';
-import { currentPage, errorMessage, showTmuxSessions } from '../stores/uiStore.js';
+import { currentPage, errorMessage, orphanSessionCount, showTmuxSessions } from '../stores/uiStore.js';
 import { appendLeaf } from '../terminals/layoutTree.js';
 import { focusTerminal } from './keyboardShortcuts.js';
 import { persistTerminalState } from './sessionActions.js';
@@ -128,4 +128,57 @@ export function sessionAge(created, now = Date.now()) {
   const hours = Math.floor(minutes / 60);
   if (hours < 48) return `${hours} h`;
   return `${Math.floor(hours / 24)} d`;
+}
+
+// Sessions that only keep running on a host or locally, created by Mimir
+// and shown by nothing: what a lost session file, a crash or a dropped
+// connection leaves behind. The sidebar counts them so they are noticed
+// without opening the overview, and the overview can bring a whole group
+// back at once.
+
+/** The sessions of a group that can be brought back into panes. */
+export function recoverableSessions(group) {
+  return (group?.sessions || []).filter((row) => row.mimir && sessionStatus(row) === 'orphan');
+}
+
+export function recoverableCount(groups) {
+  return (groups || []).reduce((n, g) => n + recoverableSessions(g).length, 0);
+}
+
+/**
+ * Updates the sidebar count. Asking is read-only and uses connections that
+ * panes already hold; a failed query shows no count rather than a stale one.
+ */
+export async function refreshOrphanSessionCount({ load = loadTmuxSessions } = {}) {
+  let count = 0;
+  try {
+    count = recoverableCount(await load());
+  } catch {
+    count = 0;
+  }
+  orphanSessionCount.set(count);
+  return count;
+}
+
+let orphanRefreshTimer = null;
+
+/**
+ * Refreshes the count a little later; repeated calls collapse into one. A
+ * pane needs a moment to log in before its host can be asked.
+ */
+export function scheduleOrphanSessionRefresh(delayMs = 5000, refresh = refreshOrphanSessionCount) {
+  if (orphanRefreshTimer) clearTimeout(orphanRefreshTimer);
+  orphanRefreshTimer = setTimeout(() => {
+    orphanRefreshTimer = null;
+    refresh();
+  }, delayMs);
+}
+
+/** Opens every recoverable session of a group, one after the other. Returns how many opened. */
+export async function openRecoverableSessions(group, { open = openTmuxSession } = {}) {
+  let opened = 0;
+  for (const row of recoverableSessions(group)) {
+    if (await open(group, row)) opened += 1;
+  }
+  return opened;
 }

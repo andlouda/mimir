@@ -11,8 +11,11 @@
     canOpenSession,
     killTmuxSession,
     loadTmuxSessions,
+    openRecoverableSessions,
     openTmuxSession,
     orphanCount,
+    recoverableSessions,
+    refreshOrphanSessionCount,
     sessionAge,
     sessionStatus,
     showSessionPane,
@@ -39,9 +42,18 @@
       groups = [];
     }
     loading = false;
+    refreshOrphanSessionCount({ load: async () => groups });
   }
 
   onMount(refresh);
+
+  // Brings back every session of a group that lost its pane.
+  async function openAll(group) {
+    busy = `all:${group.kind}:${group.profileId || ''}`;
+    await openRecoverableSessions(group);
+    busy = '';
+    refreshOrphanSessionCount();
+  }
 
   async function open(group, row) {
     busy = keyOf(group, row);
@@ -90,6 +102,9 @@
           <h4>
             {group.kind === 'ssh' ? `SSH: ${group.label}` : $t('tmuxSessions.local')}
             <small>{group.sessions.length}</small>
+            {#if recoverableSessions(group).length > 1}
+              <button type="button" class="modal-primary-button tmux-sessions-open-all" disabled={busy !== ''} on:click={() => openAll(group)}>{$t('tmuxSessions.openAll', { count: recoverableSessions(group).length })}</button>
+            {/if}
           </h4>
           {#if group.error}
             <p class="tmux-sessions-note tmux-sessions-error">{group.error}</p>
@@ -176,6 +191,7 @@
     gap: 0.5rem;
   }
 
+  .tmux-sessions-open-all { margin-left: auto; font-size: 0.75rem; padding: 0.15rem 0.5rem; }
   .tmux-sessions-group h4 small {
     color: var(--text-secondary);
     font-weight: 400;

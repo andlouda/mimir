@@ -37,7 +37,8 @@
   // Read from the store directly — the state is pushed by the backend's
   // session-file watcher and does not belong to any single page.
   import { agentStates } from './stores/agentStore.js';
-  import { showTmuxSessions } from './stores/uiStore.js';
+  import { orphanSessionCount, showTmuxSessions } from './stores/uiStore.js';
+  import { scheduleOrphanSessionRefresh } from './actions/tmuxSessionActions.js';
 
   // SSH panes are probed for agents only when their profile marks the host
   // as an agent host; without that an agent on the host stays invisible and
@@ -53,6 +54,10 @@
 
   export let currentPage = 'terminals';
   export let terminals = [];
+  // Sessions without a pane can appear whenever panes come, go, connect
+  // or drop; ask again a moment after any such change.
+  $: paneSignature = terminals.map((term) => `${term.id}:${term.disconnected ? 0 : 1}`).join(',');
+  $: scheduleOrphanSessionRefresh(5000, undefined, paneSignature);
   export let sshProfiles = [];
   export let customFolders = [];
   export let groups = [];                 // grouped sidebar terminals
@@ -294,7 +299,7 @@
         aria-expanded={sshNavOpen}
       >
         <span class="nav-icon">&#x2192;</span> {$t('sidebar.sshHosts')}
-        <button class="sidebar-add-btn" on:click|stopPropagation={() => { showTmuxSessions.set(true); }} title={$t('sidebar.tmuxSessions')}>&#x2261;</button>
+        <button class="sidebar-add-btn" class:sidebar-orphans={$orphanSessionCount > 0} on:click|stopPropagation={() => { showTmuxSessions.set(true); }} title={$orphanSessionCount > 0 ? $t('sidebar.tmuxSessionsOrphans', { count: $orphanSessionCount }) : $t('sidebar.tmuxSessions')}>&#x2261;{#if $orphanSessionCount > 0}<span class="sidebar-orphan-count">{$orphanSessionCount}</span>{/if}</button>
         <button class="sidebar-add-btn" on:click|stopPropagation={() => { openSSHProfilePicker(); }} title={$t('sidebar.manageSSH')}>+</button>
         <span class="sidebar-disclosure">{sshNavOpen ? '▾' : '▸'}</span>
       </div>

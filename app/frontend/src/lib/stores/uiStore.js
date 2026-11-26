@@ -190,3 +190,6 @@ export const transcriptViewerState = writable(null);
 export const dotEnvViewerState = writable(null);
 // True while the tmux session overview is open (see actions/tmuxSessionActions.js).
 export const showTmuxSessions = writable(false);
+// tmux sessions Mimir created that no pane shows any more (see
+// actions/tmuxSessionActions.js); the sidebar shows the number.
+export const orphanSessionCount = writable(0);
