@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"time"
 
+	"mimir/appdir"
 	"mimir/safeio"
 )
 
@@ -24,11 +25,11 @@ type PendingUpdate struct {
 }
 
 func stagingDir() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("failed to get config dir: %w", err)
 	}
-	dir := filepath.Join(configDir, "mimir", "updates")
+	dir := filepath.Join(appHome, "updates")
 	if err := os.MkdirAll(filepath.Join(dir, "pending"), 0700); err != nil {
 		return "", fmt.Errorf("failed to create staging dir: %w", err)
 	}

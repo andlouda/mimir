@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"mimir/appdir"
 	"mimir/safeio"
 )
 
@@ -39,11 +40,11 @@ type NoteStore struct {
 
 // NewNoteStore creates a NoteStore backed by the user's private config dir.
 func NewNoteStore() (*NoteStore, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config dir: %w", err)
 	}
-	dir := filepath.Join(configDir, "mimir", "notes")
+	dir := filepath.Join(appHome, "notes")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("failed to create notes dir: %w", err)
 	}

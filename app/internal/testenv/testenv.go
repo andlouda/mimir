@@ -71,10 +71,12 @@ func Isolate(root string) error {
 	if err := os.Setenv("MIMIR_SECRET_BACKEND", "file"); err != nil {
 		return fmt.Errorf("set MIMIR_SECRET_BACKEND: %w", err)
 	}
-	// An explicit config path from the developer's shell would bypass the
-	// redirected directories.
-	if err := os.Unsetenv("MIMIR_AI_TOOL_FLOW_CONFIG"); err != nil {
-		return fmt.Errorf("unset MIMIR_AI_TOOL_FLOW_CONFIG: %w", err)
+	// Explicit paths from the developer's shell would bypass the redirected
+	// directories. MIMIR_HOME in particular may point at real data.
+	for _, name := range []string{"MIMIR_AI_TOOL_FLOW_CONFIG", "MIMIR_HOME"} {
+		if err := os.Unsetenv(name); err != nil {
+			return fmt.Errorf("unset %s: %w", name, err)
+		}
 	}
 	return nil
 }

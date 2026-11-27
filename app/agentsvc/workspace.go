@@ -3,19 +3,19 @@ package agentsvc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"mimir/agents"
 	"mimir/agentworkspace"
+	"mimir/appdir"
 )
 
 func workspaceStore() (*agentworkspace.Store, error) {
-	dir, err := os.UserConfigDir()
+	dir, err := appdir.Home()
 	if err != nil {
 		return nil, err
 	}
-	return agentworkspace.NewStore(filepath.Join(dir, "mimir", "agent_workspace.json")), nil
+	return agentworkspace.NewStore(filepath.Join(dir, "agent_workspace.json")), nil
 }
 
 func workspaceJSON(data agentworkspace.Data, err error) (string, error) {

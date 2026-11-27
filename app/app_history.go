@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"mimir/appdir"
 	"mimir/safeio"
 	"os"
 	"path/filepath"
@@ -71,11 +72,11 @@ func (a *App) PurgeHistoryBefore(timestamp string) (int64, error) {
 }
 
 func historyConsentPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("history config dir: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", "history_enabled"), nil
+	return filepath.Join(appHome, "history_enabled"), nil
 }
 
 // IsHistoryTrackingEnabled returns whether the user has opted in to command history.

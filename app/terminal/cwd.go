@@ -3,6 +3,8 @@ package terminal
 import (
 	"os"
 	"path/filepath"
+
+	"mimir/appdir"
 )
 
 // setLastReportedCwd records the most recent working directory a session's
@@ -38,10 +40,10 @@ func shellHookConsent() bool {
 	if agentDetectionEnabled() {
 		return true
 	}
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return false
 	}
-	_, err = os.Stat(filepath.Join(configDir, "mimir", "dotenv_viewer_enabled"))
+	_, err = os.Stat(filepath.Join(appHome, "dotenv_viewer_enabled"))
 	return err == nil
 }

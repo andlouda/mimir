@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"mimir/appdir"
 	"mimir/safeio"
 
 	"gopkg.in/yaml.v3"
@@ -31,12 +32,12 @@ func NewPlaybookStore(dir string, defaults []Definition) *PlaybookStore {
 }
 
 func NewDefaultPlaybookStore() (*PlaybookStore, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user config directory: %w", err)
 	}
 
-	dir := filepath.Join(configDir, "mimir", playbooksDirName)
+	dir := filepath.Join(appHome, playbooksDirName)
 	return NewPlaybookStore(dir, DefaultPlaybooks()), nil
 }
 

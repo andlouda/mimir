@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mimir/appdir"
 	"mimir/executil"
 	"mimir/ssh"
 	"mimir/terminal"
@@ -188,11 +189,11 @@ func (a *Service) capturePane(terminalID int, terminalType string) (string, int)
 }
 
 func agentDetectionDisabledPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("agent detection config dir: %w", err)
 	}
-	return filepath.Join(configDir, "mimir", terminal.AgentDetectionDisabledFile), nil
+	return filepath.Join(appHome, terminal.AgentDetectionDisabledFile), nil
 }
 
 // IsAgentDetectionEnabled reports the persisted setting (default on).

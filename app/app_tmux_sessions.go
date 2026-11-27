@@ -37,6 +37,11 @@ type tmuxSessionRow struct {
 	Mimir bool `json:"mimir"`
 	// TerminalID is the Mimir pane attached to the session, 0 when none.
 	TerminalID int `json:"terminalId"`
+	// Meta is the pane's name and place as stored on the session (see
+	// app_pane_meta.go); only set for profiles that keep it on the host.
+	Meta *paneMeta `json:"meta,omitempty"`
+	// rawMeta is the stored value before validation.
+	rawMeta string
 }
 
 // tmuxSessionGroup is one place sessions live in.
@@ -56,7 +61,8 @@ const tmuxSessionFieldSep = "\t"
 // active window carries "11" in the fifth field.
 const tmuxSessionListFormat = "#{session_name}" + tmuxSessionFieldSep + "#{session_attached}" + tmuxSessionFieldSep +
 	"#{session_created}" + tmuxSessionFieldSep + "#{session_windows}" + tmuxSessionFieldSep +
-	"#{window_active}#{pane_active}" + tmuxSessionFieldSep + "#{pane_current_command}" + tmuxSessionFieldSep + "#{pane_current_path}"
+	"#{window_active}#{pane_active}" + tmuxSessionFieldSep + "#{pane_current_command}" + tmuxSessionFieldSep + "#{pane_current_path}" +
+	tmuxSessionFieldSep + "#{" + paneMetaOption + "}"
 
 // parseTmuxSessionList folds the per-pane lines into one row per session,
 // taking program and directory from the session's active pane.
@@ -64,7 +70,7 @@ func parseTmuxSessionList(output string) []tmuxSessionRow {
 	byName := map[string]*tmuxSessionRow{}
 	var order []string
 	for _, line := range strings.Split(strings.ReplaceAll(output, "\r\n", "\n"), "\n") {
-		fields := strings.SplitN(line, tmuxSessionFieldSep, 7)
+		fields := strings.SplitN(line, tmuxSessionFieldSep, 8)
 		if len(fields) < 7 || fields[0] == "" {
 			continue
 		}
@@ -74,6 +80,9 @@ func parseTmuxSessionList(output string) []tmuxSessionRow {
 			row.Attached, _ = strconv.Atoi(fields[1])
 			row.Created, _ = strconv.ParseInt(fields[2], 10, 64)
 			row.Windows, _ = strconv.Atoi(fields[3])
+			if len(fields) == 8 {
+				row.rawMeta = fields[7]
+			}
 			byName[fields[0]] = row
 			order = append(order, fields[0])
 		}
@@ -132,6 +141,7 @@ func (a *App) sshTmuxSessionGroups() []tmuxSessionGroup {
 				group.Label = p.Name
 			}
 		}
+		layoutOnHost := a.sshLayoutOnHost(profileID)
 		client := a.TerminalManager.GetSSHClient(id)
 		if client == nil {
 			group.Error = "no connection"
@@ -143,6 +153,13 @@ func (a *App) sshTmuxSessionGroups() []tmuxSessionGroup {
 		out, _ := ssh.RunCommand(client, "tmux list-panes -a -F "+executil.ShellQuote(tmuxSessionListFormat)+" 2>/dev/null; true", discoveryTimeout)
 		for _, row := range parseTmuxSessionList(out) {
 			row.Mimir = reusableSSHTmuxName(profileID, row.Name)
+			// Placement is read only where the profile asked for it and
+			// only from sessions Mimir created.
+			if row.Mimir && layoutOnHost {
+				if meta, ok := parsePaneMeta(row.rawMeta); ok {
+					row.Meta = &meta
+				}
+			}
 			row.TerminalID = paneOf[profileID+"\x00"+row.Name]
 			group.Sessions = append(group.Sessions, row)
 		}

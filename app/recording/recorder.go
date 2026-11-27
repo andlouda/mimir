@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"mimir/appdir"
 )
 
 // AsciicastHeader is the first line of an Asciicast v2 file.
@@ -155,11 +157,11 @@ func (r *Recorder) writeFrame(eventType, data string) {
 }
 
 func recordingsDir() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
-		configDir = "."
+		appHome = filepath.Join(".", "mimir")
 	}
-	dir := filepath.Join(configDir, "mimir", "recordings")
+	dir := filepath.Join(appHome, "recordings")
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", fmt.Errorf("recording: create dir: %w", err)
 	}

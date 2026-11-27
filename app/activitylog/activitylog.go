@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"sort"
 	"sync"
+
+	"mimir/appdir"
 )
 
 const (
@@ -86,12 +88,12 @@ func getLogPath(kind string) (string, error) {
 		return "", fmt.Errorf("unknown log kind: %s", kind)
 	}
 
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user config directory: %w", err)
 	}
 
-	appConfigDir := filepath.Join(configDir, "mimir")
+	appConfigDir := appHome
 	if err := os.MkdirAll(appConfigDir, 0700); err != nil {
 		return "", fmt.Errorf("failed to create application config directory: %w", err)
 	}

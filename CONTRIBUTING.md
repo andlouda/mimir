@@ -34,12 +34,25 @@ test(update): cover version comparison
 Before opening a PR:
 
 ```bash
+cd app
+go vet ./...
 go test ./...
 cd frontend
+npm test
 npm run build
 ```
 
-There is currently no configured frontend test runner, ESLint, Prettier, or golangci-lint gate. Do not claim those checks ran unless you added or configured them.
+There is currently no ESLint, Prettier, or golangci-lint gate. Do not claim those checks ran unless you added or configured them.
+
+### Keep away from your real data
+
+Mimir stores its data in `%APPDATA%\mimir`, `~/.config/mimir` or `~/Library/Application Support/mimir`. `MIMIR_HOME` selects another directory:
+
+```bash
+MIMIR_HOME=/tmp/mimir-scratch ./mimir      # PowerShell: $env:MIMIR_HOME = "$env:TEMP\mimir-scratch"
+```
+
+Use it for every development build on a machine where you also use the installed app. Tests are isolated by `internal/testenv`; a new test package needs `func TestMain(m *testing.M) { testenv.Main(m) }`, and new code asks `appdir.Home()` for the directory instead of `os.UserConfigDir()`.
 
 ## Go Style
 

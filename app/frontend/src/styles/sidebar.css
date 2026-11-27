@@ -525,3 +525,12 @@
     color: var(--accent);
     background: var(--accent-glow);
   }
+
+  /* tmux sessions that keep running without a pane: make the overview
+     button noticeable and show how many there are. */
+  .sidebar-add-btn.sidebar-orphans { color: var(--accent); }
+  .sidebar-orphan-count {
+    margin-left: 0.2rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }

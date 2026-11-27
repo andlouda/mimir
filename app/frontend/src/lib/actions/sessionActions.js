@@ -4,6 +4,7 @@ import { optional, SaveCurrentSession, UpdateTerminalState } from '../backend.js
 import { getTranscriptExcerpt } from '../transcript/transcriptApi.js';
 import { sanitizeTranscriptPreview } from '../util.js';
 import { serializeLayout } from '../terminals/layoutTree.js';
+import { scheduleHostLayoutSync } from './hostLayoutSync.js';
 
 let sessionSaveTimer = null;
 
@@ -41,6 +42,9 @@ export function enableLayoutPersistence() {
 }
 
 export function scheduleSessionSave(delayMs = 250) {
+  // Names and places changed with the session: profiles that keep them
+  // on the host get them a moment later.
+  scheduleHostLayoutSync();
   if (sessionSaveTimer) {
     clearTimeout(sessionSaveTimer);
   }

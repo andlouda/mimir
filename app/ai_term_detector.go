@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"mimir/appdir"
 	"mimir/dlp"
 	"mimir/safeio"
 )
@@ -66,11 +67,11 @@ func normalizeDLPSettings(s DLPSettings) DLPSettings {
 var dlpSettingsMu sync.Mutex
 
 func dlpSettingsPath() (string, error) {
-	configDir, err := os.UserConfigDir()
+	appHome, err := appdir.Home()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user config directory: %w", err)
 	}
-	dir := filepath.Join(configDir, "mimir")
+	dir := appHome
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("failed to create application config directory: %w", err)
 	}
